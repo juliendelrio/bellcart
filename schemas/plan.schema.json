@@ -8,6 +8,17 @@
       "description": "The scanned root, as given by the user.",
       "type": "string"
     },
+    "split": {
+      "description": "The budget the review mass was cut with, so a cut can be reproduced.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SplitBudget"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "totals": {
       "type": "object",
       "additionalProperties": {
@@ -79,6 +90,17 @@
         "stats": {
           "description": "Files covered by this node, excluding `overrides`.",
           "$ref": "#/$defs/Stats"
+        },
+        "unit": {
+          "description": "Set on `review` nodes that are one unit of decision: why the cut of\nthe review mass stopped here. `stats` are then what there is to judge.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnitReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -125,6 +147,43 @@
             "by"
           ]
         }
+      ]
+    },
+    "SplitBudget": {
+      "description": "How far the review mass is cut. Sizes are in bytes, depth counts\nfolders below the scan root.",
+      "type": "object",
+      "properties": {
+        "homogeneous_percent": {
+          "description": "A folder where one extension holds at least this share of the bytes\nis one unit, provided the other bytes are at most `split_above`.",
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "max_depth": {
+          "description": "Folders at this depth are not cut further.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "min_unit": {
+          "description": "A sub-folder smaller than this stays in its parent's rest.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "split_above": {
+          "description": "A folder at most this big is one unit.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "split_above",
+        "min_unit",
+        "homogeneous_percent",
+        "max_depth"
       ]
     },
     "Stats": {
@@ -196,6 +255,88 @@
       "required": [
         "bytes",
         "files"
+      ]
+    },
+    "UnitReason": {
+      "description": "Why a review folder is judged as one unit instead of being cut further.",
+      "oneOf": [
+        {
+          "description": "Small enough to judge as a whole.",
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "const": "small"
+            }
+          },
+          "required": [
+            "reason"
+          ]
+        },
+        {
+          "description": "Mostly files of one extension, and the rest is small.",
+          "type": "object",
+          "properties": {
+            "extension": {
+              "type": "string"
+            },
+            "percent": {
+              "description": "Share of the bytes, rounded down.",
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "reason": {
+              "type": "string",
+              "const": "homogeneous"
+            }
+          },
+          "required": [
+            "reason",
+            "extension",
+            "percent"
+          ]
+        },
+        {
+          "description": "Reached the depth limit of the cut.",
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "const": "depth-limit"
+            }
+          },
+          "required": [
+            "reason"
+          ]
+        },
+        {
+          "description": "No sub-folder big enough to be judged on its own.",
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "const": "leaf"
+            }
+          },
+          "required": [
+            "reason"
+          ]
+        },
+        {
+          "description": "What is left directly in a folder that was cut: its own files and\nits sub-folders too small to stand alone.",
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "const": "rest"
+            }
+          },
+          "required": [
+            "reason"
+          ]
+        }
       ]
     }
   }

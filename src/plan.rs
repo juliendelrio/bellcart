@@ -129,6 +129,58 @@ pub struct PlanNode {
     pub stats: Stats,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub overrides: Vec<PlanNode>,
+    /// Set on `review` nodes that are one unit of decision: why the cut of
+    /// the review mass stopped here. `stats` are then what there is to judge.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub unit: Option<UnitReason>,
+}
+
+/// Why a review folder is judged as one unit instead of being cut further.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "reason", rename_all = "kebab-case")]
+pub enum UnitReason {
+    /// Small enough to judge as a whole.
+    Small,
+    /// Mostly files of one extension, and the rest is small.
+    Homogeneous {
+        extension: String,
+        /// Share of the bytes, rounded down.
+        percent: u8,
+    },
+    /// Reached the depth limit of the cut.
+    DepthLimit,
+    /// No sub-folder big enough to be judged on its own.
+    Leaf,
+    /// What is left directly in a folder that was cut: its own files and
+    /// its sub-folders too small to stand alone.
+    Rest,
+}
+
+/// How far the review mass is cut. Sizes are in bytes, depth counts
+/// folders below the scan root.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SplitBudget {
+    /// A folder at most this big is one unit.
+    pub split_above: u64,
+    /// A sub-folder smaller than this stays in its parent's rest.
+    pub min_unit: u64,
+    /// A folder where one extension holds at least this share of the bytes
+    /// is one unit, provided the other bytes are at most `split_above`.
+    pub homogeneous_percent: u8,
+    /// Folders at this depth are not cut further.
+    pub max_depth: u32,
+}
+
+impl Default for SplitBudget {
+    /// Provisional values, to tune on real profiles.
+    fn default() -> Self {
+        Self {
+            split_above: 1 << 30,
+            min_unit: 100 << 20,
+            homogeneous_percent: 90,
+            max_depth: 8,
+        }
+    }
 }
 
 /// The plan for one scan root.
@@ -140,6 +192,9 @@ pub struct Plan {
     pub root: String,
     pub totals: BTreeMap<Decision, Totals>,
     pub tree: PlanNode,
+    /// The budget the review mass was cut with, so a cut can be reproduced.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub split: Option<SplitBudget>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -148,10 +203,12 @@ pub struct Totals {
     pub files: u64,
 }
 
-pub const PLAN_VERSION: u32 = 1;
+/// 2: review nodes may nest inside review nodes, one per unit of decision
+/// (`PlanNode::unit`), and the plan records its `split` budget.
+pub const PLAN_VERSION: u32 = 2;
 
 impl Plan {
-    pub fn new(root: String, tree: PlanNode) -> Self {
+    pub fn new(root: String, tree: PlanNode, split: Option<SplitBudget>) -> Self {
         let mut totals: BTreeMap<Decision, Totals> = Decision::ALL
             .into_iter()
             .map(|d| (d, Totals::default()))
@@ -162,6 +219,7 @@ impl Plan {
             root,
             totals,
             tree,
+            split,
         }
     }
 

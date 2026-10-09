@@ -12,7 +12,8 @@ plan-unreadable = { $count ->
     [one] { $count } folder could not be read.
    *[other] { $count } folders could not be read.
 } Run as administrator to include them.
-plan-files = { $count ->
+plan-to-review = To review, folder by folder
+plan-files ={ $count ->
     [one] { $count } file
    *[other] { $count } files
 }
@@ -39,3 +40,11 @@ reason-application-cache = Application cache, rebuilt automatically
 reason-temporary-files = Temporary files
 reason-system-managed = Managed by Windows
 reason-keys-and-credentials = Keys and credentials: small, and painful to lose
+
+# Why a folder to review is judged as one unit.
+unit-small = small enough to judge as a whole
+unit-homogeneous = mostly .{ $extension } files ({ $percent }%)
+unit-homogeneous-no-extension = mostly files without an extension ({ $percent }%)
+unit-depth-limit = deep folder, judged as a whole
+unit-leaf = no sub-folder large enough to judge apart
+unit-rest = files directly in this folder and its small sub-folders

@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 
 use bellcart::pack::Pack;
-use bellcart::plan::{Decision, Plan, PlanNode, Source};
+use bellcart::plan::{Decision, Plan, PlanNode, Source, UnitReason};
 
 use crate::i18n::Localizer;
 
@@ -62,6 +62,32 @@ pub fn plan(plan: &Plan, text: &Localizer) -> String {
         }
     }
 
+    let mut units: Vec<&PlanNode> = plan
+        .nodes()
+        .into_iter()
+        .filter(|n| n.decision == Decision::Review && n.unit.is_some())
+        .collect();
+    units.sort_by_key(|node| std::cmp::Reverse(node.stats.bytes));
+    if !units.is_empty() {
+        let _ = writeln!(out, "\n{}", text.get("plan-to-review"));
+        for node in units {
+            let Some(unit) = &node.unit else {
+                continue;
+            };
+            let path = if node.path.is_empty() {
+                "."
+            } else {
+                node.path.as_str()
+            };
+            let _ = writeln!(
+                out,
+                "  {:>10}  {path}  ({})",
+                human_bytes(node.stats.bytes),
+                unit_reason(unit, text),
+            );
+        }
+    }
+
     let unreadable: u64 = plan.nodes().iter().map(|n| n.stats.unreadable).sum();
     if unreadable > 0 {
         let _ = writeln!(
@@ -98,6 +124,26 @@ pub fn pack(pack: &Pack, text: &Localizer) -> String {
         let _ = writeln!(out, "    {}", recipe.name);
     }
     out
+}
+
+fn unit_reason(unit: &UnitReason, text: &Localizer) -> String {
+    match unit {
+        UnitReason::Small => text.get("unit-small"),
+        UnitReason::Homogeneous { extension, percent } if extension.is_empty() => text.with(
+            "unit-homogeneous-no-extension",
+            &[("percent", u64::from(*percent).into())],
+        ),
+        UnitReason::Homogeneous { extension, percent } => text.with(
+            "unit-homogeneous",
+            &[
+                ("extension", extension.as_str().into()),
+                ("percent", u64::from(*percent).into()),
+            ],
+        ),
+        UnitReason::DepthLimit => text.get("unit-depth-limit"),
+        UnitReason::Leaf => text.get("unit-leaf"),
+        UnitReason::Rest => text.get("unit-rest"),
+    }
 }
 
 fn human_bytes(bytes: u64) -> String {

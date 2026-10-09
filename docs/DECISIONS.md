@@ -78,6 +78,23 @@ Packs, locales and schemas sit at the repository root where contributors
 find them, and are still inside the published crate. Windows API code will
 come as a separate member crate so `unsafe` stays confined.
 
+**D15. The review mass is cut by local thresholds, and the plan moves to
+version 2.**
+A review folder is one unit when it is small (`split_above`), homogeneous
+(one extension holds most of the bytes and the others are small), at the
+depth limit, or has no sub-folder of at least `min_unit`. Otherwise it is
+cut. Sizes exclude folders already settled by a rule. The criteria are
+local, so a folder's cut does not change when unrelated folders grow: a
+signature stays the same from one scan to the next, which the labelled
+set and the decision log rely on. A global budget (cut the largest units
+until there are N) would bound the list but loses that stability. If real
+profiles produce too many units, a ceiling that folds the smallest units
+back can be added on top. The homogeneity test requires the minority to be
+small in bytes, not only in share, so a mostly-video folder cannot hide
+gigabytes of documents. The plan moves to version 2 because a `review`
+node may now hold `review` nodes, which a reader of version 1 could not
+expect. Version 1 plans still parse.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

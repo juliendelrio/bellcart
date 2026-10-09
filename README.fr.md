@@ -66,6 +66,9 @@ Décidé par les règles
       2.4 MB  À laisser   AppData/Local/Google/Chrome/User Data/Default/Cache  (Cache d'application, reconstruit automatiquement)
     878.9 KB  À laisser   AppData/Local/Temp  (Fichiers temporaires)
          2 B  À migrer    .ssh  (Clés et identifiants : petits, et pénibles à perdre)
+
+À examiner, dossier par dossier
+      1.4 MB  .  (assez petit pour être jugé d'un bloc)
 ```
 
 - `bellcart scan <dossier>` affiche ce résumé ; `--json` affiche le plan

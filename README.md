@@ -63,6 +63,9 @@ Settled by rules
       2.4 MB  Leave behind  AppData/Local/Google/Chrome/User Data/Default/Cache  (Application cache, rebuilt automatically)
     878.9 KB  Leave behind  AppData/Local/Temp  (Temporary files)
          2 B  Migrate       .ssh  (Keys and credentials: small, and painful to lose)
+
+To review, folder by folder
+      1.4 MB  .  (small enough to judge as a whole)
 ```
 
 - `bellcart scan <folder>` prints the summary above; `--json` prints the

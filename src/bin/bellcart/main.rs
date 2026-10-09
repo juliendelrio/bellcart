@@ -8,6 +8,7 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use bellcart::pack::{Pack, RuleSet};
+use bellcart::plan::SplitBudget;
 use bellcart::scan::scan;
 use bellcart::tree::OsTree;
 use clap::{Parser, Subcommand};
@@ -63,7 +64,7 @@ fn run() -> Result<()> {
     match cli.command {
         Command::Scan { path, json, out } => {
             let rules = RuleSet::compile(&pack.rules)?;
-            let plan = scan(&OsTree, &path, &rules)?;
+            let plan = scan(&OsTree, &path, &rules, &SplitBudget::default())?;
             let document = serde_json::to_string_pretty(&plan)?;
             if let Some(out) = out {
                 std::fs::write(&out, &document)

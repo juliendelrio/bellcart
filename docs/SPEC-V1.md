@@ -104,6 +104,15 @@ except these sub-folders". This is how copy tools already think (take this
 folder, exclude those), so a plan translates directly into robocopy
 arguments or any other tool's include and exclude lists.
 
+What no rule settles is cut into **units of decision**: one `review` node
+per folder that can be judged as a whole, because it is small enough,
+mostly one kind of file, deep enough, or has no sub-folder large enough to
+stand alone. A folder that is cut keeps a "rest" for the files lying
+directly in it and its small sub-folders. A folder's cut depends only on
+its own content, so it is the same from one scan to the next. Each unit
+says why the cut stopped there, and the plan records the budget used.
+Cutting never decides anything and never changes the totals.
+
 **The migration notebook** is the human half: two checklists generated
 from the recipes of detected applications.
 
@@ -255,7 +264,7 @@ It must never be a tree of half a million checkboxes.
 | CLI `scan` and `packs`, English and French | done |
 | JSON Schemas generated from types | done |
 | Arbiter contract types, `none` backend | done |
-| Breaking the review mass into reviewable folders | to build |
+| Breaking the review mass into reviewable folders | done, thresholds to tune on real profiles |
 | Recipe detection and migration notebook | to build |
 | `openai-chat` backend, decision log, privacy modes | to build |
 | Web interface | to build |

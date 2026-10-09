@@ -10,7 +10,8 @@ plan-unreadable = { $count ->
     [one] { $count } dossier illisible.
    *[other] { $count } dossiers illisibles.
 } Relancez en administrateur pour les inclure.
-plan-files = { $count ->
+plan-to-review = À examiner, dossier par dossier
+plan-files ={ $count ->
     [one] { $count } fichier
    *[other] { $count } fichiers
 }
@@ -36,3 +37,10 @@ reason-application-cache = Cache d'application, reconstruit automatiquement
 reason-temporary-files = Fichiers temporaires
 reason-system-managed = Géré par Windows
 reason-keys-and-credentials = Clés et identifiants : petits, et pénibles à perdre
+
+unit-small = assez petit pour être jugé d'un bloc
+unit-homogeneous = surtout des fichiers .{ $extension } ({ $percent } %)
+unit-homogeneous-no-extension = surtout des fichiers sans extension ({ $percent } %)
+unit-depth-limit = dossier profond, jugé d'un bloc
+unit-leaf = aucun sous-dossier assez gros pour être jugé à part
+unit-rest = fichiers posés dans ce dossier et ses petits sous-dossiers

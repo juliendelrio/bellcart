@@ -127,6 +127,14 @@ impl MemTree {
         self
     }
 
+    /// Adds a directory that shows in its parent's listing but cannot be
+    /// listed itself, like a folder the user has no access to.
+    pub fn unreadable(mut self, path: &str) -> Self {
+        let (parent, name) = self.ensure_parent(path);
+        self.dirs.entry(parent).or_default().insert(name, Kind::Dir);
+        self
+    }
+
     fn ensure_parent(&mut self, path: &str) -> (PathBuf, String) {
         let mut parts: Vec<&str> = path.split('/').filter(|p| !p.is_empty()).collect();
         let name = parts.pop().unwrap_or_default().to_owned();

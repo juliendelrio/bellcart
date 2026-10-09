@@ -8,12 +8,54 @@ mod common;
 
 use std::path::Path;
 
-use bellcart::plan::{Decision, Plan, PlanNode, Source};
+use bellcart::plan::{Decision, Plan, PlanNode, Source, SplitBudget, UnitReason};
 use bellcart::scan::scan;
 use bellcart::tree::MemTree;
 
 fn plan(tree: &MemTree) -> Plan {
-    scan(tree, Path::new(""), &common::core_rules()).expect("the scan succeeds")
+    plan_with(tree, &SplitBudget::default())
+}
+
+fn plan_with(tree: &MemTree, budget: &SplitBudget) -> Plan {
+    scan(tree, Path::new(""), &common::core_rules(), budget).expect("the scan succeeds")
+}
+
+/// A budget scaled to the tiny trees below: folders above 1000 bytes are
+/// cut, sub-folders under 100 bytes stay in their parent's rest.
+fn small_budget() -> SplitBudget {
+    SplitBudget {
+        split_above: 1_000,
+        min_unit: 100,
+        homogeneous_percent: 90,
+        max_depth: 4,
+    }
+}
+
+fn cut(tree: &MemTree) -> Plan {
+    plan_with(tree, &small_budget())
+}
+
+fn has_node(plan: &Plan, path: &str) -> bool {
+    plan.nodes().iter().any(|n| n.path == path)
+}
+
+/// A profile with a bit of everything, large enough for `small_budget`.
+fn profile() -> MemTree {
+    MemTree::new()
+        .file("Documents/taxes/2025.pdf", 300)
+        .file("Documents/cv.docx", 200)
+        .file("Documents/notes/a.txt", 50)
+        .file("Pictures/2023/a.jpg", 2_000)
+        .file("Pictures/2024/b.jpg", 2_000)
+        .file("Downloads/setup.exe", 700)
+        .file("Downloads/archive/old.zip", 900)
+        .file("Music/a.mp3", 600)
+        .file("Music/b.flac", 600)
+        .file("Music/live/c.ogg", 50)
+        .file("dev/app/src/main.rs", 150)
+        .file("dev/app/node_modules/x.js", 5_000)
+        .file(".ssh/id_ed25519", 400)
+        .file("AppData/Local/Temp/a.tmp", 300)
 }
 
 fn node<'a>(plan: &'a Plan, path: &str) -> &'a PlanNode {
@@ -31,7 +73,7 @@ fn rule_of(node: &PlanNode) -> &str {
 }
 
 #[test]
-fn a_tree_no_rule_knows_is_one_review_node() {
+fn a_small_tree_no_rule_knows_is_still_one_review_node() {
     let plan = plan(
         &MemTree::new()
             .file("Documents/taxes/2025.pdf", 100)
@@ -39,6 +81,7 @@ fn a_tree_no_rule_knows_is_one_review_node() {
     );
     assert_eq!(plan.tree.decision, Decision::Review);
     assert!(plan.tree.overrides.is_empty());
+    assert_eq!(plan.tree.unit, Some(UnitReason::Small));
     assert_eq!(plan.tree.stats.bytes, 400);
     assert_eq!(plan.tree.stats.files, 2);
 }
@@ -164,4 +207,246 @@ fn the_plan_round_trips_through_json() {
     let json = serde_json::to_string(&plan).expect("serializes");
     let back: Plan = serde_json::from_str(&json).expect("deserializes");
     assert_eq!(plan, back);
+}
+
+// Cutting the review mass into folders that can be judged one at a time.
+
+#[test]
+fn a_large_review_folder_is_cut_into_its_sub_folders() {
+    let plan = cut(&MemTree::new()
+        .file("Documents/report.pdf", 600)
+        .file("Pictures/a.jpg", 300)
+        .file("Pictures/b.png", 300)
+        .file("Music/c.mp3", 400));
+
+    for (path, bytes) in [("Documents", 600), ("Pictures", 600), ("Music", 400)] {
+        let unit = node(&plan, path);
+        assert_eq!(unit.decision, Decision::Review);
+        assert_eq!(unit.unit, Some(UnitReason::Small), "{path}");
+        assert_eq!(unit.stats.bytes, bytes, "{path}");
+    }
+    // Nothing lies directly at the root: it is a container, not a unit.
+    assert_eq!(plan.tree.unit, None);
+    assert_eq!(plan.tree.stats.files, 0);
+}
+
+#[test]
+fn sub_folders_below_the_unit_size_stay_in_their_parents_rest() {
+    let plan = cut(&MemTree::new()
+        .file("Downloads/setup.exe", 400)
+        .file("Downloads/old/a.zip", 700)
+        .file("Downloads/tiny/note.txt", 50));
+
+    let downloads = node(&plan, "Downloads");
+    assert_eq!(downloads.unit, Some(UnitReason::Rest));
+    assert_eq!(downloads.stats.bytes, 450);
+    assert_eq!(node(&plan, "Downloads/old").stats.bytes, 700);
+    assert!(!has_node(&plan, "Downloads/tiny"));
+}
+
+#[test]
+fn a_folder_dominated_by_one_extension_is_one_unit_however_deep() {
+    let plan = cut(&MemTree::new()
+        .file("Pictures/2023/01/a.jpg", 400)
+        .file("Pictures/2023/02/b.jpg", 400)
+        .file("Pictures/2024/03/c.jpg", 400)
+        .file("Pictures/2024/03/d.png", 50)
+        .file("Documents/report.pdf", 900));
+
+    let pictures = node(&plan, "Pictures");
+    assert_eq!(
+        pictures.unit,
+        Some(UnitReason::Homogeneous {
+            extension: "jpg".to_owned(),
+            percent: 96
+        })
+    );
+    assert_eq!(pictures.stats.bytes, 1_250);
+    assert!(!has_node(&plan, "Pictures/2023"));
+    assert!(!has_node(&plan, "Pictures/2024/03"));
+}
+
+#[test]
+fn a_dominant_extension_does_not_hide_a_large_minority() {
+    // 93 % video, but the other 7 % are more than a unit's worth of
+    // documents: they must be judged on their own.
+    let plan = cut(&MemTree::new()
+        .file("Videos/movies/a.mkv", 20_000)
+        .file("Videos/work/b.docx", 1_500));
+
+    assert!(has_node(&plan, "Videos/work"));
+    assert_eq!(node(&plan, "Videos/work").stats.bytes, 1_500);
+    assert_eq!(node(&plan, "Videos/movies").stats.bytes, 20_000);
+}
+
+#[test]
+fn a_mixed_folder_below_the_homogeneity_threshold_is_cut() {
+    let plan = cut(&MemTree::new()
+        .file("Projects/a/x.psd", 850)
+        .file("Projects/b/y.jpg", 160));
+
+    assert_eq!(node(&plan, "Projects/a").unit, Some(UnitReason::Small));
+    assert_eq!(node(&plan, "Projects/b").unit, Some(UnitReason::Small));
+}
+
+#[test]
+fn the_cut_stops_at_the_depth_limit() {
+    let plan = cut(&MemTree::new()
+        .file("a/b/c/d/e/x.pdf", 600)
+        .file("a/b/c/d/f/y.zip", 600));
+
+    let deep = node(&plan, "a/b/c/d");
+    assert_eq!(deep.unit, Some(UnitReason::DepthLimit));
+    assert_eq!(deep.stats.bytes, 1_200);
+    assert!(!has_node(&plan, "a/b/c/d/e"));
+}
+
+#[test]
+fn rules_still_apply_below_the_depth_limit() {
+    let plan = cut(&MemTree::new()
+        .file("a/b/c/d/e/f/main.js", 10)
+        .file("a/b/c/d/e/f/node_modules/x.js", 5_000));
+
+    let deps = node(&plan, "a/b/c/d/e/f/node_modules");
+    assert_eq!(deps.decision, Decision::Leave);
+    assert_eq!(deps.stats.bytes, 5_000);
+}
+
+#[test]
+fn a_rule_settled_folder_inside_a_unit_keeps_its_own_node() {
+    let plan = cut(&MemTree::new()
+        .file("Backup/old.zip", 5_000)
+        .file("Backup/home/.ssh/id_ed25519", 400)
+        .file("Documents/report.pdf", 3_000));
+
+    let backup = node(&plan, "Backup");
+    assert!(matches!(backup.unit, Some(UnitReason::Homogeneous { .. })));
+    let keys = node(&plan, "Backup/home/.ssh");
+    assert_eq!(keys.decision, Decision::Migrate);
+    assert_eq!(keys.stats.bytes, 400);
+}
+
+#[test]
+fn settled_folders_do_not_count_toward_a_units_size_or_mix() {
+    // 50 kB of dependencies must not make a 150-byte project look big.
+    let plan = cut(&MemTree::new()
+        .file("dev/app/src/main.rs", 150)
+        .file("dev/app/node_modules/big.js", 50_000)
+        .file("Documents/report.pdf", 600)
+        .file("Music/song.mp3", 600));
+
+    let dev = node(&plan, "dev");
+    assert_eq!(dev.unit, Some(UnitReason::Small));
+    assert_eq!(dev.stats.bytes, 150);
+    assert!(!has_node(&plan, "dev/app"));
+    assert_eq!(
+        node(&plan, "dev/app/node_modules").decision,
+        Decision::Leave
+    );
+}
+
+#[test]
+fn cutting_only_ever_produces_review_nodes() {
+    let settled = |plan: &Plan| -> Vec<(String, Decision)> {
+        plan.nodes()
+            .into_iter()
+            .filter(|n| n.decision != Decision::Review)
+            .map(|n| (n.path.clone(), n.decision))
+            .collect()
+    };
+    assert_eq!(settled(&plan(&profile())), settled(&cut(&profile())));
+}
+
+#[test]
+fn cutting_never_changes_the_totals() {
+    assert_eq!(plan(&profile()).totals, cut(&profile()).totals);
+}
+
+#[test]
+fn a_cut_folder_without_files_of_its_own_has_no_node() {
+    let plan = cut(&MemTree::new()
+        .file("Work/client-a/a.pdf", 800)
+        .file("Work/client-b/b.zip", 800)
+        .file("Documents/c.docx", 600));
+
+    assert!(!has_node(&plan, "Work"));
+    assert!(has_node(&plan, "Work/client-a"));
+    assert!(has_node(&plan, "Work/client-b"));
+}
+
+#[test]
+fn each_unit_says_why_the_cut_stopped_there() {
+    let plan = cut(&profile());
+    assert_eq!(node(&plan, "Documents").unit, Some(UnitReason::Small));
+    assert_eq!(
+        node(&plan, "Pictures").unit,
+        Some(UnitReason::Homogeneous {
+            extension: "jpg".to_owned(),
+            percent: 100
+        })
+    );
+    assert_eq!(node(&plan, "Downloads").unit, Some(UnitReason::Rest));
+    assert_eq!(
+        node(&plan, "Downloads/archive").unit,
+        Some(UnitReason::Small)
+    );
+    // Mixed, and no sub-folder big enough to stand alone.
+    assert_eq!(node(&plan, "Music").unit, Some(UnitReason::Leaf));
+    // Settled folders are not review units.
+    assert_eq!(node(&plan, ".ssh").unit, None);
+}
+
+#[test]
+fn how_a_folder_is_cut_does_not_depend_on_its_siblings() {
+    let downloads = || {
+        MemTree::new()
+            .file("Downloads/setup.exe", 700)
+            .file("Downloads/archive/old.zip", 900)
+            .file("Downloads/tiny/a.txt", 20)
+    };
+    let under_downloads = |plan: &Plan| -> Vec<PlanNode> {
+        plan.nodes()
+            .into_iter()
+            .filter(|n| n.path.starts_with("Downloads"))
+            .cloned()
+            .collect()
+    };
+    let alone = cut(&downloads());
+    let with_sibling = cut(&downloads().file("Videos/huge.mkv", 1_000_000));
+    assert_eq!(under_downloads(&alone), under_downloads(&with_sibling));
+}
+
+#[test]
+fn unreadable_folders_are_counted_in_the_unit_that_holds_them() {
+    let plan = cut(&MemTree::new()
+        .file("Downloads/setup.exe", 700)
+        .file("Downloads/archive/old.zip", 900)
+        .unreadable("Downloads/locked"));
+
+    assert_eq!(node(&plan, "Downloads").stats.unreadable, 1);
+    assert_eq!(node(&plan, "Downloads/archive").stats.unreadable, 0);
+}
+
+#[test]
+fn the_plan_records_the_budget_it_was_cut_with() {
+    assert_eq!(cut(&profile()).split, Some(small_budget()));
+}
+
+#[test]
+fn a_version_1_plan_still_parses() {
+    let v1 = r#"{
+        "version": 1,
+        "root": "C:\\Users\\me",
+        "totals": {"review": {"bytes": 2, "files": 1}},
+        "tree": {
+            "path": "",
+            "decision": "review",
+            "source": {"by": "default"},
+            "stats": {"bytes": 2, "files": 1}
+        }
+    }"#;
+    let plan: Plan = serde_json::from_str(v1).expect("a v1 plan parses");
+    assert_eq!(plan.version, 1);
+    assert_eq!(plan.split, None);
+    assert_eq!(plan.tree.unit, None);
 }
