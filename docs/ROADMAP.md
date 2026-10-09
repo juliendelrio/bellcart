@@ -31,6 +31,9 @@ fits on a few screens.
 - Generate the notebook: "before you leave" and "on arrival" checklists,
   in the user's language, as Markdown and HTML.
 - Implement the export primitives, each shown and confirmed before it runs.
+- Google Drive for desktop recipe. The `google-drive-cache` rule leaves
+  DriveFS, which is only safe once every change has been uploaded: "before
+  you leave" must ask the user to check that Drive shows it is up to date.
 - `--pack <folder>` to load packs from disk, for pack authors.
 
 Check: the notebook for a developer machine and for a family PC lists
