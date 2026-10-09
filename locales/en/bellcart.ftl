@@ -40,6 +40,7 @@ reason-application-cache = Application cache, rebuilt automatically
 reason-temporary-files = Temporary files
 reason-system-managed = Managed by Windows
 reason-keys-and-credentials = Keys and credentials: small, and painful to lose
+reason-cloud-sync-cache = Local cache of a cloud drive, synced again by its client
 
 # Why a folder to review is judged as one unit.
 unit-small = small enough to judge as a whole

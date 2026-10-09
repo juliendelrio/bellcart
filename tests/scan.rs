@@ -164,6 +164,24 @@ fn browser_caches_are_left_but_not_the_profile() {
 }
 
 #[test]
+fn the_google_drive_cache_is_left_but_not_a_folder_with_the_same_name() {
+    let plan = plan(
+        &MemTree::new()
+            .file(
+                "AppData/Local/Google/DriveFS/1234/content_cache/d1/f_01",
+                9_000,
+            )
+            .file("Documents/Google/DriveFS/notes.txt", 40),
+    );
+    let cache = node(&plan, "AppData/Local/Google/DriveFS");
+    assert_eq!(cache.decision, Decision::Leave);
+    assert_eq!(rule_of(cache), "google-drive-cache");
+    // Somebody's own folder that happens to share the name stays to review.
+    assert!(!has_node(&plan, "Documents/Google/DriveFS"));
+    assert_eq!(plan.totals[&Decision::Review].bytes, 40);
+}
+
+#[test]
 fn rules_are_not_applied_inside_a_settled_folder() {
     // A `.ssh` folder inside node_modules is part of the dependency tree,
     // not a key store.

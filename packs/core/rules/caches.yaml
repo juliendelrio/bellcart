@@ -51,3 +51,12 @@ rules:
     reason: application-cache
     match:
       path_glob: "**/AppData/Local/Mozilla/Firefox/Profiles/*/cache2"
+
+  # Google Drive for desktop keeps its streamed files here. The files live
+  # in the cloud and the client syncs them on its own, so the cache is
+  # rebuilt on the new PC. Mirrored files are in a normal folder, not here.
+  - id: google-drive-cache
+    decision: leave
+    reason: cloud-sync-cache
+    match:
+      path_glob: "**/AppData/Local/Google/DriveFS"

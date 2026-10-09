@@ -37,6 +37,7 @@ reason-application-cache = Cache d'application, reconstruit automatiquement
 reason-temporary-files = Fichiers temporaires
 reason-system-managed = Géré par Windows
 reason-keys-and-credentials = Clés et identifiants : petits, et pénibles à perdre
+reason-cloud-sync-cache = Cache local d'un stockage en ligne, resynchronisé par son logiciel
 
 unit-small = assez petit pour être jugé d'un bloc
 unit-homogeneous = surtout des fichiers .{ $extension } ({ $percent } %)
