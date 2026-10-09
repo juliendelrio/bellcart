@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Plan",
+  "description": "The plan for one scan root.",
+  "type": "object",
+  "properties": {
+    "root": {
+      "description": "The scanned root, as given by the user.",
+      "type": "string"
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Totals"
+      }
+    },
+    "tree": {
+      "$ref": "#/$defs/PlanNode"
+    },
+    "version": {
+      "description": "Format version of this document.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "version",
+    "root",
+    "totals",
+    "tree"
+  ],
+  "$defs": {
+    "Decision": {
+      "description": "Where a folder goes.",
+      "oneOf": [
+        {
+          "description": "Needed on the new PC.",
+          "type": "string",
+          "const": "migrate"
+        },
+        {
+          "description": "Worth keeping, not needed day to day: goes to cold storage.",
+          "type": "string",
+          "const": "archive"
+        },
+        {
+          "description": "Regenerable or obsolete: stays behind.",
+          "type": "string",
+          "const": "leave"
+        },
+        {
+          "description": "Nothing settled it yet: an arbiter or the user must decide.",
+          "type": "string",
+          "const": "review"
+        }
+      ]
+    },
+    "PlanNode": {
+      "description": "A folder and the decision that applies to everything under it, except\nthe sub-folders listed in `overrides`.\n\nThis mirrors how copy tools work: \"take this folder, but not those\".",
+      "type": "object",
+      "properties": {
+        "decision": {
+          "$ref": "#/$defs/Decision"
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PlanNode"
+          }
+        },
+        "path": {
+          "description": "Path relative to the scan root, with `/` separators. Empty for the root.",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "stats": {
+          "description": "Files covered by this node, excluding `overrides`.",
+          "$ref": "#/$defs/Stats"
+        }
+      },
+      "required": [
+        "path",
+        "decision",
+        "source",
+        "stats"
+      ]
+    },
+    "Source": {
+      "description": "Who took a decision.",
+      "oneOf": [
+        {
+          "description": "A rule from a pack. `reason` is a translation key (`reason-<key>`).",
+          "type": "object",
+          "properties": {
+            "by": {
+              "type": "string",
+              "const": "rule"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "rule": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "by",
+            "rule",
+            "reason"
+          ]
+        },
+        {
+          "description": "Inherited default: no rule matched.",
+          "type": "object",
+          "properties": {
+            "by": {
+              "type": "string",
+              "const": "default"
+            }
+          },
+          "required": [
+            "by"
+          ]
+        }
+      ]
+    },
+    "Stats": {
+      "description": "Size figures for the files a node covers.",
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "extensions": {
+          "description": "Bytes per lowercase extension (`\"\"` for files without one).",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
+        },
+        "files": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "newest": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "oldest": {
+          "description": "Oldest and newest modification, seconds since the Unix epoch.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "unreadable": {
+          "description": "Entries that could not be read (access denied, for instance).",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "bytes",
+        "files"
+      ]
+    },
+    "Totals": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "files": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "bytes",
+        "files"
+      ]
+    }
+  }
+}

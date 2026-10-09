@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=../../../schemas/rules.schema.json
+#
+# Caches and temporary files under a Windows user profile.
+# Paths are relative to the scan root, so `**/` lets a rule match whether
+# the user scans one profile, C:\Users or a whole drive.
+rules:
+  - id: user-temp
+    decision: leave
+    reason: temporary-files
+    match:
+      path_glob: "**/AppData/Local/Temp"
+
+  - id: crash-dumps
+    decision: leave
+    reason: temporary-files
+    match:
+      path_glob: "**/AppData/Local/CrashDumps"
+
+  - id: internet-cache
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/AppData/Local/Microsoft/Windows/INetCache"
+
+  - id: store-app-temp
+    decision: leave
+    reason: temporary-files
+    match:
+      path_glob: "**/AppData/Local/Packages/*/TempState"
+
+  - id: npm-cache
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/AppData/Local/npm-cache"
+
+  - id: pip-cache
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/AppData/Local/pip/cache"
+
+  - id: chromium-cache
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/User Data/*/{Cache,Code Cache,GPUCache}"
+
+  - id: firefox-cache
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/AppData/Local/Mozilla/Firefox/Profiles/*/cache2"

@@ -1,0 +1,27 @@
+name: Bug
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, what you got.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Bellcart version
+      description: Output of `bellcart --version`, or the commit.
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+  - type: dropdown
+    id: elevated
+    attributes:
+      label: Run as administrator?
+      options: ["No", "Yes"]

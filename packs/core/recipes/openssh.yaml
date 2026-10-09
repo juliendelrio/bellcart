@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: openssh
+name: OpenSSH keys
+detect:
+  any:
+    - path: '%USERPROFILE%\.ssh'
+before:
+  - type: copy
+    path: '%USERPROFILE%\.ssh'
+    note:
+      en: Private keys, known hosts and client configuration.
+      fr: Clés privées, hôtes connus et configuration du client.
+after:
+  - type: manual
+    text:
+      en: >-
+        Check that only your account can read the private keys. OpenSSH
+        refuses a key whose permissions are too open.
+      fr: >-
+        Vérifiez que seul votre compte peut lire les clés privées. OpenSSH
+        refuse une clé dont les permissions sont trop ouvertes.

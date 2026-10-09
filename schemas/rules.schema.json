@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RuleFile",
+  "description": "`rules/*.yaml`",
+  "type": "object",
+  "properties": {
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Rule"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "rules"
+  ],
+  "$defs": {
+    "Decision": {
+      "description": "Where a folder goes.",
+      "oneOf": [
+        {
+          "description": "Needed on the new PC.",
+          "type": "string",
+          "const": "migrate"
+        },
+        {
+          "description": "Worth keeping, not needed day to day: goes to cold storage.",
+          "type": "string",
+          "const": "archive"
+        },
+        {
+          "description": "Regenerable or obsolete: stays behind.",
+          "type": "string",
+          "const": "leave"
+        },
+        {
+          "description": "Nothing settled it yet: an arbiter or the user must decide.",
+          "type": "string",
+          "const": "review"
+        }
+      ]
+    },
+    "Matcher": {
+      "description": "Conditions on a folder. All the conditions given must hold.",
+      "type": "object",
+      "properties": {
+        "contains": {
+          "description": "The folder directly contains an entry with one of these names\n(case-insensitive). Use it to tell a real `venv` from a folder that\nmerely shares the name.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name_in": {
+          "description": "The folder name is one of these (case-insensitive).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "path_glob": {
+          "description": "The path relative to the scan root matches this glob. `/` separates\ncomponents, `*` stays within one component, `**` crosses them.\nCase-insensitive.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Rule": {
+      "description": "Settles a folder and everything under it.",
+      "type": "object",
+      "properties": {
+        "decision": {
+          "description": "`review` is not allowed here: it is the absence of a decision.",
+          "$ref": "#/$defs/Decision"
+        },
+        "id": {
+          "description": "Unique within the pack, lowercase, dash-separated.",
+          "type": "string"
+        },
+        "match": {
+          "$ref": "#/$defs/Matcher"
+        },
+        "reason": {
+          "description": "Translation key. `locales/*/bellcart.ftl` must define `reason-<key>`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "decision",
+        "reason",
+        "match"
+      ]
+    }
+  }
+}

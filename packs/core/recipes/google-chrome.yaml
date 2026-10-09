@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: google-chrome
+name: Google Chrome
+detect:
+  any:
+    - path: '%LOCALAPPDATA%\Google\Chrome\User Data'
+before:
+  # Saved passwords are encrypted with a key tied to this Windows account:
+  # copying the profile folder does not bring them along.
+  - type: manual
+    text:
+      en: >-
+        Turn on sync in Chrome (Settings, "You and Google"), or export your
+        passwords from Google Password Manager (Settings, "Export passwords").
+        Passwords cannot be moved by copying files.
+      fr: >-
+        Activez la synchronisation dans Chrome (Paramètres, « Vous et Google »),
+        ou exportez vos mots de passe depuis le Gestionnaire de mots de passe
+        Google (Paramètres, « Exporter les mots de passe »). Les mots de passe
+        ne peuvent pas être déplacés par copie de fichiers.
+  - type: manual
+    text:
+      en: >-
+        If you do not use sync, export your bookmarks from the bookmark
+        manager ("Export bookmarks").
+      fr: >-
+        Si vous n'utilisez pas la synchronisation, exportez vos favoris depuis
+        le gestionnaire de favoris (« Exporter les favoris »).
+after:
+  - type: install
+    winget: Google.Chrome
+  - type: manual
+    text:
+      en: Sign in to Chrome to get your synced data back, or import the files you exported.
+      fr: Connectez-vous à Chrome pour retrouver vos données synchronisées, ou importez les fichiers exportés.

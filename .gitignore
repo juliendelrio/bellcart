@@ -1,0 +1,4 @@
+/target
+*.plan.json
+.DS_Store
+Thumbs.db

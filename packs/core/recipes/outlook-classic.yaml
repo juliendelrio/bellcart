@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: outlook-classic
+name: Outlook (classic)
+detect:
+  any:
+    - path: '%APPDATA%\Microsoft\Signatures'
+    - path: '%USERPROFILE%\Documents\Outlook Files'
+before:
+  - type: manual
+    text:
+      en: Close Outlook before the copy. An open data file is locked and may be copied incomplete.
+      fr: Fermez Outlook avant la copie. Un fichier de données ouvert est verrouillé et peut être copié de façon incomplète.
+  - type: copy
+    path: '%APPDATA%\Microsoft\Signatures'
+    note:
+      en: Email signatures.
+      fr: Signatures de courriel.
+  - type: copy
+    path: '%USERPROFILE%\Documents\Outlook Files'
+    note:
+      en: Local data files (.pst), such as archives. Mailboxes kept on a server are not here.
+      fr: Fichiers de données locaux (.pst), par exemple les archives. Les boîtes conservées sur un serveur n'y figurent pas.
+after:
+  - type: manual
+    text:
+      en: >-
+        Put the signatures back in %APPDATA%\Microsoft\Signatures, then
+        open each .pst from Outlook (File, Open, "Open Outlook Data File").
+      fr: >-
+        Replacez les signatures dans %APPDATA%\Microsoft\Signatures, puis
+        ouvrez chaque .pst depuis Outlook (Fichier, Ouvrir, « Ouvrir un
+        fichier de données Outlook »).

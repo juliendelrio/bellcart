@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PackMeta",
+  "description": "`pack.yaml`",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "format": {
+      "description": "Version of the pack format this pack targets.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "id": {
+      "description": "Unique, lowercase, dash-separated.",
+      "type": "string"
+    },
+    "license": {
+      "description": "SPDX identifier of the licence the pack content is published under.",
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "version": {
+      "description": "Version of the pack content, not of the format.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "version",
+    "format",
+    "license"
+  ]
+}

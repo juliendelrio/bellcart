@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=../../schemas/questions.schema.json
+#
+# What an arbiter is asked about a folder no rule settled.
+# Each question is one atomic judgement. The engine combines the answers:
+# do not merge two questions into one to "save a call".
+# Ids are stable. Bump `version` when a question changes meaning.
+version: 1
+questions:
+  destination:
+    type: choice
+    instructions: >-
+      This folder is on a PC its owner is about to replace.
+      Where should the folder go?
+    criteria:
+      migrate: The owner will need it on the new PC.
+      archive: Worth keeping somewhere safe, but not needed day to day.
+      leave: Can be re-downloaded, rebuilt, or is obsolete.
+      inspect: Mixed content. Its sub-folders need separate decisions.
+
+  regenerable:
+    type: noul
+    instructions: Can this content be re-downloaded or rebuilt from other sources?
+    criteria:
+      "true": Caches, dependencies, build output, installers, downloaded media.
+      "false": Content the owner created, or that exists nowhere else.
+
+  personal:
+    type: noul
+    instructions: Does this folder hold content its owner created or collected personally?
+
+  app-data:
+    type: noul
+    instructions: Is this folder data or configuration that belongs to an application?
+
+  importance:
+    type: score
+    instructions: How much would the owner miss this folder if it were lost?
+    criteria:
+      - Would not notice.
+      - Minor inconvenience.
+      - Real loss of time or work.
+      - Irreplaceable.

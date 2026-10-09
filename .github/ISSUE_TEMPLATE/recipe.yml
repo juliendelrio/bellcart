@@ -1,0 +1,25 @@
+name: Application recipe
+description: Ask for, or propose, support for an application
+labels: [recipe]
+body:
+  - type: input
+    id: app
+    attributes:
+      label: Application
+      description: Name and version.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Where it keeps its data
+      description: Folders, registry keys, anything you know. Paths with %APPDATA% and the like are ideal.
+  - type: textarea
+    id: steps
+    attributes:
+      label: What it takes to move it
+      description: An export to run, a sync to turn on, something to close first, a licence to deactivate.
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version you checked on

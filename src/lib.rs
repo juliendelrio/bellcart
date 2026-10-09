@@ -1,0 +1,22 @@
+//! Bellcart engine.
+//!
+//! The command line lives in `src/bin/bellcart`; this library holds
+//! everything that decides.
+//!
+//! The pipeline is: [`tree`] (what is on disk) -> [`scan`] (apply the rules
+//! of a [`pack`]) -> [`plan`] (what goes where). Folders no rule settles are
+//! left as `review` for an [`arbiter`] or for the user.
+//!
+//! This crate never touches the Windows API and never writes to the scanned
+//! tree. Everything here must stay testable on any OS through
+//! [`tree::MemTree`].
+
+pub mod arbiter;
+pub mod error;
+pub mod pack;
+pub mod plan;
+pub mod scan;
+pub mod schema;
+pub mod tree;
+
+pub use error::{Error, Result};

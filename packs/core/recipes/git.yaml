@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: git
+name: Git
+detect:
+  any:
+    - path: '%USERPROFILE%\.gitconfig'
+before:
+  - type: copy
+    path: '%USERPROFILE%\.gitconfig'
+  - type: manual
+    text:
+      en: >-
+        Push your local branches and check your stashes. Work that was never
+        pushed exists only on this PC.
+      fr: >-
+        Poussez vos branches locales et vérifiez vos remises (stash). Le
+        travail jamais poussé n'existe que sur ce PC.
+after:
+  - type: install
+    winget: Git.Git
+  - type: manual
+    text:
+      en: You will be asked to sign in to your Git hosts again. Saved logins do not move with the files.
+      fr: Vous devrez vous reconnecter à vos hébergeurs Git. Les identifiants enregistrés ne suivent pas les fichiers.

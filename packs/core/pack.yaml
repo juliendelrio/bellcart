@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=../../schemas/pack.schema.json
+id: core
+name: Bellcart core pack
+version: 0.1.0
+format: 1
+description: Rules and recipes that ship inside the Bellcart binary.
+license: Apache-2.0

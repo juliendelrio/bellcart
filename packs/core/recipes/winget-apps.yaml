@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: winget-apps
+name: Installed applications (winget)
+detect:
+  any:
+    - path: '%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe'
+before:
+  - type: export-winget-packages
+after:
+  - type: manual
+    text:
+      en: >-
+        Reinstall your applications from the exported list with
+        "winget import -i" followed by the file. Applications that were not
+        installed through a winget source are not in that list.
+      fr: >-
+        Réinstallez vos applications à partir de la liste exportée avec
+        « winget import -i » suivi du fichier. Les applications qui ne
+        viennent pas d'une source winget ne figurent pas dans cette liste.

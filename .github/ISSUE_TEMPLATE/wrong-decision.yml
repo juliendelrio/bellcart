@@ -1,0 +1,40 @@
+name: Wrong decision
+description: Bellcart put a folder on the wrong cart
+labels: [decision]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        A folder wrongly marked "leave" is the most serious kind of bug here.
+        Thank you for reporting it. Folder names can be personal: replace
+        anything private with a placeholder, the structure is what matters.
+  - type: input
+    id: path
+    attributes:
+      label: Folder path, relative to what you scanned
+    validations:
+      required: true
+  - type: dropdown
+    id: got
+    attributes:
+      label: Decision Bellcart took
+      options: [migrate, archive, leave, review]
+    validations:
+      required: true
+  - type: dropdown
+    id: expected
+    attributes:
+      label: Decision you expected
+      options: [migrate, archive, leave, review]
+    validations:
+      required: true
+  - type: input
+    id: rule
+    attributes:
+      label: Rule that decided
+      description: Shown in the JSON plan as `source.rule`.
+  - type: textarea
+    id: contents
+    attributes:
+      label: What the folder holds
+      description: Kinds of files and what created them.

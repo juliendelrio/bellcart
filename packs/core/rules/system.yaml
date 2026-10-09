@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../../schemas/rules.schema.json
+#
+# Folders Windows manages itself. Only names that cannot be a user folder
+# belong here: `Windows` or `Program Files` are deliberately absent, since
+# a wrong `leave` is the one mistake Bellcart must not make.
+rules:
+  - id: recycle-bin
+    decision: leave
+    reason: system-managed
+    match:
+      name_in: ["$RECYCLE.BIN"]
+
+  - id: volume-information
+    decision: leave
+    reason: system-managed
+    match:
+      name_in: [System Volume Information]

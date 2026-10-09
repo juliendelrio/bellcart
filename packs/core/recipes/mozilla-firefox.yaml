@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: mozilla-firefox
+name: Mozilla Firefox
+detect:
+  any:
+    - path: '%APPDATA%\Mozilla\Firefox\Profiles'
+before:
+  - type: manual
+    text:
+      en: Close Firefox before the copy, so the profile is in a consistent state.
+      fr: Fermez Firefox avant la copie, pour que le profil soit dans un état cohérent.
+  # Unlike Chrome, a Firefox profile is portable: bookmarks, history and
+  # saved passwords travel with the folder.
+  - type: copy
+    path: '%APPDATA%\Mozilla\Firefox'
+    note:
+      en: Profiles, with bookmarks, history and saved passwords.
+      fr: Profils, avec favoris, historique et mots de passe enregistrés.
+after:
+  - type: install
+    winget: Mozilla.Firefox
+  - type: manual
+    text:
+      en: >-
+        With Firefox closed, put the copied folder back in
+        %APPDATA%\Mozilla\Firefox, then start Firefox.
+      fr: >-
+        Firefox étant fermé, replacez le dossier copié dans
+        %APPDATA%\Mozilla\Firefox, puis lancez Firefox.

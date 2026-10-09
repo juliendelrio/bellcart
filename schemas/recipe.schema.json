@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Recipe",
+  "description": "`recipes/*.yaml`: what to do about one application.",
+  "type": "object",
+  "properties": {
+    "after": {
+      "description": "Steps on the new PC.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Step"
+      }
+    },
+    "before": {
+      "description": "Steps on the old PC, before leaving it.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Step"
+      }
+    },
+    "detect": {
+      "$ref": "#/$defs/Detect"
+    },
+    "id": {
+      "description": "Unique within the pack, lowercase, dash-separated.",
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "detect"
+  ],
+  "$defs": {
+    "Detect": {
+      "description": "The application is considered present if any probe succeeds.",
+      "type": "object",
+      "properties": {
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Probe"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "any"
+      ]
+    },
+    "Probe": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "A path that exists. May start with a `%VARIABLE%`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ]
+    },
+    "Step": {
+      "description": "One step of a recipe.\n\nThis list is closed on purpose. A recipe can never carry a shell command:\nanything that runs is implemented and reviewed in the engine.",
+      "oneOf": [
+        {
+          "description": "Take this file or folder. May start with a `%VARIABLE%`.",
+          "type": "object",
+          "properties": {
+            "note": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Text"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "path": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "copy"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "path"
+          ]
+        },
+        {
+          "description": "Do not take this file or folder, even if a parent is migrated.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "skip"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "path"
+          ]
+        },
+        {
+          "description": "Something only the user can do.",
+          "type": "object",
+          "properties": {
+            "text": {
+              "$ref": "#/$defs/Text"
+            },
+            "type": {
+              "type": "string",
+              "const": "manual"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "text"
+          ]
+        },
+        {
+          "description": "Save the list of applications installed through winget.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "export-winget-packages"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "description": "Save the list of installed Visual Studio Code extensions.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "export-vscode-extensions"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "description": "Save one registry key to a `.reg` file.",
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "export-registry-key"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "key"
+          ]
+        },
+        {
+          "description": "Install the application with winget.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "install"
+            },
+            "winget": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "winget"
+          ]
+        }
+      ]
+    },
+    "Text": {
+      "description": "A text shown to the user. English is mandatory, other languages are\noptional and fall back to English.",
+      "type": "object",
+      "properties": {
+        "en": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      },
+      "required": [
+        "en"
+      ]
+    }
+  }
+}

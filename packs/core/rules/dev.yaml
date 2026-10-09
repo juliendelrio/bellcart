@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=../../../schemas/rules.schema.json
+#
+# Developer folders that a build tool or a package manager recreates.
+# Rules here must be safe on any machine: when a name alone is ambiguous,
+# add `contains` so only the real thing matches.
+rules:
+  - id: node-modules
+    decision: leave
+    reason: regenerable-dependencies
+    match:
+      name_in: [node_modules]
+
+  - id: python-venv
+    decision: leave
+    reason: regenerable-dependencies
+    match:
+      name_in: [venv, .venv, env]
+      contains: [pyvenv.cfg]
+
+  - id: python-bytecode
+    decision: leave
+    reason: build-output
+    match:
+      name_in: [__pycache__]
+
+  - id: cargo-target
+    decision: leave
+    reason: build-output
+    match:
+      name_in: [target]
+      contains: [CACHEDIR.TAG]
+
+  - id: maven-repository
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/.m2/repository"
+
+  - id: gradle-caches
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/.gradle/caches"
+
+  - id: nuget-packages
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/.nuget/packages"
+
+  - id: cargo-registry
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/.cargo/registry"

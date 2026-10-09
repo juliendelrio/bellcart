@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "QuestionSet",
+  "description": "`questions.yaml`: what an arbiter is asked about an undecided folder.\n\nQuestion ids are stable: decision logs refer to them.",
+  "type": "object",
+  "properties": {
+    "questions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Question"
+      }
+    },
+    "version": {
+      "description": "Bumped whenever a question changes meaning.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "questions"
+  ],
+  "$defs": {
+    "NoulCriteria": {
+      "type": "object",
+      "properties": {
+        "false": {
+          "type": "string"
+        },
+        "true": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "true",
+        "false"
+      ]
+    },
+    "Question": {
+      "description": "A typed question about a folder.\n\nKeep each question atomic: one judgement a knowledgeable person could\nmake in a few seconds. Combine the answers in code, not in the prompt.",
+      "oneOf": [
+        {
+          "description": "Pick one option. `criteria` maps each option to its description.",
+          "type": "object",
+          "properties": {
+            "criteria": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "instructions": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "choice"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "instructions",
+            "criteria"
+          ]
+        },
+        {
+          "description": "Rate on an ordered scale. `criteria` lists the levels from low to high.",
+          "type": "object",
+          "properties": {
+            "criteria": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "instructions": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "score"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "instructions",
+            "criteria"
+          ]
+        },
+        {
+          "description": "Is this statement true? Answered with a probability.",
+          "type": "object",
+          "properties": {
+            "criteria": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/NoulCriteria"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "instructions": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "noul"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "instructions"
+          ]
+        }
+      ]
+    }
+  }
+}

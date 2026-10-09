@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: vscode
+name: Visual Studio Code
+detect:
+  any:
+    - path: '%APPDATA%\Code\User'
+before:
+  - type: manual
+    text:
+      en: If you use Settings Sync, check that it is turned on. The steps below then act as a backup.
+      fr: Si vous utilisez la synchronisation des paramètres, vérifiez qu'elle est activée. Les étapes suivantes servent alors de sauvegarde.
+  - type: copy
+    path: '%APPDATA%\Code\User\settings.json'
+  - type: copy
+    path: '%APPDATA%\Code\User\keybindings.json'
+  - type: copy
+    path: '%APPDATA%\Code\User\snippets'
+  - type: export-vscode-extensions
+  - type: skip
+    path: '%APPDATA%\Code\Cache'
+  - type: skip
+    path: '%APPDATA%\Code\CachedData'
+  - type: skip
+    path: '%APPDATA%\Code\CachedExtensionVSIXs'
+  - type: skip
+    path: '%APPDATA%\Code\logs'
+after:
+  - type: install
+    winget: Microsoft.VisualStudioCode
