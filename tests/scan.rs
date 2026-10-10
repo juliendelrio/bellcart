@@ -11,24 +11,16 @@ use std::path::Path;
 use bellcart::plan::{Decision, Plan, PlanNode, Source, SplitBudget, UnitReason};
 use bellcart::scan::scan;
 use bellcart::tree::MemTree;
+use common::small_budget;
 
 fn plan(tree: &MemTree) -> Plan {
     plan_with(tree, &SplitBudget::default())
 }
 
 fn plan_with(tree: &MemTree, budget: &SplitBudget) -> Plan {
-    scan(tree, Path::new(""), &common::core_rules(), budget).expect("the scan succeeds")
-}
-
-/// A budget scaled to the tiny trees below: folders above 1000 bytes are
-/// cut, sub-folders under 100 bytes stay in their parent's rest.
-fn small_budget() -> SplitBudget {
-    SplitBudget {
-        split_above: 1_000,
-        min_unit: 100,
-        homogeneous_percent: 90,
-        max_depth: 4,
-    }
+    scan(tree, Path::new(""), &common::core_rules(), budget)
+        .expect("the scan succeeds")
+        .plan
 }
 
 fn cut(tree: &MemTree) -> Plan {

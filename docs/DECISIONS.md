@@ -104,6 +104,21 @@ follow the kinds of contribution this project gets, with `pack` apart
 because pack changes are reviewed by different rules than code. CI rejects
 a pull request whose branch does not follow the convention.
 
+**D17. Signatures are fixed English text, built from samples taken during
+the scan and kept out of the plan.**
+A signature is input for a model and the evaluation set, so the same unit
+must give the same text whatever the interface language: it is never
+translated. The largest entries of each unit are sampled while the tree is
+walked, which costs no extra disk access and gives sizes for free;
+re-listing units afterwards would need a second walk to size sub-folders.
+Samples travel next to the plan (`Scan::samples`), not inside it: the plan
+goes to copy tools, which have no use for file names. The text stays under
+3200 characters (about 800 tokens at four characters per token, without a
+tokenizer dependency) by dropping names from the longest list first, then
+extensions, always in the same order. The data (`Signature`) is kept apart
+from the text so a redacted form can come later without changing what is
+collected.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

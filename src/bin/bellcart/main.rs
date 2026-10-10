@@ -10,6 +10,7 @@ use anyhow::{Context, Result};
 use bellcart::pack::{Pack, RuleSet};
 use bellcart::plan::SplitBudget;
 use bellcart::scan::scan;
+use bellcart::signature::{self, Signature};
 use bellcart::tree::OsTree;
 use clap::{Parser, Subcommand};
 use include_dir::{Dir, include_dir};
@@ -40,6 +41,10 @@ enum Command {
         /// Also write the JSON plan to this file.
         #[arg(long, value_name = "FILE")]
         out: Option<PathBuf>,
+        /// Print the signature of each folder to review instead of a
+        /// summary: what an arbiter would be sent.
+        #[arg(long, conflicts_with = "json")]
+        signatures: bool,
     },
     /// Show what the built-in pack contains.
     Packs,
@@ -62,18 +67,29 @@ fn run() -> Result<()> {
     let pack = core_pack()?;
 
     match cli.command {
-        Command::Scan { path, json, out } => {
+        Command::Scan {
+            path,
+            json,
+            out,
+            signatures,
+        } => {
             let rules = RuleSet::compile(&pack.rules)?;
-            let plan = scan(&OsTree, &path, &rules, &SplitBudget::default())?;
-            let document = serde_json::to_string_pretty(&plan)?;
+            let scan = scan(&OsTree, &path, &rules, &SplitBudget::default())?;
+            let document = serde_json::to_string_pretty(&scan.plan)?;
             if let Some(out) = out {
                 std::fs::write(&out, &document)
                     .with_context(|| format!("cannot write {}", out.display()))?;
             }
             if json {
                 println!("{document}");
+            } else if signatures {
+                let texts: Vec<String> = signature::signatures(&scan)
+                    .iter()
+                    .map(Signature::to_text)
+                    .collect();
+                print!("{}", texts.join("\n"));
             } else {
-                print!("{}", render::plan(&plan, &text));
+                print!("{}", render::plan(&scan.plan, &text));
             }
         }
         Command::Packs => print!("{}", render::pack(&pack, &text)),

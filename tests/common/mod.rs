@@ -14,3 +14,15 @@ pub fn core_pack() -> Pack {
 pub fn core_rules() -> RuleSet {
     RuleSet::compile(&core_pack().rules).expect("the core rules compile")
 }
+
+/// A budget scaled to tiny test trees: folders above 1000 bytes are cut,
+/// sub-folders under 100 bytes stay in their parent's rest.
+#[allow(dead_code)]
+pub fn small_budget() -> bellcart::plan::SplitBudget {
+    bellcart::plan::SplitBudget {
+        split_above: 1_000,
+        min_unit: 100,
+        homogeneous_percent: 90,
+        max_depth: 4,
+    }
+}

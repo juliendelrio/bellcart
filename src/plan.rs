@@ -94,6 +94,22 @@ impl Stats {
     }
 }
 
+/// A size for people and for signatures: `1.5 KB`, `42.0 GB`.
+pub fn human_bytes(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
+}
+
 fn extension_of(name: &str) -> String {
     match name.rsplit_once('.') {
         Some((stem, ext)) if !stem.is_empty() => ext.to_lowercase(),
@@ -257,5 +273,13 @@ mod tests {
         assert_eq!(extension_of("archive.tar.gz"), "gz");
         assert_eq!(extension_of(".gitconfig"), "");
         assert_eq!(extension_of("README"), "");
+    }
+
+    #[test]
+    fn bytes_are_readable() {
+        assert_eq!(human_bytes(0), "0 B");
+        assert_eq!(human_bytes(1023), "1023 B");
+        assert_eq!(human_bytes(1536), "1.5 KB");
+        assert_eq!(human_bytes(42 * 1024 * 1024 * 1024), "42.0 GB");
     }
 }

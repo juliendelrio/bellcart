@@ -27,6 +27,16 @@ fn scan_prints_a_plan_other_tools_can_read() {
 }
 
 #[test]
+fn scan_prints_signatures_when_asked() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/packs");
+    let output = bellcart(&["scan", dir, "--signatures"]);
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.starts_with("path: "), "{stdout}");
+    assert!(stdout.contains("\nextensions: yaml "), "{stdout}");
+}
+
+#[test]
 fn the_interface_speaks_french_when_asked() {
     let output = bellcart(&["--lang", "fr", "packs"]);
     assert!(output.status.success());
