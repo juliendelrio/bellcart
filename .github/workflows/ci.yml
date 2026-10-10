@@ -13,6 +13,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  branch-name:
+    name: branch name
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Follow the naming convention in CONTRIBUTING.md
+        env:
+          # Passed through the environment, never interpolated in the
+          # script: a branch name is untrusted input.
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          pattern='^(feat|fix|pack|i18n|docs|ci|chore)/([0-9]+-)?[a-z0-9]+(-[a-z0-9]+)*$'
+          if [[ ! "$BRANCH" =~ $pattern ]]; then
+            echo "::error::Branch '$BRANCH' does not match <type>/<issue>-<short-description>. See CONTRIBUTING.md."
+            exit 1
+          fi
+
   check:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

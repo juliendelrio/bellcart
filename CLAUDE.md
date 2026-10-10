@@ -78,6 +78,10 @@ and translation keys. Rendering and wording belong to the front ends.
 
 ## How to make a change
 
+- **Branch**: work on `<type>/<issue>-<short-description>` (types:
+  `feat`, `fix`, `pack`, `i18n`, `docs`, `ci`, `chore`), never directly on
+  `main` unless the maintainer asks. Details in `CONTRIBUTING.md`.
+
 - **Behaviour change in the scan or rules**: write or change the case in
   `tests/scan.rs` first, using `MemTree`. Those tests are the spec, and the
   maintainer reads them to check what the tool does. Name them as

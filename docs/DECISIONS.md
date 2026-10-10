@@ -95,6 +95,15 @@ gigabytes of documents. The plan moves to version 2 because a `review`
 node may now hold `review` nodes, which a reader of version 1 could not
 expect. Version 1 plans still parse.
 
+## 2026-10-10
+
+**D16. Branches are named `<type>/<issue>-<short-description>`.**
+Work is tracked in GitHub issues, one milestone per roadmap step. Putting
+the issue number in the branch links the two without a tool. The types
+follow the kinds of contribution this project gets, with `pack` apart
+because pack changes are reviewed by different rules than code. CI rejects
+a pull request whose branch does not follow the convention.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

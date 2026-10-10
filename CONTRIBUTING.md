@@ -40,6 +40,28 @@ Start with the [specification](docs/SPEC-V1.md) and the
 [decision log](docs/DECISIONS.md). For anything larger than a fix, open an
 issue first so we agree on the approach.
 
+## Branches
+
+Work happens on a branch, merged into `main` through a pull request.
+Name it `<type>/<issue>-<short-description>`, in lowercase ASCII with
+hyphens:
+
+| Type | For |
+| --- | --- |
+| `feat` | a new capability of the engine or the interface |
+| `fix` | a bug fix |
+| `pack` | rules, recipes and questions under `packs/` |
+| `i18n` | a new language or translation fixes |
+| `docs` | documentation only |
+| `ci` | workflows and release tooling |
+| `chore` | dependencies, tooling, clean-ups |
+
+Examples: `feat/1-review-signatures`, `pack/4-seed-rules`,
+`fix/typo-in-readme`. The issue number is optional for small fixes. For
+anything else, open the issue first, put its number in the branch name,
+and write `Closes #<issue>` in the pull request. CI checks the name of
+every pull request branch.
+
 A few rules are not negotiable: Bellcart never modifies the scanned tree,
 never reads file contents, never makes a network request the user did not
 configure, and packs can never carry commands.

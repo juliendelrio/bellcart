@@ -1,6 +1,6 @@
 ## What and why
 
-<!-- One or two sentences. Link the issue if there is one. -->
+<!-- One or two sentences. Link the issue if there is one: "Closes #12". -->
 
 ## Checked on
 
