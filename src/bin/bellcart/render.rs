@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 
 use bellcart::pack::Pack;
-use bellcart::plan::{Decision, Plan, PlanNode, Source, UnitReason};
+use bellcart::plan::{Decision, Plan, PlanNode, Source, UnitReason, human_bytes};
 
 use crate::i18n::Localizer;
 
@@ -143,33 +143,5 @@ fn unit_reason(unit: &UnitReason, text: &Localizer) -> String {
         UnitReason::DepthLimit => text.get("unit-depth-limit"),
         UnitReason::Leaf => text.get("unit-leaf"),
         UnitReason::Rest => text.get("unit-rest"),
-    }
-}
-
-fn human_bytes(bytes: u64) -> String {
-    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
-    let mut value = bytes as f64;
-    let mut unit = 0;
-    while value >= 1024.0 && unit < UNITS.len() - 1 {
-        value /= 1024.0;
-        unit += 1;
-    }
-    if unit == 0 {
-        format!("{bytes} B")
-    } else {
-        format!("{value:.1} {}", UNITS[unit])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn bytes_are_readable() {
-        assert_eq!(human_bytes(0), "0 B");
-        assert_eq!(human_bytes(1023), "1023 B");
-        assert_eq!(human_bytes(1536), "1.5 KB");
-        assert_eq!(human_bytes(42 * 1024 * 1024 * 1024), "42.0 GB");
     }
 }

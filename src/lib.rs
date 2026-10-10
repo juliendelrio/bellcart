@@ -17,6 +17,7 @@ pub mod pack;
 pub mod plan;
 pub mod scan;
 pub mod schema;
+pub mod signature;
 pub mod tree;
 
 pub use error::{Error, Result};

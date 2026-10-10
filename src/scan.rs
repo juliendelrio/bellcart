@@ -15,18 +15,30 @@
 //! node per unit. Cutting never decides anything: it only creates `review`
 //! nodes, and leaves the totals unchanged.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::pack::RuleSet;
 use crate::plan::{Decision, Plan, PlanNode, Source, SplitBudget, Stats, UnitReason};
+use crate::signature::{Named, Sample};
 use crate::tree::{Entry, Kind, Tree};
 use crate::{Error, Result};
+
+/// What a scan produces.
+#[derive(Debug, Clone)]
+pub struct Scan {
+    pub plan: Plan,
+    /// For each review unit, keyed by its path, the largest entries lying
+    /// directly in it. They feed [`crate::signature`]. They are kept out of
+    /// the plan, which goes to copy tools and has no use for file names.
+    pub samples: BTreeMap<String, Sample>,
+}
 
 /// Scans `root` and builds its plan, cutting the review mass with `budget`.
 ///
 /// Fails only if `root` itself cannot be read. Unreadable folders below it
 /// are counted in [`Stats::unreadable`] and the scan goes on.
-pub fn scan(tree: &dyn Tree, root: &Path, rules: &RuleSet, budget: &SplitBudget) -> Result<Plan> {
+pub fn scan(tree: &dyn Tree, root: &Path, rules: &RuleSet, budget: &SplitBudget) -> Result<Scan> {
     let entries = tree.read_dir(root).map_err(|source| Error::Io {
         path: root.to_path_buf(),
         source,
@@ -36,12 +48,15 @@ pub fn scan(tree: &dyn Tree, root: &Path, rules: &RuleSet, budget: &SplitBudget)
         rules,
         budget,
     };
-    let walked = walker.walk(root, String::new(), 0, entries);
-    Ok(Plan::new(
-        root.to_string_lossy().into_owned(),
-        walked.node,
-        Some(budget.clone()),
-    ))
+    let walked = walker.walk(root, String::new(), String::new(), 0, entries);
+    Ok(Scan {
+        plan: Plan::new(
+            root.to_string_lossy().into_owned(),
+            walked.node,
+            Some(budget.clone()),
+        ),
+        samples: walked.samples.into_iter().collect(),
+    })
 }
 
 struct Walker<'a> {
@@ -50,11 +65,14 @@ struct Walker<'a> {
     budget: &'a SplitBudget,
 }
 
-/// A review folder once walked: its node, already cut, and the figures of
-/// everything still to review under it.
+/// A review folder once walked: its node, already cut, the figures of
+/// everything still to review under it, and the samples of the units its
+/// node holds.
 struct Walked {
+    name: String,
     node: PlanNode,
     review: Stats,
+    samples: Vec<(String, Sample)>,
 }
 
 /// A sub-folder of a review folder, in listing order.
@@ -64,13 +82,27 @@ enum Item {
 }
 
 impl Walker<'_> {
-    fn walk(&self, abs: &Path, rel: String, depth: u32, entries: Vec<Entry>) -> Walked {
+    fn walk(
+        &self,
+        abs: &Path,
+        name: String,
+        rel: String,
+        depth: u32,
+        entries: Vec<Entry>,
+    ) -> Walked {
         let mut own = Stats::default();
+        let mut files = Vec::new();
         let mut items = Vec::new();
 
         for entry in entries {
             match entry.kind {
-                Kind::File { size, modified } => own.add_file(&entry.name, size, modified),
+                Kind::File { size, modified } => {
+                    own.add_file(&entry.name, size, modified);
+                    files.push(Named {
+                        name: entry.name,
+                        bytes: size,
+                    });
+                }
                 Kind::Other => {}
                 Kind::Dir => {
                     let child_abs = abs.join(&entry.name);
@@ -93,9 +125,13 @@ impl Walker<'_> {
                             overrides: Vec::new(),
                             unit: None,
                         }),
-                        None => {
-                            Item::Review(self.walk(&child_abs, child_rel, depth + 1, child_entries))
-                        }
+                        None => Item::Review(self.walk(
+                            &child_abs,
+                            entry.name,
+                            child_rel,
+                            depth + 1,
+                            child_entries,
+                        )),
                     });
                 }
             }
@@ -108,11 +144,26 @@ impl Walker<'_> {
             }
         }
 
-        let node = match self.stop(&review, depth, &items) {
-            Some(reason) => as_unit(rel, review.clone(), reason, items),
-            None => self.cut(rel, own, items),
+        let (node, samples) = match self.stop(&review, depth, &items) {
+            Some(reason) => {
+                let folders = items
+                    .iter()
+                    .filter_map(|item| match item {
+                        Item::Review(child) => Some(named(child)),
+                        Item::Settled(_) => None,
+                    })
+                    .collect();
+                let sample = (rel.clone(), Sample::new(folders, files));
+                (as_unit(rel, review.clone(), reason, items), vec![sample])
+            }
+            None => self.cut(rel, own, files, items),
         };
-        Walked { node, review }
+        Walked {
+            name,
+            node,
+            review,
+            samples,
+        }
     }
 
     /// Why this folder is one unit, or `None` if it must be cut.
@@ -138,31 +189,48 @@ impl Walker<'_> {
 
     /// Keeps the sub-folders big enough to stand alone as their own nodes,
     /// and folds the others into this folder's rest.
-    fn cut(&self, rel: String, mut rest: Stats, items: Vec<Item>) -> PlanNode {
+    fn cut(
+        &self,
+        rel: String,
+        mut rest: Stats,
+        files: Vec<Named>,
+        items: Vec<Item>,
+    ) -> (PlanNode, Vec<(String, Sample)>) {
         let mut overrides = Vec::new();
+        let mut samples = Vec::new();
+        let mut folded = Vec::new();
         for item in items {
             match item {
                 Item::Settled(node) => overrides.push(node),
                 Item::Review(child) if child.review.bytes < self.budget.min_unit => {
                     rest.merge(&child.review);
+                    folded.push(named(&child));
                     settled_within(child.node, &mut overrides);
                 }
                 // Cut, with nothing of its own to judge: its units move up.
                 Item::Review(child) if child.node.unit.is_none() => {
                     overrides.extend(child.node.overrides);
+                    samples.extend(child.samples);
                 }
-                Item::Review(child) => overrides.push(child.node),
+                Item::Review(child) => {
+                    overrides.push(child.node);
+                    samples.extend(child.samples);
+                }
             }
         }
         let has_rest = rest.files > 0 || rest.unreadable > 0;
-        PlanNode {
+        if has_rest {
+            samples.push((rel.clone(), Sample::new(folded, files)));
+        }
+        let node = PlanNode {
             path: rel,
             decision: Decision::Review,
             source: Source::Default,
             stats: rest,
             overrides,
             unit: has_rest.then_some(UnitReason::Rest),
-        }
+        };
+        (node, samples)
     }
 
     /// Sizes a settled folder without applying rules inside it.
@@ -232,6 +300,14 @@ fn dominant_extension(stats: &Stats, budget: &SplitBudget) -> Option<(String, u8
     let homogeneous =
         percent >= u128::from(budget.homogeneous_percent) && others <= budget.split_above;
     homogeneous.then(|| (extension.clone(), u8::try_from(percent).unwrap_or(100)))
+}
+
+/// A walked sub-folder as an entry of its parent's sample.
+fn named(child: &Walked) -> Named {
+    Named {
+        name: child.name.clone(),
+        bytes: child.review.bytes,
+    }
 }
 
 fn join(rel: &str, name: &str) -> String {
