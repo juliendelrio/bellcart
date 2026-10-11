@@ -73,6 +73,11 @@ Décidé par les règles et les recettes
       1.4 MB  .  (assez petit pour être jugé d'un bloc)
 ```
 
+- `bellcart ui` ouvre l'interface d'examen dans votre navigateur :
+  choisir le profil, l'analyser, décider dossier par dossier avec trois
+  chariots et leurs totaux, corriger ce que les règles ont réglé, puis
+  exporter le plan et le carnet. Elle ne tourne que sur cette machine.
+  Ajoutez `--endpoint` et `--model` pour y proposer aussi un arbitre.
 - `bellcart scan <dossier>` affiche ce résumé ; `--json` affiche le plan
   complet, `--out plan.json` l'enregistre, et `--signatures` affiche ce
   qu'un arbitre lirait sur chaque dossier à examiner (`--privacy redacted`

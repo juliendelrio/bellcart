@@ -70,6 +70,11 @@ To review, folder by folder
       1.4 MB  .  (small enough to judge as a whole)
 ```
 
+- `bellcart ui` opens the review interface in your browser: choose the
+  profile, analyse it, decide folder by folder with three carts and
+  their totals, correct what rules settled, then export the plan and
+  the notebook. It runs on this machine only. Add `--endpoint` and
+  `--model` to offer an arbiter there too.
 - `bellcart scan <folder>` prints the summary above; `--json` prints the
   full plan, `--out plan.json` saves it, and `--signatures` prints what
   an arbiter would read about each folder to review (`--privacy redacted`

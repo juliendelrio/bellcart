@@ -14,6 +14,7 @@ include = [
     "/packs",
     "/locales",
     "/schemas",
+    "/web",
     "/README.md",
     "/LICENSE",
 ]
@@ -32,10 +33,8 @@ serde_json = "1"
 sys-locale = "0.3"
 thiserror = "2"
 unic-langid = "0.9"
-ureq = { version = "3", features = ["json"] }
-
-[dev-dependencies]
 tiny_http = "0.12"
+ureq = { version = "3", features = ["json"] }
 
 [lints.rust]
 # Windows API calls will live in a dedicated member crate that opts out

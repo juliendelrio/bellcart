@@ -72,7 +72,8 @@ src/openai_chat.rs    the openai-chat backend (the only code that uses the netwo
 src/decision_log.rs   the local log of answers and corrections
 src/eval.rs           labelled set and replay against a backend
 src/schema.rs         JSON Schema generation
-src/bin/bellcart/     CLI: argument parsing, i18n, text rendering only
+src/bin/bellcart/     CLI and review server: arguments, i18n, rendering, ui.rs
+web/                  the review page, embedded in the binary (no framework)
 packs/core/           rules, recipes, questions embedded in the binary
 locales/<lang>/       interface strings (Fluent)
 schemas/              generated, checked in, do not edit by hand
@@ -85,6 +86,7 @@ tests/arbiter.rs      the openai-chat backend and arbitrate, against a fake serv
 tests/eval.rs         what eval reports, above all folders that would be lost
 tests/core_pack.rs    checks on the shipped pack and its translations
 tests/cli.rs          end-to-end on the real binary
+tests/ui.rs           the review interface, driven through its HTTP API
 ```
 
 The engine never prints and never knows about languages: it returns data

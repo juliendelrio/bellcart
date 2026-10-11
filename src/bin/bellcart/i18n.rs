@@ -64,6 +64,41 @@ impl Localizer {
     }
 }
 
+impl Localizer {
+    /// The one-line messages of the interface language, English filling
+    /// the gaps, as raw patterns (`Scanning: { $folders } folders`). The
+    /// web page fills the `{ $name }` placeholders itself. Messages with
+    /// variants (plurals) span several lines and are left out: the page
+    /// gets those already formatted.
+    pub fn patterns(&self) -> std::collections::BTreeMap<String, String> {
+        let mut out = one_line_messages("en");
+        out.extend(one_line_messages(self.lang));
+        out
+    }
+}
+
+fn one_line_messages(lang: &str) -> std::collections::BTreeMap<String, String> {
+    let source = LOCALES
+        .iter()
+        .find(|(code, _)| *code == lang)
+        .map_or("", |(_, source)| *source);
+    let lines: Vec<&str> = source.lines().collect();
+    let mut out = std::collections::BTreeMap::new();
+    for (i, line) in lines.iter().enumerate() {
+        if line.starts_with(['#', ' ']) {
+            continue;
+        }
+        let Some((key, value)) = line.split_once(" = ") else {
+            continue;
+        };
+        let continued = lines.get(i + 1).is_some_and(|next| next.starts_with(' '));
+        if !continued && !value.trim().is_empty() && !value.contains("->") {
+            out.insert(key.trim().to_owned(), value.trim().to_owned());
+        }
+    }
+    out
+}
+
 /// Maps a locale such as `fr-FR` or `fr_FR.UTF-8` to a language we ship.
 fn pick(wanted: &str) -> &'static str {
     let primary = wanted
@@ -106,6 +141,18 @@ mod tests {
         assert_eq!(pick("en-GB"), "en");
         assert_eq!(pick("de-DE"), "en");
         assert_eq!(pick(""), "en");
+    }
+
+    #[test]
+    fn patterns_hold_one_line_messages_with_english_filling_gaps() {
+        let patterns = Localizer::new(Some("fr")).patterns();
+        assert_eq!(patterns["decision-leave"], "À laisser");
+        assert_eq!(
+            patterns["scan-progress"],
+            "Analyse : { $folders } dossiers, { $size } parcourus"
+        );
+        // A message with plural variants spans several lines: left out.
+        assert!(!patterns.contains_key("plan-files"));
     }
 
     #[test]

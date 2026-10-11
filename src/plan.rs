@@ -56,6 +56,9 @@ pub enum Source {
         #[serde(skip_serializing_if = "Option::is_none", default)]
         opinion: Option<Decision>,
     },
+    /// The user decided, in the review interface. It overrides whatever
+    /// decided before.
+    User,
     /// Inherited default: no rule matched.
     Default,
 }
@@ -259,7 +262,8 @@ pub struct Totals {
 /// 3: a node may be settled by a recipe (`Source::Recipe`) and may be a
 /// single file; the plan lists the `applications` found.
 /// 4: a review unit may be decided by an arbiter (`Source::Arbiter`).
-pub const PLAN_VERSION: u32 = 4;
+/// 5: any node may be decided by the user (`Source::User`).
+pub const PLAN_VERSION: u32 = 5;
 
 impl Plan {
     pub fn new(root: String, tree: PlanNode, split: Option<SplitBudget>) -> Self {
@@ -299,6 +303,20 @@ impl Plan {
             backend: backend.to_owned(),
             opinion: verdict.opinion,
         };
+        self.retotal();
+        true
+    }
+
+    /// Records the user's decision for the node at `path`: a review unit,
+    /// or a folder a rule, a recipe or an arbiter settled. Returns `false`
+    /// when the plan has no node there. The user may decide anything,
+    /// `leave` included: it is their data.
+    pub fn apply_user(&mut self, path: &str, decision: Decision) -> bool {
+        let Some(node) = find_mut(&mut self.tree, path) else {
+            return false;
+        };
+        node.decision = decision;
+        node.source = Source::User;
         self.retotal();
         true
     }

@@ -203,6 +203,19 @@
           ]
         },
         {
+          "description": "The user decided, in the review interface. It overrides whatever\ndecided before.",
+          "type": "object",
+          "properties": {
+            "by": {
+              "type": "string",
+              "const": "user"
+            }
+          },
+          "required": [
+            "by"
+          ]
+        },
+        {
           "description": "Inherited default: no rule matched.",
           "type": "object",
           "properties": {

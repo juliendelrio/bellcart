@@ -10,17 +10,7 @@ use crate::i18n::Localizer;
 /// `recipes` give the names of the applications found in the interface
 /// language; the plan only records them in English.
 pub fn plan(plan: &Plan, recipes: &[Recipe], text: &Localizer) -> String {
-    let name_of = |id: &str| -> String {
-        recipes.iter().find(|r| r.id == id).map_or_else(
-            || {
-                plan.applications
-                    .iter()
-                    .find(|a| a.recipe == id)
-                    .map_or(id.to_owned(), |a| a.name.clone())
-            },
-            |r| r.name.get(text.lang()).to_owned(),
-        )
-    };
+    let name_of = |id: &str| application_name(id, plan, recipes, text);
     let mut out = String::new();
     let _ = writeln!(
         out,
@@ -74,15 +64,8 @@ pub fn plan(plan: &Plan, recipes: &[Recipe], text: &Localizer) -> String {
     } else {
         let _ = writeln!(out, "{}", text.get("plan-settled"));
         for node in settled {
-            let why = match &node.source {
-                Source::Rule { reason, .. } => text.get(&format!("reason-{reason}")),
-                Source::Recipe { recipe } => {
-                    text.with("source-recipe", &[("name", name_of(recipe).into())])
-                }
-                Source::Arbiter { backend, .. } => {
-                    text.with("source-arbiter", &[("backend", backend.as_str().into())])
-                }
-                Source::Default => continue,
+            let Some(why) = why(node, plan, recipes, text) else {
+                continue;
             };
             let label = text.get(&format!("decision-{}", node.decision.as_str()));
             let _ = writeln!(
@@ -158,7 +141,38 @@ pub fn pack(pack: &Pack, text: &Localizer) -> String {
     out
 }
 
-fn unit_reason(unit: &UnitReason, text: &Localizer) -> String {
+/// Why a node has its decision, in the interface language. `None` for a
+/// node no one decided.
+pub fn why(node: &PlanNode, plan: &Plan, recipes: &[Recipe], text: &Localizer) -> Option<String> {
+    Some(match &node.source {
+        Source::Rule { reason, .. } => text.get(&format!("reason-{reason}")),
+        Source::Recipe { recipe } => text.with(
+            "source-recipe",
+            &[("name", application_name(recipe, plan, recipes, text).into())],
+        ),
+        Source::Arbiter { backend, .. } => {
+            text.with("source-arbiter", &[("backend", backend.as_str().into())])
+        }
+        Source::User => text.get("source-user"),
+        Source::Default => return None,
+    })
+}
+
+/// The name of an application found, in the interface language when its
+/// recipe is loaded, else as the plan recorded it.
+pub fn application_name(id: &str, plan: &Plan, recipes: &[Recipe], text: &Localizer) -> String {
+    recipes.iter().find(|r| r.id == id).map_or_else(
+        || {
+            plan.applications
+                .iter()
+                .find(|a| a.recipe == id)
+                .map_or(id.to_owned(), |a| a.name.clone())
+        },
+        |r| r.name.get(text.lang()).to_owned(),
+    )
+}
+
+pub fn unit_reason(unit: &UnitReason, text: &Localizer) -> String {
     match unit {
         UnitReason::Small => text.get("unit-small"),
         UnitReason::Homogeneous { extension, percent } if extension.is_empty() => text.with(
