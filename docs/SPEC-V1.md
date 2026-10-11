@@ -272,7 +272,7 @@ It must never be a tree of half a million checkboxes.
 | Export primitives, `bellcart export` | done |
 | `openai-chat` backend, decision log, privacy modes | done |
 | `bellcart label` and `bellcart eval` on a labelled set | done |
-| Web interface | to build |
+| Web interface: four steps, review screen, export | done |
 | Windows crate: known folders, elevation | to build |
 | Signed release pipeline | to build |
 

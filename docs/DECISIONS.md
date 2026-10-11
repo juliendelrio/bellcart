@@ -289,6 +289,29 @@ the combination rules can be guarded in a script. A suggested `leave` on
 a folder labelled `migrate` is listed too: held for the user, it still
 measures how far a backend can be trusted.
 
+**D29. The review interface is a page served on 127.0.0.1 by `tiny_http`,
+written without a framework, reachable only with a token, and the user's
+decisions are a plan source of their own (version 5).**
+`bellcart ui` listens on 127.0.0.1 only and opens the default browser
+through `rundll32 url.dll` on Windows, with no shell. The page, its script
+and its style are embedded in the binary, so it works offline and loads
+nothing from elsewhere. Two checks keep other pages away from the API: a
+random 128-bit token the page gets in the URL fragment, which the browser
+never sends to any server, and a `Host` header that must name 127.0.0.1,
+which stops a site that points its own domain at this machine (DNS
+rebinding). Every response carries a strict Content-Security-Policy. The
+script is plain JavaScript and never puts scan data in the page as HTML:
+folder names are personal and may hold anything. The review screen shows
+the three carts with their totals, the units to decide one card at a
+time, largest first and those without an arbiter opinion before those
+with one (size times uncertainty), and the settled decisions folded, each
+with its reason and a way to change it. A decision there is
+`Source::User`, which may override a rule, a recipe or an arbiter,
+`leave` included: it is the user's data. Hence plan version 5. The export
+writes the plan, the notebook in HTML and Markdown, and the user's
+decisions and arbiter answers to the decision log, in a folder outside
+the scanned profile.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

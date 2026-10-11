@@ -8,6 +8,7 @@ mod i18n;
 mod notebook;
 mod progress;
 mod render;
+mod ui;
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -136,6 +137,27 @@ enum Command {
         #[arg(long, value_name = "SECONDS", default_value_t = 60)]
         timeout: u64,
     },
+    /// Open the review interface in the browser: choose, analyse, review,
+    /// export. It runs on this machine only.
+    Ui {
+        /// The profile to propose. Defaults to the current user's.
+        path: Option<PathBuf>,
+        /// The port to listen on, on 127.0.0.1. 0 picks a free one.
+        #[arg(long, default_value_t = 0)]
+        port: u16,
+        /// Do not open the browser; print the address only.
+        #[arg(long)]
+        no_browser: bool,
+        /// An OpenAI-compatible endpoint to offer as arbiter. The key, if
+        /// needed, is read from BELLCART_ARBITER_KEY.
+        #[arg(long, requires = "model")]
+        endpoint: Option<String>,
+        /// The model to ask, with `--endpoint`.
+        #[arg(long, requires = "endpoint")]
+        model: Option<String>,
+        #[arg(long, value_enum, default_value_t = PrivacyArg::Redacted)]
+        privacy: PrivacyArg,
+    },
     /// Show what the built-in pack contains.
     Packs,
 }
@@ -234,6 +256,39 @@ fn run() -> Result<()> {
         }
         Command::Export { path, to } => export::run(&path, &to, &library, &text)?,
         Command::Label { path, out } => evaluate::label(&path, &out, &library, &text)?,
+        Command::Ui {
+            path,
+            port,
+            no_browser,
+            endpoint,
+            model,
+            privacy,
+        } => {
+            let arbiter = match (endpoint, model) {
+                (Some(endpoint), Some(model)) => {
+                    let chat = bellcart::openai_chat::OpenAiChat::new(
+                        bellcart::openai_chat::ChatConfig {
+                            endpoint,
+                            model: model.clone(),
+                            key: std::env::var(arbitrate::KEY_VARIABLE)
+                                .ok()
+                                .filter(|k| !k.is_empty()),
+                            timeout: std::time::Duration::from_secs(60),
+                        },
+                    )?;
+                    Some((chat, privacy.into(), model))
+                }
+                _ => None,
+            };
+            let profile = path.unwrap_or_else(default_profile);
+            let options = ui::UiOptions {
+                profile,
+                port,
+                open_browser: !no_browser,
+                arbiter,
+            };
+            ui::run(options, library, packs[0].questions.clone(), &text)?;
+        }
         Command::Eval {
             labels,
             endpoint,
@@ -319,6 +374,22 @@ pub fn outside(given: &Path, file: &Path) -> Result<()> {
             given.display()
         );
     }
+    Ok(())
+}
+
+/// The current user's profile folder, from the environment. Only a
+/// proposal: the user confirms it on the first screen.
+fn default_profile() -> PathBuf {
+    std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map_or_else(|| PathBuf::from("."), PathBuf::from)
+}
+
+/// Prints and flushes, for prompts and progress that must show at once.
+pub fn say(text: &str) -> Result<()> {
+    let mut stdout = std::io::stdout().lock();
+    stdout.write_all(text.as_bytes())?;
+    stdout.flush()?;
     Ok(())
 }
 
