@@ -55,3 +55,15 @@ unit-homogeneous-no-extension = mostly files without an extension ({ $percent }%
 unit-depth-limit = deep folder, judged as a whole
 unit-leaf = no sub-folder large enough to judge apart
 unit-rest = files directly in this folder and its small sub-folders
+
+notebook-title = Migration notebook for { $root }
+notebook-intro = Tick each item as you go. Folders the plan migrates are copied with the rest: these items are what files alone do not carry.
+notebook-empty = No application with a recipe was found on this profile.
+notebook-before = Before you leave the old PC
+notebook-after = On arrival on the new PC
+notebook-copy = Take { $path }
+notebook-copy-note = Take { $path }: { $note }
+notebook-export-winget = Save the list of applications installed with winget: { $command }
+notebook-export-vscode = Save the list of Visual Studio Code extensions: { $command }
+notebook-export-registry = Save the registry key { $key }: { $command }
+notebook-install = Install it with winget: { $command }

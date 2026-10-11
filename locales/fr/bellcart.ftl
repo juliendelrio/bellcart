@@ -51,3 +51,15 @@ unit-homogeneous-no-extension = surtout des fichiers sans extension ({ $percent 
 unit-depth-limit = dossier profond, jugé d'un bloc
 unit-leaf = aucun sous-dossier assez gros pour être jugé à part
 unit-rest = fichiers posés dans ce dossier et ses petits sous-dossiers
+
+notebook-title = Carnet de migration pour { $root }
+notebook-intro = Cochez chaque point au fur et à mesure. Les dossiers que le plan migre sont copiés avec le reste : ces points sont ce que les fichiers seuls n'emportent pas.
+notebook-empty = Aucune application connue d'une recette n'a été trouvée sur ce profil.
+notebook-before = Avant de quitter l'ancien PC
+notebook-after = À l'arrivée sur le nouveau PC
+notebook-copy = Emportez { $path }
+notebook-copy-note = Emportez { $path } : { $note }
+notebook-export-winget = Enregistrez la liste des applications installées avec winget : { $command }
+notebook-export-vscode = Enregistrez la liste des extensions de Visual Studio Code : { $command }
+notebook-export-registry = Enregistrez la clé de registre { $key } : { $command }
+notebook-install = Installez-la avec winget : { $command }

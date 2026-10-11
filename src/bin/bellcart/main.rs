@@ -1,11 +1,12 @@
 //! The `bellcart` command line.
 
 mod i18n;
+mod notebook;
 mod progress;
 mod render;
 
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
@@ -41,6 +42,10 @@ enum Command {
         /// Also write the JSON plan to this file.
         #[arg(long, value_name = "FILE")]
         out: Option<PathBuf>,
+        /// Write the migration notebook to this file: HTML if it ends in
+        /// `.html`, Markdown otherwise.
+        #[arg(long, value_name = "FILE")]
+        notebook: Option<PathBuf>,
         /// Print the signature of each folder to review instead of a
         /// summary: what an arbiter would be sent.
         #[arg(long, conflicts_with = "json")]
@@ -76,9 +81,14 @@ fn run() -> Result<()> {
             path,
             json,
             out,
+            notebook,
             signatures,
             jobs,
         } => {
+            // Checked before the scan, so a mistake costs no waiting.
+            for file in out.iter().chain(&notebook) {
+                outside(&path, file)?;
+            }
             let rules = RuleSet::compile(&pack.rules)?;
             let scan = progress::scan(
                 &path,
@@ -93,6 +103,17 @@ fn run() -> Result<()> {
                 std::fs::write(&out, &document)
                     .with_context(|| format!("cannot write {}", out.display()))?;
             }
+            if let Some(file) = notebook {
+                let book = bellcart::notebook::notebook(&scan.plan.applications, &pack.recipes);
+                let content = notebook::render(
+                    &book,
+                    &scan.plan.root,
+                    &text,
+                    notebook::Format::for_file(&file),
+                );
+                std::fs::write(&file, content)
+                    .with_context(|| format!("cannot write {}", file.display()))?;
+            }
             if json {
                 write_out(&format!("{document}\n"))?;
             } else if signatures {
@@ -106,6 +127,31 @@ fn run() -> Result<()> {
             }
         }
         Command::Packs => write_out(&render::pack(&pack, &text))?,
+    }
+    Ok(())
+}
+
+/// Refuses a file Bellcart would write inside the tree it scans: the scan
+/// is read-only, its outputs included.
+fn outside(given: &Path, file: &Path) -> Result<()> {
+    // Canonical forms resolve `..`, links and case. They are only compared,
+    // never shown: on Windows they read `\\?\C:\...`.
+    let root =
+        std::fs::canonicalize(given).with_context(|| format!("cannot read {}", given.display()))?;
+    // The file may not exist yet: its folder must.
+    let folder = match file.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    };
+    let folder = std::fs::canonicalize(folder)
+        .with_context(|| format!("cannot write {}", file.display()))?;
+    if folder.starts_with(&root) {
+        anyhow::bail!(
+            "cannot write {} inside the scanned folder {}: Bellcart never writes there. \
+             Choose another folder.",
+            file.display(),
+            given.display()
+        );
     }
     Ok(())
 }
