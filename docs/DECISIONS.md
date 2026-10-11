@@ -152,6 +152,20 @@ default budget is kept: on the maintainer's Windows 11 profile it gives
 76 units instead of 91, the smallest 105 MB, all with a reason that reads
 well. Other profiles may move the defaults again.
 
+**D20. Rules from a first real profile: application caches, downloaded
+updates and per-user programs are left.**
+The rules added after the first run on a real Windows 11 profile match
+folders an application owns and rebuilds: Chromium and Electron caches,
+browser components, crash reports, VS Code caches, package stores
+(pnpm, cargo, rustup, Hugging Face). Where the folder name is a common
+word (`Cache`, `packages`, `*-updater`), the rule also requires the entry
+the application leaves inside (`Cache_Data`, `RELEASES`, `installer.exe`).
+`AppData/Local/Programs` is left as a whole: per-user installers put
+programs there, and settings and documents live elsewhere; reinstalling is
+the recipes' job. Site data that may be the user's own (`IndexedDB`,
+`File System`) and WSL or Docker disk images stay to review. On that
+profile the review list went from 76 units to 49.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

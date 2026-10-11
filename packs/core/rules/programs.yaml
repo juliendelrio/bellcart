@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=../../../schemas/rules.schema.json
+#
+# Programs installed under the user profile, and their downloaded updates.
+# They are installed again on the new PC; the recipes say how, and what to
+# carry over from their settings.
+rules:
+  # Where per-user installers put programs (VS Code, Python, GIMP...).
+  # Settings and documents live in Roaming or the user's folders.
+  - id: user-installed-programs
+    decision: leave
+    reason: installed-program
+    match:
+      path_glob: "**/AppData/Local/Programs"
+
+  # Installers already downloaded by an application's updater:
+  # electron-builder keeps them in `<app>-updater`, Squirrel (Slack,
+  # Discord...) in `<app>/packages`. The file each one leaves is required,
+  # so a folder that only shares the name is not matched.
+  - id: electron-updater-download
+    decision: leave
+    reason: update-download
+    match:
+      path_glob: "**/AppData/Local/*-updater"
+      contains: [installer.exe]
+
+  - id: squirrel-update-download
+    decision: leave
+    reason: update-download
+    match:
+      path_glob: "**/AppData/Local/*/packages"
+      contains: [RELEASES]

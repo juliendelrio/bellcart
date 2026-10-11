@@ -53,3 +53,31 @@ rules:
     reason: package-cache
     match:
       path_glob: "**/.cargo/registry"
+
+  - id: cargo-git
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/.cargo/git"
+
+  # `rustup` installs them again from `rust-toolchain` files and its
+  # settings, which stay in `.rustup/settings.toml`.
+  - id: rustup-toolchains
+    decision: leave
+    reason: regenerable-dependencies
+    match:
+      path_glob: "**/.rustup/toolchains"
+
+  - id: pnpm-store
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/AppData/Local/pnpm/store"
+
+  # Models downloaded by Hugging Face libraries, fetched again on first
+  # use. A model someone trained is saved elsewhere, not in this cache.
+  - id: huggingface-hub-cache
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/.cache/huggingface/hub"
