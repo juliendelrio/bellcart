@@ -58,7 +58,9 @@ Plan for C:\Users\me
   Leave behind      7.1 MB  3 files
   To review         1.4 MB  3 files
 
-Settled by rules
+Applications found: OpenSSH keys
+
+Settled by rules and recipes
       3.8 MB  Leave behind  dev/app/node_modules  (Dependencies a package manager reinstalls)
       2.4 MB  Leave behind  AppData/Local/Google/Chrome/User Data/Default/Cache  (Application cache, rebuilt automatically)
     878.9 KB  Leave behind  AppData/Local/Temp  (Temporary files)

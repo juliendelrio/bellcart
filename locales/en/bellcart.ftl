@@ -6,13 +6,15 @@ decision-leave = Leave behind
 decision-review = To review
 
 plan-title = Plan for { $root }
-plan-settled = Settled by rules
+plan-settled = Settled by rules and recipes
 plan-nothing-settled = No rule matched anything here.
 plan-unreadable = { $count ->
     [one] { $count } folder could not be read.
    *[other] { $count } folders could not be read.
 } Run as administrator to include them.
 plan-to-review = To review, folder by folder
+plan-applications = Applications found: { $names }
+source-recipe = From the { $name } recipe
 scan-progress = Scanning: { $folders } folders, { $size } read
 plan-files ={ $count ->
     [one] { $count } file

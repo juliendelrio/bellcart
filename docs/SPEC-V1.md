@@ -267,7 +267,8 @@ It must never be a tree of half a million checkboxes.
 | Breaking the review mass into reviewable folders | done, thresholds to tune on real profiles |
 | Signatures of review units, `scan --signatures` | done |
 | Parallel scan and progress line | done |
-| Recipe detection and migration notebook | to build |
+| Recipe detection, `copy` and `skip` steps in the plan | done |
+| Migration notebook | to build |
 | `openai-chat` backend, decision log, privacy modes | to build |
 | Web interface | to build |
 | Windows crate: known folders, elevation | to build |

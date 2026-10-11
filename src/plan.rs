@@ -45,8 +45,19 @@ impl Decision {
 pub enum Source {
     /// A rule from a pack. `reason` is a translation key (`reason-<key>`).
     Rule { rule: String, reason: String },
+    /// A `copy` or `skip` step in the recipe of an application found on the
+    /// profile. `recipe` is its id, listed in [`Plan::applications`].
+    Recipe { recipe: String },
     /// Inherited default: no rule matched.
     Default,
+}
+
+/// An application whose recipe detected it on the profile.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Application {
+    /// The recipe id.
+    pub recipe: String,
+    pub name: String,
 }
 
 /// Size figures for the files a node covers.
@@ -144,7 +155,8 @@ fn max_opt(a: Option<u64>, b: Option<u64>) -> Option<u64> {
 }
 
 /// A folder and the decision that applies to everything under it, except
-/// the sub-folders listed in `overrides`.
+/// the sub-folders listed in `overrides`. A node settled by a recipe may
+/// also be a single file (`.gitconfig`).
 ///
 /// This mirrors how copy tools work: "take this folder, but not those".
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -223,6 +235,9 @@ pub struct Plan {
     /// The budget the review mass was cut with, so a cut can be reproduced.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub split: Option<SplitBudget>,
+    /// Applications found on the profile, by recipe id.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub applications: Vec<Application>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -233,7 +248,9 @@ pub struct Totals {
 
 /// 2: review nodes may nest inside review nodes, one per unit of decision
 /// (`PlanNode::unit`), and the plan records its `split` budget.
-pub const PLAN_VERSION: u32 = 2;
+/// 3: a node may be settled by a recipe (`Source::Recipe`) and may be a
+/// single file; the plan lists the `applications` found.
+pub const PLAN_VERSION: u32 = 3;
 
 impl Plan {
     pub fn new(root: String, tree: PlanNode, split: Option<SplitBudget>) -> Self {
@@ -248,6 +265,7 @@ impl Plan {
             totals,
             tree,
             split,
+            applications: Vec::new(),
         }
     }
 

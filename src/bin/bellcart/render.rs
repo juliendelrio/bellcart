@@ -35,10 +35,19 @@ pub fn plan(plan: &Plan, text: &Localizer) -> String {
         );
     }
 
+    if !plan.applications.is_empty() {
+        let names: Vec<&str> = plan.applications.iter().map(|a| a.name.as_str()).collect();
+        let _ = writeln!(
+            out,
+            "\n{}",
+            text.with("plan-applications", &[("names", names.join(", ").into())])
+        );
+    }
+
     let mut settled: Vec<&PlanNode> = plan
         .nodes()
         .into_iter()
-        .filter(|n| matches!(n.source, Source::Rule { .. }))
+        .filter(|n| !matches!(n.source, Source::Default))
         .collect();
     settled.sort_by_key(|node| std::cmp::Reverse(node.stats.bytes));
 
@@ -48,16 +57,24 @@ pub fn plan(plan: &Plan, text: &Localizer) -> String {
     } else {
         let _ = writeln!(out, "{}", text.get("plan-settled"));
         for node in settled {
-            let Source::Rule { reason, .. } = &node.source else {
-                continue;
+            let why = match &node.source {
+                Source::Rule { reason, .. } => text.get(&format!("reason-{reason}")),
+                Source::Recipe { recipe } => {
+                    let name = plan
+                        .applications
+                        .iter()
+                        .find(|a| &a.recipe == recipe)
+                        .map_or(recipe.as_str(), |a| a.name.as_str());
+                    text.with("source-recipe", &[("name", name.into())])
+                }
+                Source::Default => continue,
             };
             let label = text.get(&format!("decision-{}", node.decision.as_str()));
             let _ = writeln!(
                 out,
-                "  {:>10}  {label:<width$}  {}  ({})",
+                "  {:>10}  {label:<width$}  {}  ({why})",
                 human_bytes(node.stats.bytes),
                 node.path,
-                text.get(&format!("reason-{reason}")),
             );
         }
     }

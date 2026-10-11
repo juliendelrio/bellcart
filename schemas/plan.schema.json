@@ -4,6 +4,13 @@
   "description": "The plan for one scan root.",
   "type": "object",
   "properties": {
+    "applications": {
+      "description": "Applications found on the profile, by recipe id.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Application"
+      }
+    },
     "root": {
       "description": "The scanned root, as given by the user.",
       "type": "string"
@@ -42,6 +49,23 @@
     "tree"
   ],
   "$defs": {
+    "Application": {
+      "description": "An application whose recipe detected it on the profile.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "recipe": {
+          "description": "The recipe id.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "recipe",
+        "name"
+      ]
+    },
     "Decision": {
       "description": "Where a folder goes.",
       "oneOf": [
@@ -68,7 +92,7 @@
       ]
     },
     "PlanNode": {
-      "description": "A folder and the decision that applies to everything under it, except\nthe sub-folders listed in `overrides`.\n\nThis mirrors how copy tools work: \"take this folder, but not those\".",
+      "description": "A folder and the decision that applies to everything under it, except\nthe sub-folders listed in `overrides`. A node settled by a recipe may\nalso be a single file (`.gitconfig`).\n\nThis mirrors how copy tools work: \"take this folder, but not those\".",
       "type": "object",
       "properties": {
         "decision": {
@@ -132,6 +156,23 @@
             "by",
             "rule",
             "reason"
+          ]
+        },
+        {
+          "description": "A `copy` or `skip` step in the recipe of an application found on the\nprofile. `recipe` is its id, listed in [`Plan::applications`].",
+          "type": "object",
+          "properties": {
+            "by": {
+              "type": "string",
+              "const": "recipe"
+            },
+            "recipe": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "by",
+            "recipe"
           ]
         },
         {

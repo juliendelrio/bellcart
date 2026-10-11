@@ -294,9 +294,28 @@ impl Pack {
                     message: "duplicate recipe id".to_owned(),
                 });
             }
+            check_recipe_paths(recipe).map_err(|message| Error::PackFile { file, message })?;
         }
         Ok(())
     }
+}
+
+/// Every path of a recipe stays inside the profile, and a `skip` inside an
+/// application's data: see [`crate::recipe::check_skip`].
+fn check_recipe_paths(recipe: &Recipe) -> std::result::Result<(), String> {
+    for probe in &recipe.detect.any {
+        crate::recipe::check_path(&probe.path)?;
+    }
+    for step in recipe.before.iter().chain(&recipe.after) {
+        match step {
+            Step::Copy { path, .. } => {
+                crate::recipe::check_path(path)?;
+            }
+            Step::Skip { path } => crate::recipe::check_skip(path)?,
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 fn check_id(id: &str) -> std::result::Result<(), String> {

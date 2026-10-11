@@ -6,8 +6,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow};
-use bellcart::pack::RuleSet;
+use bellcart::pack::{Recipe, RuleSet};
 use bellcart::plan::{SplitBudget, human_bytes};
+use bellcart::recipe::{Recipes, Variables};
 use bellcart::scan::{Progress, Scan, scan_with};
 use bellcart::tree::OsTree;
 
@@ -28,6 +29,7 @@ const STACK_SIZE: usize = 8 << 20;
 pub fn scan(
     path: &Path,
     rules: &RuleSet,
+    recipes: &[Recipe],
     budget: &SplitBudget,
     jobs: Option<usize>,
     text: &Localizer,
@@ -45,8 +47,12 @@ pub fn scan(
     // it ends before they go away. The scan runs there while this thread
     // draws the line, because the localizer cannot be shared across threads.
     thread::scope(|scope| {
-        let worker =
-            scope.spawn(|| pool.install(|| scan_with(&OsTree, path, rules, budget, &progress)));
+        let worker = scope.spawn(|| {
+            pool.install(|| {
+                let found = Recipes::detect(&OsTree, path, recipes, &Variables::profile());
+                scan_with(&OsTree, path, rules, &found, budget, &progress)
+            })
+        });
         let mut drawn = 0;
         while !worker.is_finished() {
             thread::sleep(TICK);

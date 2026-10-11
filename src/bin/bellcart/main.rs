@@ -83,6 +83,7 @@ fn run() -> Result<()> {
             let scan = progress::scan(
                 &path,
                 &rules,
+                &pack.recipes,
                 &SplitBudget::default(),
                 jobs.map(usize::from),
                 &text,
