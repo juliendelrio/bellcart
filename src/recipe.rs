@@ -121,7 +121,7 @@ impl Recipes {
             }
             found.applications.push(Application {
                 recipe: recipe.id.clone(),
-                name: recipe.name.clone(),
+                name: recipe.name.en().to_owned(),
             });
             for step in recipe.before.iter().chain(&recipe.after) {
                 let (path, decision) = match step {

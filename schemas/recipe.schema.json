@@ -26,7 +26,7 @@
       "type": "string"
     },
     "name": {
-      "type": "string"
+      "$ref": "#/$defs/Name"
     }
   },
   "additionalProperties": false,
@@ -50,6 +50,17 @@
       "additionalProperties": false,
       "required": [
         "any"
+      ]
+    },
+    "Name": {
+      "description": "A name shown to the user: one string for every language, or a [`Text`]\nwhen it reads differently in some.\n\n`untagged` lets serde try each form in turn, so both `name: Git` and\n`name: {en: Installed applications, fr: Applications installées}` load.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/Text"
+        }
       ]
     },
     "Probe": {

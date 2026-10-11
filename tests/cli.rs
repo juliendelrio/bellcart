@@ -146,6 +146,7 @@ fn scan_writes_a_markdown_notebook_in_the_chosen_language() {
         "{book}"
     );
     assert!(book.contains("\n### Git\n"), "{book}");
+    assert!(book.contains("\n### Clés OpenSSH\n"), "{book}");
     assert!(
         book.contains("- [ ] Emportez `%USERPROFILE%\\.gitconfig`\n"),
         "{book}"

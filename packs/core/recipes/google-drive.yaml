@@ -1,6 +1,8 @@
 # yaml-language-server: $schema=../../../schemas/recipe.schema.json
 id: google-drive
-name: Google Drive for desktop
+name:
+  en: Google Drive for desktop
+  fr: Google Drive pour ordinateur
 detect:
   any:
     - path: '%LOCALAPPDATA%\Google\DriveFS'

@@ -91,7 +91,7 @@ pub struct Matcher {
 pub struct Recipe {
     /// Unique within the pack, lowercase, dash-separated.
     pub id: String,
-    pub name: String,
+    pub name: Name,
     pub detect: Detect,
     /// Steps on the old PC, before leaving it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -157,6 +157,32 @@ impl Text {
         self.translations
             .get(lang)
             .map_or(self.en.as_str(), String::as_str)
+    }
+}
+
+/// A name shown to the user: one string for every language, or a [`Text`]
+/// when it reads differently in some.
+///
+/// `untagged` lets serde try each form in turn, so both `name: Git` and
+/// `name: {en: Installed applications, fr: Applications installées}` load.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum Name {
+    Same(String),
+    Translated(Text),
+}
+
+impl Name {
+    pub fn get(&self, lang: &str) -> &str {
+        match self {
+            Name::Same(name) => name,
+            Name::Translated(text) => text.get(lang),
+        }
+    }
+
+    /// The English name, which the plan records.
+    pub fn en(&self) -> &str {
+        self.get("en")
     }
 }
 

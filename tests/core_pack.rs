@@ -7,7 +7,7 @@ mod common;
 
 use std::collections::BTreeSet;
 
-use bellcart::pack::{Step, Text};
+use bellcart::pack::{Name, Step, Text};
 
 fn locale_keys(lang: &str) -> BTreeSet<String> {
     let path = common::repo_root().join(format!("locales/{lang}/bellcart.ftl"));
@@ -71,6 +71,30 @@ fn recipe_texts_shipped_in_core_have_a_french_translation() {
             }
         }
     }
+}
+
+#[test]
+fn translated_recipe_names_in_core_have_french() {
+    for recipe in &common::core_pack().recipes {
+        if let Name::Translated(text) = &recipe.name {
+            assert!(
+                text.translations.contains_key("fr"),
+                "recipe `{}` has a name without French",
+                recipe.id
+            );
+        }
+    }
+}
+
+#[test]
+fn a_recipe_name_may_be_one_string_or_translated() {
+    let pack = common::core_pack();
+    let name = |id: &str| &pack.recipes.iter().find(|r| r.id == id).unwrap().name;
+    assert_eq!(name("git").get("fr"), "Git");
+    assert_eq!(name("openssh").get("fr"), "Clés OpenSSH");
+    assert_eq!(name("openssh").en(), "OpenSSH keys");
+    // A language the name does not have falls back to English.
+    assert_eq!(name("openssh").get("de"), "OpenSSH keys");
 }
 
 #[test]

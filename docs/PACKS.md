@@ -129,6 +129,15 @@ and runs it after the user says yes. A registry key must start with
 `HKCU\` and keep to letters, digits, spaces and `_ - . \`; anything else
 does not load.
 
+`name` is one string when it is the same in every language (`Git`), or
+`en` plus translations when it is not:
+
+```yaml
+name:
+  en: OpenSSH keys
+  fr: Clés OpenSSH
+```
+
 Texts (`text`, `note`) need `en`. Other languages are optional and fall
 back to English. Recipes in the core pack must also provide `fr`.
 

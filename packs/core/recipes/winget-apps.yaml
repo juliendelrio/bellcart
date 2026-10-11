@@ -1,6 +1,8 @@
 # yaml-language-server: $schema=../../../schemas/recipe.schema.json
 id: winget-apps
-name: Installed applications (winget)
+name:
+  en: Installed applications (winget)
+  fr: Applications installées (winget)
 detect:
   any:
     - path: '%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe'

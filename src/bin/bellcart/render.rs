@@ -2,12 +2,25 @@
 
 use std::fmt::Write as _;
 
-use bellcart::pack::Pack;
+use bellcart::pack::{Pack, Recipe};
 use bellcart::plan::{Decision, Plan, PlanNode, Source, UnitReason, human_bytes};
 
 use crate::i18n::Localizer;
 
-pub fn plan(plan: &Plan, text: &Localizer) -> String {
+/// `recipes` give the names of the applications found in the interface
+/// language; the plan only records them in English.
+pub fn plan(plan: &Plan, recipes: &[Recipe], text: &Localizer) -> String {
+    let name_of = |id: &str| -> String {
+        recipes.iter().find(|r| r.id == id).map_or_else(
+            || {
+                plan.applications
+                    .iter()
+                    .find(|a| a.recipe == id)
+                    .map_or(id.to_owned(), |a| a.name.clone())
+            },
+            |r| r.name.get(text.lang()).to_owned(),
+        )
+    };
     let mut out = String::new();
     let _ = writeln!(
         out,
@@ -36,7 +49,11 @@ pub fn plan(plan: &Plan, text: &Localizer) -> String {
     }
 
     if !plan.applications.is_empty() {
-        let names: Vec<&str> = plan.applications.iter().map(|a| a.name.as_str()).collect();
+        let names: Vec<String> = plan
+            .applications
+            .iter()
+            .map(|a| name_of(&a.recipe))
+            .collect();
         let _ = writeln!(
             out,
             "\n{}",
@@ -60,12 +77,7 @@ pub fn plan(plan: &Plan, text: &Localizer) -> String {
             let why = match &node.source {
                 Source::Rule { reason, .. } => text.get(&format!("reason-{reason}")),
                 Source::Recipe { recipe } => {
-                    let name = plan
-                        .applications
-                        .iter()
-                        .find(|a| &a.recipe == recipe)
-                        .map_or(recipe.as_str(), |a| a.name.as_str());
-                    text.with("source-recipe", &[("name", name.into())])
+                    text.with("source-recipe", &[("name", name_of(recipe).into())])
                 }
                 Source::Default => continue,
             };
@@ -138,7 +150,7 @@ pub fn pack(pack: &Pack, text: &Localizer) -> String {
         let _ = writeln!(out, "  {}", text.with(key, &[("count", count.into())]));
     }
     for recipe in &pack.recipes {
-        let _ = writeln!(out, "    {}", recipe.name);
+        let _ = writeln!(out, "    {}", recipe.name.get(text.lang()));
     }
     out
 }

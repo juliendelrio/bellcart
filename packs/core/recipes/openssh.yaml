@@ -1,6 +1,8 @@
 # yaml-language-server: $schema=../../../schemas/recipe.schema.json
 id: openssh
-name: OpenSSH keys
+name:
+  en: OpenSSH keys
+  fr: Clés OpenSSH
 detect:
   any:
     - path: '%USERPROFILE%\.ssh'
