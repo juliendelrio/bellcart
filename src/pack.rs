@@ -312,6 +312,7 @@ fn check_recipe_paths(recipe: &Recipe) -> std::result::Result<(), String> {
                 crate::recipe::check_path(path)?;
             }
             Step::Skip { path } => crate::recipe::check_skip(path)?,
+            Step::ExportRegistryKey { key } => crate::export::check_registry_key(key)?,
             _ => {}
         }
     }

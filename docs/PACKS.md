@@ -101,7 +101,7 @@ Step types. The list is closed: there is no step that runs a command.
 | `manual` | `text` | Something only the user can do. Goes to the notebook. |
 | `export-winget-packages` | | Save the list of winget-installed applications. |
 | `export-vscode-extensions` | | Save the list of VS Code extensions. |
-| `export-registry-key` | `key` | Save one registry key to a `.reg` file. |
+| `export-registry-key` | `key` | Save one key of the user's registry (`HKCU\...`) to a `.reg` file. |
 | `install` | `winget` | Install with winget, by package identifier. |
 
 Paths start with `%USERPROFILE%`, `%APPDATA%` or `%LOCALAPPDATA%`, and
@@ -123,6 +123,11 @@ How steps meet rules:
 - A `skip` must point inside `%APPDATA%` or `%LOCALAPPDATA%`, below an
   application's own folder. A recipe cannot send the user's folders to
   `leave`.
+
+Export steps run only through `bellcart export`, which shows each command
+and runs it after the user says yes. A registry key must start with
+`HKCU\` and keep to letters, digits, spaces and `_ - . \`; anything else
+does not load.
 
 Texts (`text`, `note`) need `en`. Other languages are optional and fall
 back to English. Recipes in the core pack must also provide `fr`.

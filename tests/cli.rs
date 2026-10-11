@@ -359,3 +359,129 @@ fn a_pack_cannot_reuse_a_rule_id_of_the_core_pack() {
         "{stderr}"
     );
 }
+
+/// Runs bellcart with `input` on its standard input.
+fn bellcart_answering(args: &[&str], input: &str) -> std::process::Output {
+    use std::io::Write as _;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_bellcart"))
+        .args(args)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("bellcart starts");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
+    child.wait_with_output().expect("bellcart ends")
+}
+
+/// A profile where VS Code and winget are found.
+fn profile_with_exports(name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+    let base = fresh_dir(name);
+    let profile = base.join("profile");
+    std::fs::create_dir_all(profile.join("AppData/Roaming/Code/User")).unwrap();
+    std::fs::create_dir_all(profile.join("AppData/Local/Microsoft/WindowsApps")).unwrap();
+    std::fs::write(
+        profile.join("AppData/Local/Microsoft/WindowsApps/winget.exe"),
+        "",
+    )
+    .unwrap();
+    (profile, base.join("exports"))
+}
+
+#[test]
+fn an_export_runs_nothing_unless_the_user_says_yes() {
+    let (profile, exports) = profile_with_exports("export-no");
+    for input in ["n\nn\n", "\n\n", ""] {
+        let output = bellcart_answering(
+            &[
+                "--lang",
+                "en",
+                "export",
+                profile.to_str().unwrap(),
+                "--to",
+                exports.to_str().unwrap(),
+            ],
+            input,
+        );
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(output.status.success(), "{stdout}");
+        // Each command is shown in full before the question.
+        assert!(stdout.contains("--list-extensions > "), "{stdout}");
+        assert!(stdout.contains("winget export -o "), "{stdout}");
+        assert_eq!(stdout.matches("Skipped.").count(), 2, "{input:?}: {stdout}");
+        let written = std::fs::read_dir(&exports).unwrap().count();
+        assert_eq!(written, 0, "nothing may run without a yes");
+    }
+}
+
+#[test]
+fn exports_are_never_saved_inside_the_scanned_profile() {
+    let (profile, _) = profile_with_exports("export-inside");
+    let inside = profile.join("exports");
+    let output = bellcart_answering(
+        &[
+            "export",
+            profile.to_str().unwrap(),
+            "--to",
+            inside.to_str().unwrap(),
+        ],
+        "y\ny\n",
+    );
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("inside the scanned folder"), "{stderr}");
+    assert!(!inside.exists(), "the folder must not even be created");
+}
+
+#[test]
+fn an_export_with_nothing_to_do_says_so() {
+    let base = fresh_dir("export-none");
+    std::fs::create_dir_all(base.join("profile/Documents")).unwrap();
+    let output = bellcart_answering(
+        &[
+            "--lang",
+            "fr",
+            "export",
+            base.join("profile").to_str().unwrap(),
+            "--to",
+            base.join("exports").to_str().unwrap(),
+        ],
+        "",
+    );
+    assert!(output.status.success());
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with("Rien à exporter"));
+}
+
+#[cfg(windows)]
+#[test]
+fn a_confirmed_registry_export_saves_its_file() {
+    // A pack whose recipe exports a key every Windows account has.
+    let recipe = "id: environment\nname: Environment\ndetect:\n  any:\n    - path: '%USERPROFILE%\\marker.txt'\nbefore:\n  - type: export-registry-key\n    key: 'HKCU\\Environment'\n";
+    let pack = pack_folder("export-pack", &[("recipes/environment.yaml", recipe)]);
+    let base = fresh_dir("export-yes");
+    std::fs::create_dir_all(base.join("profile")).unwrap();
+    std::fs::write(base.join("profile/marker.txt"), "x").unwrap();
+    let exports = base.join("exports");
+    let output = bellcart_answering(
+        &[
+            "--lang",
+            "en",
+            "--pack",
+            pack.to_str().unwrap(),
+            "export",
+            base.join("profile").to_str().unwrap(),
+            "--to",
+            exports.to_str().unwrap(),
+        ],
+        "y\n",
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "{stdout}");
+    assert!(stdout.contains("Saved: "), "{stdout}");
+    assert!(exports.join("registry-HKCU_Environment.reg").exists());
+}

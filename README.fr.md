@@ -83,6 +83,10 @@ Décidé par les règles et les recettes
   application trouvée. Un nom finissant par `.html` donne une page avec
   des cases à cocher, tout autre nom donne du Markdown. Bellcart refuse
   d'écrire un fichier dans le dossier qu'il analyse.
+- `bellcart export <profil> --to <dossier>` lance les exports demandés
+  par les recettes (liste winget des applications, extensions de VS Code,
+  clés de registre). Chaque commande est affichée en entier et ne se
+  lance que si vous répondez oui.
 - `bellcart packs` liste les règles et recettes intégrées. `--pack
   <dossier>` charge un autre pack à côté, pour les auteurs de packs (voir
   [docs/PACKS.md](docs/PACKS.md)).

@@ -1,5 +1,6 @@
 //! The `bellcart` command line.
 
+mod export;
 mod i18n;
 mod notebook;
 mod progress;
@@ -60,6 +61,15 @@ enum Command {
         /// on a spinning hard disk.
         #[arg(long, value_name = "N", value_parser = clap::value_parser!(u16).range(1..))]
         jobs: Option<u16>,
+    },
+    /// Run the exports the recipes ask for (winget list, VS Code extensions,
+    /// registry keys), each shown and run only once you say yes.
+    Export {
+        /// The profile whose applications to look for.
+        path: PathBuf,
+        /// The folder to save the exports in, outside the profile.
+        #[arg(long, value_name = "FOLDER")]
+        to: PathBuf,
     },
     /// Show what the built-in pack contains.
     Packs,
@@ -138,6 +148,7 @@ fn run() -> Result<()> {
                 write_out(&render::plan(&scan.plan, &text))?;
             }
         }
+        Command::Export { path, to } => export::run(&path, &to, &library, &text)?,
         Command::Packs => {
             let listing: Vec<String> = packs.iter().map(|p| render::pack(p, &text)).collect();
             write_out(&listing.join(
@@ -151,16 +162,20 @@ fn run() -> Result<()> {
 
 /// Refuses a file Bellcart would write inside the tree it scans: the scan
 /// is read-only, its outputs included.
-fn outside(given: &Path, file: &Path) -> Result<()> {
+pub fn outside(given: &Path, file: &Path) -> Result<()> {
     // Canonical forms resolve `..`, links and case. They are only compared,
     // never shown: on Windows they read `\\?\C:\...`.
     let root =
         std::fs::canonicalize(given).with_context(|| format!("cannot read {}", given.display()))?;
-    // The file may not exist yet: its folder must.
-    let folder = match file.parent() {
-        Some(parent) if !parent.as_os_str().is_empty() => parent,
-        _ => Path::new("."),
-    };
+    // The file, or the folders above it, may not exist yet: compare the
+    // closest one that does.
+    let mut folder = file;
+    while !folder.exists() {
+        folder = match folder.parent() {
+            Some(parent) if !parent.as_os_str().is_empty() => parent,
+            _ => Path::new("."),
+        };
+    }
     let folder = std::fs::canonicalize(folder)
         .with_context(|| format!("cannot write {}", file.display()))?;
     if folder.starts_with(&root) {

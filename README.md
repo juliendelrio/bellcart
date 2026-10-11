@@ -80,6 +80,9 @@ To review, folder by folder
   found. A name ending in `.html` gives a page with checkboxes, any other
   gives Markdown. Bellcart refuses to write any file inside the folder it
   scans.
+- `bellcart export <profile> --to <folder>` runs the exports the recipes
+  ask for (the winget list of applications, VS Code extensions, registry
+  keys). Each command is shown in full and runs only if you answer yes.
 - `bellcart packs` lists the built-in rules and recipes. `--pack <folder>`
   loads another pack next to it, for pack authors (see
   [docs/PACKS.md](docs/PACKS.md)).
