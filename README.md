@@ -70,7 +70,9 @@ To review, folder by folder
 
 - `bellcart scan <folder>` prints the summary above; `--json` prints the
   full plan, `--out plan.json` saves it, and `--signatures` prints what
-  an arbiter would read about each folder to review.
+  an arbiter would read about each folder to review. The scan lists
+  several folders at once; `--jobs 1` lists one at a time, which can be
+  faster on a spinning hard disk.
 - `bellcart packs` lists the built-in rules and recipes.
 - `--lang fr` switches the interface to French. The system language is
   used by default.

@@ -9,7 +9,7 @@ mod common;
 use std::path::Path;
 
 use bellcart::plan::{Decision, Plan, PlanNode, Source, SplitBudget, UnitReason};
-use bellcart::scan::scan;
+use bellcart::scan::{Counts, Progress, scan, scan_with};
 use bellcart::tree::MemTree;
 use common::small_budget;
 
@@ -459,4 +459,84 @@ fn a_version_1_plan_still_parses() {
     assert_eq!(plan.version, 1);
     assert_eq!(plan.split, None);
     assert_eq!(plan.tree.unit, None);
+}
+
+/// A tree wide and deep enough for several threads to share the work.
+fn large_tree() -> MemTree {
+    let mut tree = profile();
+    for a in 0..12 {
+        for b in 0..12 {
+            for c in 0..6 {
+                let ext = ["pdf", "jpg", "txt", "zip"][(a + b + c) % 4];
+                tree = tree.file(
+                    &format!("Work/p{a}/s{b}/f{c}.{ext}"),
+                    (a * 1_000 + b * 37 + c * 11) as u64,
+                );
+            }
+            tree = tree.file(&format!("Work/p{a}/s{b}/node_modules/m/i.js"), 70);
+        }
+    }
+    tree.unreadable("Work/p3/locked")
+}
+
+fn scan_on_threads(tree: &MemTree, threads: usize) -> bellcart::scan::Scan {
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(threads)
+        .build()
+        .expect("a thread pool");
+    pool.install(|| {
+        scan(tree, Path::new(""), &common::core_rules(), &small_budget())
+            .expect("the scan succeeds")
+    })
+}
+
+#[test]
+fn a_parallel_scan_gives_the_same_plan_as_a_sequential_one() {
+    let tree = large_tree();
+    let sequential = scan_on_threads(&tree, 1);
+    for threads in [2, 4, 8] {
+        let parallel = scan_on_threads(&tree, threads);
+        assert_eq!(
+            serde_json::to_value(&parallel.plan).unwrap(),
+            serde_json::to_value(&sequential.plan).unwrap(),
+            "{threads} threads"
+        );
+        assert_eq!(parallel.samples, sequential.samples, "{threads} threads");
+    }
+}
+
+#[test]
+fn progress_counts_every_folder_file_and_byte_read() {
+    let tree = MemTree::new()
+        .file("Documents/a.pdf", 100)
+        .file("Documents/b/c.txt", 20)
+        .file("dev/app/node_modules/x/y.js", 5_000)
+        .file("top.txt", 3)
+        .link("Shortcut")
+        .unreadable("Locked");
+    let progress = Progress::default();
+    scan_with(
+        &tree,
+        Path::new(""),
+        &common::core_rules(),
+        &SplitBudget::default(),
+        &progress,
+    )
+    .expect("the scan succeeds");
+
+    // The root, Documents, Documents/b, dev, dev/app, and the settled
+    // node_modules with its folder x. Not the unreadable one, nor the link.
+    assert_eq!(
+        progress.counts(),
+        Counts {
+            folders: 7,
+            files: 4,
+            bytes: 5_123,
+        }
+    );
+}
+
+#[test]
+fn progress_starts_at_zero() {
+    assert_eq!(Progress::default().counts(), Counts::default());
 }

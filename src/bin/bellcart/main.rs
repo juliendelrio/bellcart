@@ -1,6 +1,7 @@
 //! The `bellcart` command line.
 
 mod i18n;
+mod progress;
 mod render;
 
 use std::path::PathBuf;
@@ -9,9 +10,7 @@ use std::process::ExitCode;
 use anyhow::{Context, Result};
 use bellcart::pack::{Pack, RuleSet};
 use bellcart::plan::SplitBudget;
-use bellcart::scan::scan;
 use bellcart::signature::{self, Signature};
-use bellcart::tree::OsTree;
 use clap::{Parser, Subcommand};
 use include_dir::{Dir, include_dir};
 
@@ -45,6 +44,11 @@ enum Command {
         /// summary: what an arbiter would be sent.
         #[arg(long, conflicts_with = "json")]
         signatures: bool,
+        /// How many folders to list at once. Defaults to one per
+        /// processor; `1` scans one folder at a time, which can be faster
+        /// on a spinning hard disk.
+        #[arg(long, value_name = "N", value_parser = clap::value_parser!(u16).range(1..))]
+        jobs: Option<u16>,
     },
     /// Show what the built-in pack contains.
     Packs,
@@ -72,9 +76,16 @@ fn run() -> Result<()> {
             json,
             out,
             signatures,
+            jobs,
         } => {
             let rules = RuleSet::compile(&pack.rules)?;
-            let scan = scan(&OsTree, &path, &rules, &SplitBudget::default())?;
+            let scan = progress::scan(
+                &path,
+                &rules,
+                &SplitBudget::default(),
+                jobs.map(usize::from),
+                &text,
+            )?;
             let document = serde_json::to_string_pretty(&scan.plan)?;
             if let Some(out) = out {
                 std::fs::write(&out, &document)

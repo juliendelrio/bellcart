@@ -13,6 +13,7 @@ plan-unreadable = { $count ->
    *[other] { $count } folders could not be read.
 } Run as administrator to include them.
 plan-to-review = To review, folder by folder
+scan-progress = Scanning: { $folders } folders, { $size } read
 plan-files ={ $count ->
     [one] { $count } file
    *[other] { $count } files

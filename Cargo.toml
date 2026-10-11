@@ -24,6 +24,7 @@ clap = { version = "4", features = ["derive", "env"] }
 fluent-bundle = "0.16"
 globset = "0.4"
 include_dir = "0.7"
+rayon = "1"
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 serde-saphyr = "1"

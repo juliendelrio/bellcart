@@ -11,6 +11,7 @@ plan-unreadable = { $count ->
    *[other] { $count } dossiers illisibles.
 } Relancez en administrateur pour les inclure.
 plan-to-review = À examiner, dossier par dossier
+scan-progress = Analyse : { $folders } dossiers, { $size } parcourus
 plan-files ={ $count ->
     [one] { $count } fichier
    *[other] { $count } fichiers
