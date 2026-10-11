@@ -260,7 +260,7 @@ It must never be a tree of half a million checkboxes.
 | Tree abstraction, in-memory tree for tests | done |
 | Scan, per-folder stats, plan as tree of exceptions | done |
 | Rule engine and pack loader | done |
-| Core pack: seed rules, 7 recipes, question set | done, to verify on real machines |
+| Core pack: seed rules, 8 recipes, question set | done, to verify on real machines |
 | CLI `scan` and `packs`, English and French | done |
 | JSON Schemas generated from types | done |
 | Arbiter contract types, `none` backend | done |
