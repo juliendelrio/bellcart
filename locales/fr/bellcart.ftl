@@ -39,6 +39,9 @@ reason-temporary-files = Fichiers temporaires
 reason-system-managed = Géré par Windows
 reason-keys-and-credentials = Clés et identifiants : petits, et pénibles à perdre
 reason-cloud-sync-cache = Cache local d'un stockage en ligne, resynchronisé par son logiciel
+reason-crash-reports = Rapports de plantage, utiles seulement aux développeurs de l'application
+reason-installed-program = Programme installé, à réinstaller sur le nouveau PC
+reason-update-download = Mise à jour déjà téléchargée, récupérée de nouveau au besoin
 
 unit-small = assez petit pour être jugé d'un bloc
 unit-homogeneous = surtout des fichiers .{ $extension } ({ $percent } %)

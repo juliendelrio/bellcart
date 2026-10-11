@@ -607,3 +607,196 @@ fn progress_counts_every_folder_file_and_byte_read() {
 fn progress_starts_at_zero() {
     assert_eq!(Progress::default().counts(), Counts::default());
 }
+
+// Rules added after a first run on a real Windows 11 profile. Each `leave`
+// shows a folder it settles and a look-alike it must leave to review.
+
+/// Scans `file` under `folder` next to `look_alike`, then checks that
+/// `rule` leaves `folder` and that the look-alike stays to review.
+fn left_by_rule_but_not_look_alike(folder: &str, file: &str, rule: &str, look_alike: &str) {
+    let plan = plan(
+        &MemTree::new()
+            .file(&format!("{folder}/{file}"), 9_000)
+            .file(look_alike, 40),
+    );
+    let settled = node(&plan, folder);
+    assert_eq!(settled.decision, Decision::Leave, "{folder}");
+    assert_eq!(rule_of(settled), rule, "{folder}");
+    assert_eq!(
+        plan.totals[&Decision::Review].bytes,
+        40,
+        "`{look_alike}` must stay to review"
+    );
+}
+
+#[test]
+fn electron_application_caches_are_left() {
+    left_by_rule_but_not_look_alike(
+        "AppData/Roaming/Slack/Cache",
+        "Cache_Data/f_000001",
+        "electron-cache",
+        "AppData/Roaming/SomeApp/Cache/my-notes.txt",
+    );
+}
+
+#[test]
+fn electron_code_and_gpu_caches_are_left() {
+    for cache in [
+        "Code Cache",
+        "GPUCache",
+        "DawnGraphiteCache",
+        "DawnWebGPUCache",
+    ] {
+        left_by_rule_but_not_look_alike(
+            &format!("AppData/Roaming/Slack/{cache}"),
+            "index",
+            "electron-gpu-cache",
+            &format!("Documents/{cache}/index"),
+        );
+    }
+}
+
+#[test]
+fn service_worker_caches_are_left_but_not_other_site_data() {
+    left_by_rule_but_not_look_alike(
+        "AppData/Local/Google/Chrome/User Data/Default/Service Worker/CacheStorage",
+        "abc/index",
+        "service-worker-cache",
+        "AppData/Local/Google/Chrome/User Data/Default/File System/000/p/00/0001",
+    );
+    left_by_rule_but_not_look_alike(
+        "AppData/Roaming/Slack/Service Worker/ScriptCache",
+        "index",
+        "service-worker-cache",
+        "AppData/Roaming/Slack/IndexedDB/a.leveldb",
+    );
+}
+
+#[test]
+fn browser_components_downloaded_again_are_left() {
+    for component in [
+        "OptGuideOnDeviceModel",
+        "optimization_guide_model_store",
+        "screen_ai",
+        "component_crx_cache",
+        "extensions_crx_cache",
+        "GrShaderCache",
+        "ShaderCache",
+    ] {
+        left_by_rule_but_not_look_alike(
+            &format!("AppData/Local/Google/Chrome/User Data/{component}"),
+            "weights.bin",
+            "browser-components",
+            &format!("Documents/{component}/weights.bin"),
+        );
+    }
+}
+
+#[test]
+fn chromium_dawn_caches_are_left() {
+    left_by_rule_but_not_look_alike(
+        "AppData/Local/Microsoft/Edge/User Data/Default/DawnGraphiteCache",
+        "data_0",
+        "chromium-cache",
+        "AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks",
+    );
+}
+
+#[test]
+fn crash_reports_are_left() {
+    left_by_rule_but_not_look_alike(
+        "AppData/Roaming/Code/Crashpad",
+        "reports/a.dmp",
+        "crash-reports",
+        "Documents/Crash/report.docx",
+    );
+}
+
+#[test]
+fn vs_code_caches_and_logs_are_left_but_not_its_settings() {
+    for folder in ["CachedData", "CachedExtensionVSIXs", "logs"] {
+        left_by_rule_but_not_look_alike(
+            &format!("AppData/Roaming/Code/{folder}"),
+            "x/blob",
+            "vscode-caches",
+            "AppData/Roaming/Code/User/settings.json",
+        );
+    }
+}
+
+#[test]
+fn downloaded_application_updates_are_left() {
+    left_by_rule_but_not_look_alike(
+        "AppData/Local/orca-updater",
+        "installer.exe",
+        "electron-updater-download",
+        "AppData/Local/my-updater/notes.txt",
+    );
+    left_by_rule_but_not_look_alike(
+        "AppData/Local/slack/packages",
+        "RELEASES",
+        "squirrel-update-download",
+        "AppData/Local/SomeApp/packages/readme.txt",
+    );
+}
+
+#[test]
+fn programs_installed_for_the_user_are_left() {
+    left_by_rule_but_not_look_alike(
+        "AppData/Local/Programs",
+        "GIMP/bin/gimp.exe",
+        "user-installed-programs",
+        "Documents/Programs/my-script.py",
+    );
+}
+
+#[test]
+fn hugging_face_models_are_left() {
+    left_by_rule_but_not_look_alike(
+        ".cache/huggingface/hub",
+        "models--org--name/blobs/abc",
+        "huggingface-hub-cache",
+        "Documents/huggingface/hub/my-model.bin",
+    );
+}
+
+#[test]
+fn rust_toolchains_and_cargo_git_checkouts_are_left() {
+    left_by_rule_but_not_look_alike(
+        ".rustup/toolchains",
+        "stable/bin/rustc.exe",
+        "rustup-toolchains",
+        "dev/toolchains/notes.md",
+    );
+    left_by_rule_but_not_look_alike(
+        ".cargo/git",
+        "checkouts/x/lib.rs",
+        "cargo-git",
+        ".cargo/config.toml",
+    );
+}
+
+#[test]
+fn the_pnpm_store_is_left() {
+    left_by_rule_but_not_look_alike(
+        "AppData/Local/pnpm/store",
+        "v3/files/00/abc",
+        "pnpm-store",
+        "dev/store/index.js",
+    );
+}
+
+#[test]
+fn wsl_and_docker_disk_images_stay_to_review() {
+    // They hold the user's Linux files and containers: never left by a rule.
+    let plan = plan(
+        &MemTree::new()
+            .file("AppData/Local/Docker/wsl/disk/docker_data.vhdx", 9_000)
+            .file("AppData/Local/wsl/{1234}/ext4.vhdx", 9_000)
+            .file(
+                "AppData/Local/Packages/CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc/LocalState/ext4.vhdx",
+                9_000,
+            ),
+    );
+    assert_eq!(plan.totals[&Decision::Review].bytes, 27_000);
+}

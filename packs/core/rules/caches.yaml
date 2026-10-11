@@ -44,7 +44,54 @@ rules:
     decision: leave
     reason: application-cache
     match:
-      path_glob: "**/User Data/*/{Cache,Code Cache,GPUCache}"
+      path_glob: "**/User Data/*/{Cache,Code Cache,GPUCache,DawnGraphiteCache,DawnWebGPUCache}"
+
+  # Parts of Chrome and Edge that the browser downloads again: an on-device
+  # model of several gigabytes, components, extension packages, shaders.
+  - id: browser-components
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/User Data/{OptGuideOnDeviceModel,optimization_guide_model_store,screen_ai,component_crx_cache,extensions_crx_cache,GrShaderCache,ShaderCache}"
+
+  # Offline copies of web pages and scripts. Site data that may be the
+  # user's own (IndexedDB, File System) is not matched and stays to review.
+  - id: service-worker-cache
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/{User Data/*,AppData/Roaming/*}/Service Worker/{CacheStorage,ScriptCache}"
+
+  # Electron applications (Slack, VS Code, Teams...) keep a Chromium cache
+  # in their Roaming folder. `Cache` is a common word, so the rule also
+  # asks for the `Cache_Data` folder Chromium creates inside it.
+  - id: electron-cache
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/AppData/Roaming/*/Cache"
+      contains: [Cache_Data]
+
+  - id: electron-gpu-cache
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/AppData/Roaming/*/{Code Cache,GPUCache,DawnGraphiteCache,DawnWebGPUCache}"
+
+  # Reports the Chromium crash handler keeps for the application's
+  # developers.
+  - id: crash-reports
+    decision: leave
+    reason: crash-reports
+    match:
+      path_glob: "**/AppData/**/Crashpad"
+
+  # Settings live in `Code/User` and are not matched.
+  - id: vscode-caches
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/AppData/Roaming/{Code,Code - Insiders,VSCodium,Cursor}/{CachedData,CachedExtensionVSIXs,CachedProfilesData,logs}"
 
   - id: firefox-cache
     decision: leave
