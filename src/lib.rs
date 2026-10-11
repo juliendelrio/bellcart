@@ -15,6 +15,7 @@ pub mod arbiter;
 pub mod error;
 pub mod pack;
 pub mod plan;
+pub mod recipe;
 pub mod scan;
 pub mod schema;
 pub mod signature;

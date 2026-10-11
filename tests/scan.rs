@@ -8,7 +8,9 @@ mod common;
 
 use std::path::Path;
 
+use bellcart::pack::{Pack, Recipe, RuleSet};
 use bellcart::plan::{Decision, Plan, PlanNode, Source, SplitBudget, UnitReason};
+use bellcart::recipe::{Recipes, Variables};
 use bellcart::scan::{Counts, Progress, scan, scan_with};
 use bellcart::tree::MemTree;
 use common::small_budget;
@@ -60,7 +62,14 @@ fn node<'a>(plan: &'a Plan, path: &str) -> &'a PlanNode {
 fn rule_of(node: &PlanNode) -> &str {
     match &node.source {
         Source::Rule { rule, .. } => rule,
-        Source::Default => "",
+        Source::Recipe { .. } | Source::Default => "",
+    }
+}
+
+fn recipe_of(node: &PlanNode) -> &str {
+    match &node.source {
+        Source::Recipe { recipe } => recipe,
+        Source::Rule { .. } | Source::Default => "",
     }
 }
 
@@ -586,6 +595,7 @@ fn progress_counts_every_folder_file_and_byte_read() {
         &tree,
         Path::new(""),
         &common::core_rules(),
+        &Recipes::default(),
         &SplitBudget::default(),
         &progress,
     )
@@ -799,4 +809,372 @@ fn wsl_and_docker_disk_images_stay_to_review() {
             ),
     );
     assert_eq!(plan.totals[&Decision::Review].bytes, 27_000);
+}
+
+// Recipes: applications found on the profile, and the paths their `copy`
+// and `skip` steps settle.
+
+/// A pack made of the core `pack.yaml` and the given files.
+fn custom_pack(files: &[(&str, &str)]) -> bellcart::Result<Pack> {
+    let meta = std::fs::read_to_string(common::repo_root().join("packs/core/pack.yaml"))
+        .expect("the core pack.yaml");
+    let mut all = vec![("pack.yaml".to_owned(), meta)];
+    all.extend(
+        files
+            .iter()
+            .map(|(p, c)| ((*p).to_owned(), (*c).to_owned())),
+    );
+    Pack::from_files(all)
+}
+
+fn recipes_of(yaml: &[&str]) -> Vec<Recipe> {
+    // A recipe file is named after its id.
+    let names: Vec<String> = yaml
+        .iter()
+        .map(|y| {
+            let id = y
+                .lines()
+                .find_map(|l| l.strip_prefix("id: "))
+                .expect("a recipe id");
+            format!("recipes/{id}.yaml")
+        })
+        .collect();
+    let files: Vec<(&str, &str)> = names
+        .iter()
+        .map(String::as_str)
+        .zip(yaml.iter().copied())
+        .collect();
+    custom_pack(&files).expect("the recipes load").recipes
+}
+
+fn with_recipes_and_rules(tree: &MemTree, recipes: &[Recipe], rules: &RuleSet) -> Plan {
+    let found = Recipes::detect(tree, Path::new(""), recipes, &Variables::profile());
+    scan_with(
+        tree,
+        Path::new(""),
+        rules,
+        &found,
+        &SplitBudget::default(),
+        &Progress::default(),
+    )
+    .expect("the scan succeeds")
+    .plan
+}
+
+fn with_recipes(tree: &MemTree, recipes: &[Recipe]) -> Plan {
+    with_recipes_and_rules(tree, recipes, &common::core_rules())
+}
+
+fn with_core_recipes(tree: &MemTree) -> Plan {
+    with_recipes(tree, &common::core_pack().recipes)
+}
+
+fn found(plan: &Plan) -> Vec<&str> {
+    plan.applications
+        .iter()
+        .map(|a| a.recipe.as_str())
+        .collect()
+}
+
+/// A recipe for a tool that keeps its settings in `%APPDATA%\Tool`.
+const TOOL: &str = r"
+id: tool
+name: Tool
+detect:
+  any:
+    - path: '%APPDATA%\Tool'
+before:
+  - type: copy
+    path: '%APPDATA%\Tool'
+  - type: skip
+    path: '%APPDATA%\Tool\Cache'
+";
+
+/// A one-step recipe found when `probe` exists.
+fn one_step(id: &str, probe: &str, step: &str, path: &str) -> String {
+    format!(
+        "id: {id}\nname: {id}\ndetect:\n  any:\n    - path: '{probe}'\nbefore:\n  - type: {step}\n    path: '{path}'\n"
+    )
+}
+
+#[test]
+fn an_application_is_found_when_one_of_its_probes_exists() {
+    let plan = with_core_recipes(&MemTree::new().file(".gitconfig", 120));
+    assert_eq!(found(&plan), ["git"]);
+    assert_eq!(plan.applications[0].name, "Git");
+}
+
+#[test]
+fn an_application_with_no_probe_on_disk_is_not_listed() {
+    let plan = with_core_recipes(&MemTree::new().file("Documents/a.txt", 10));
+    assert!(plan.applications.is_empty());
+    assert!(
+        plan.nodes()
+            .iter()
+            .all(|n| !matches!(n.source, Source::Recipe { .. }))
+    );
+}
+
+#[test]
+fn probes_ignore_case_as_windows_does() {
+    let plan =
+        with_core_recipes(&MemTree::new().file("appdata/roaming/CODE/user/settings.json", 10));
+    assert_eq!(found(&plan), ["vscode"]);
+}
+
+#[test]
+fn a_probe_may_find_a_link() {
+    // winget.exe is an app execution alias, a link the scan never follows.
+    let plan = with_core_recipes(
+        &MemTree::new()
+            .file("Documents/a.txt", 1)
+            .link("AppData/Local/Microsoft/WindowsApps/winget.exe"),
+    );
+    assert_eq!(found(&plan), ["winget-apps"]);
+}
+
+#[test]
+fn applications_are_listed_by_recipe_id() {
+    let plan = with_core_recipes(
+        &MemTree::new()
+            .file(".gitconfig", 1)
+            .file(".ssh/id_ed25519", 1)
+            .file("AppData/Roaming/Code/User/settings.json", 1),
+    );
+    assert_eq!(found(&plan), ["git", "openssh", "vscode"]);
+}
+
+#[test]
+fn a_copy_step_can_migrate_a_single_file() {
+    let plan = with_core_recipes(&MemTree::new().file(".gitconfig", 120).file("notes.txt", 30));
+    let config = node(&plan, ".gitconfig");
+    assert_eq!(config.decision, Decision::Migrate);
+    assert_eq!(recipe_of(config), "git");
+    assert_eq!(config.stats.files, 1);
+    assert_eq!(config.stats.bytes, 120);
+    // The file is no longer part of what there is to review.
+    assert_eq!(plan.tree.stats.bytes, 30);
+}
+
+#[test]
+fn a_copy_step_migrates_a_folder_no_rule_settles() {
+    let plan = with_core_recipes(
+        &MemTree::new()
+            .file(
+                "AppData/Roaming/Mozilla/Firefox/Profiles/x.default/places.sqlite",
+                5_000,
+            )
+            .file("AppData/Roaming/Mozilla/Firefox/profiles.ini", 100),
+    );
+    let firefox = node(&plan, "AppData/Roaming/Mozilla/Firefox");
+    assert_eq!(firefox.decision, Decision::Migrate);
+    assert_eq!(recipe_of(firefox), "mozilla-firefox");
+    assert_eq!(firefox.stats.bytes, 5_100);
+}
+
+#[test]
+fn a_skip_applies_inside_a_folder_a_copy_migrates() {
+    let plan = with_recipes(
+        &MemTree::new()
+            .file("AppData/Roaming/Tool/settings.ini", 100)
+            .file("AppData/Roaming/Tool/Cache/blob", 9_000),
+        &recipes_of(&[TOOL]),
+    );
+    let tool = node(&plan, "AppData/Roaming/Tool");
+    assert_eq!(tool.decision, Decision::Migrate);
+    assert_eq!(tool.stats.bytes, 100);
+    let cache = node(&plan, "AppData/Roaming/Tool/Cache");
+    assert_eq!(cache.decision, Decision::Leave);
+    assert_eq!(recipe_of(cache), "tool");
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 9_000);
+}
+
+#[test]
+fn a_recipe_rescues_a_path_inside_a_folder_a_rule_leaves() {
+    let recipe = one_step(
+        "portable",
+        r"%LOCALAPPDATA%\Programs\Portable",
+        "copy",
+        r"%LOCALAPPDATA%\Programs\Portable\profiles",
+    );
+    let plan = with_recipes(
+        &MemTree::new()
+            .file("AppData/Local/Programs/Portable/tool.exe", 9_000)
+            .file("AppData/Local/Programs/Portable/profiles/me.json", 50),
+        &recipes_of(&[&recipe]),
+    );
+    let programs = node(&plan, "AppData/Local/Programs");
+    assert_eq!(programs.decision, Decision::Leave);
+    assert_eq!(programs.stats.bytes, 9_000);
+    let profiles = node(&plan, "AppData/Local/Programs/Portable/profiles");
+    assert_eq!(profiles.decision, Decision::Migrate);
+    assert_eq!(recipe_of(profiles), "portable");
+}
+
+#[test]
+fn a_recipe_copy_wins_over_a_leave_rule_on_the_same_folder() {
+    let recipe = one_step(
+        "keeper",
+        r"%LOCALAPPDATA%\Temp\keeper.lock",
+        "copy",
+        r"%LOCALAPPDATA%\Temp",
+    );
+    let plan = with_recipes(
+        &MemTree::new().file("AppData/Local/Temp/keeper.lock", 10),
+        &recipes_of(&[&recipe]),
+    );
+    let temp = node(&plan, "AppData/Local/Temp");
+    assert_eq!(temp.decision, Decision::Migrate);
+    assert_eq!(recipe_of(temp), "keeper");
+}
+
+#[test]
+fn a_recipe_skip_never_overrides_a_rule_that_keeps_the_folder() {
+    let rules = "rules:\n  - id: app-keys\n    decision: migrate\n    reason: keys-and-credentials\n    match:\n      path_glob: \"**/AppData/Roaming/Keys\"\n";
+    let recipe = one_step("careless", r"%APPDATA%\Keys", "skip", r"%APPDATA%\Keys");
+    let pack = custom_pack(&[
+        ("rules/keys.yaml", rules),
+        ("recipes/careless.yaml", &recipe),
+    ])
+    .expect("the pack loads");
+    let rules = RuleSet::compile(&pack.rules).expect("the rules compile");
+    let plan = with_recipes_and_rules(
+        &MemTree::new().file("AppData/Roaming/Keys/key.pem", 10),
+        &pack.recipes,
+        &rules,
+    );
+    let keys = node(&plan, "AppData/Roaming/Keys");
+    assert_eq!(keys.decision, Decision::Migrate);
+    assert_eq!(rule_of(keys), "app-keys");
+}
+
+#[test]
+fn a_rule_and_a_recipe_that_agree_keep_the_rule_and_its_reason() {
+    let plan = with_core_recipes(
+        &MemTree::new()
+            .file("AppData/Roaming/Code/User/settings.json", 10)
+            .file("AppData/Roaming/Code/CachedData/x/blob", 9_000),
+    );
+    let cached = node(&plan, "AppData/Roaming/Code/CachedData");
+    assert_eq!(cached.decision, Decision::Leave);
+    assert_eq!(rule_of(cached), "vscode-caches");
+}
+
+#[test]
+fn when_two_recipes_settle_the_same_path_copy_wins() {
+    let skipper = one_step(
+        "skipper",
+        r"%APPDATA%\Shared",
+        "skip",
+        r"%APPDATA%\Shared\data",
+    );
+    let keeper = one_step(
+        "keeper",
+        r"%APPDATA%\Shared",
+        "copy",
+        r"%APPDATA%\Shared\data",
+    );
+    for order in [[&skipper, &keeper], [&keeper, &skipper]] {
+        let order: Vec<&str> = order.iter().map(|s| s.as_str()).collect();
+        let plan = with_recipes(
+            &MemTree::new().file("AppData/Roaming/Shared/data/a.db", 10),
+            &recipes_of(&order),
+        );
+        let data = node(&plan, "AppData/Roaming/Shared/data");
+        assert_eq!(data.decision, Decision::Migrate);
+        assert_eq!(recipe_of(data), "keeper");
+    }
+}
+
+#[test]
+fn steps_of_an_application_not_found_do_nothing() {
+    let recipe = one_step("absent", r"%APPDATA%\Absent", "copy", r"%APPDATA%\Present");
+    let plan = with_recipes(
+        &MemTree::new().file("AppData/Roaming/Present/a.txt", 10),
+        &recipes_of(&[&recipe]),
+    );
+    assert!(plan.applications.is_empty());
+    assert!(!has_node(&plan, "AppData/Roaming/Present"));
+}
+
+#[test]
+fn recipes_never_change_the_total_size() {
+    let tree = profile()
+        .file(".gitconfig", 120)
+        .file("AppData/Roaming/Code/User/settings.json", 40)
+        .file("AppData/Roaming/Code/Cache/Cache_Data/f", 900)
+        .file("AppData/Roaming/Mozilla/Firefox/profiles.ini", 30);
+    let total = |plan: &Plan| -> (u64, u64) {
+        plan.totals
+            .values()
+            .fold((0, 0), |(b, f), t| (b + t.bytes, f + t.files))
+    };
+    assert_eq!(total(&with_core_recipes(&tree)), total(&plan(&tree)));
+}
+
+#[test]
+fn a_recipe_skip_outside_application_data_is_refused() {
+    for path in [r"%USERPROFILE%\Documents", "%APPDATA%", r"%LOCALAPPDATA%\"] {
+        let recipe = one_step("bad", r"%APPDATA%\Bad", "skip", path);
+        let error = custom_pack(&[("recipes/bad.yaml", &recipe)])
+            .expect_err("a skip outside application data must not load");
+        assert!(error.to_string().contains("skip"), "{path}: {error}");
+    }
+}
+
+#[test]
+fn a_recipe_path_outside_the_profile_is_refused() {
+    for path in [
+        r"C:\Windows",
+        r"%WINDIR%\System32",
+        r"%APPDATA%\..\..\Documents",
+    ] {
+        let recipe = one_step("bad", path, "copy", r"%APPDATA%\Bad");
+        assert!(
+            custom_pack(&[("recipes/bad.yaml", &recipe)]).is_err(),
+            "{path} must be refused as a probe"
+        );
+        let recipe = one_step("bad", r"%APPDATA%\Bad", "copy", path);
+        assert!(
+            custom_pack(&[("recipes/bad.yaml", &recipe)]).is_err(),
+            "{path} must be refused as a copy"
+        );
+    }
+}
+
+#[test]
+fn a_version_2_plan_still_parses() {
+    let v2 = r#"{
+        "version": 2,
+        "root": "C:\\Users\\me",
+        "totals": {"review": {"bytes": 2, "files": 1}},
+        "tree": {
+            "path": "",
+            "decision": "review",
+            "source": {"by": "default"},
+            "stats": {"bytes": 2, "files": 1},
+            "unit": {"reason": "small"}
+        },
+        "split": {"split_above": 1, "min_unit": 1, "homogeneous_percent": 90, "max_depth": 8}
+    }"#;
+    let plan: Plan = serde_json::from_str(v2).expect("a v2 plan parses");
+    assert_eq!(plan.version, 2);
+    assert!(plan.applications.is_empty());
+}
+
+#[test]
+fn a_parallel_scan_with_recipes_gives_the_same_plan_as_a_sequential_one() {
+    let tree = large_tree()
+        .file(".gitconfig", 1)
+        .file("AppData/Roaming/Code/User/settings.json", 2)
+        .file("AppData/Roaming/Code/Cache/Cache_Data/f", 3);
+    let on = |threads: usize| {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .expect("a thread pool")
+            .install(|| serde_json::to_value(with_core_recipes(&tree)).unwrap())
+    };
+    let sequential = on(1);
+    assert_eq!(on(8), sequential);
 }

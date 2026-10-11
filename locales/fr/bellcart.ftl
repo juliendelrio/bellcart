@@ -4,13 +4,15 @@ decision-leave = À laisser
 decision-review = À examiner
 
 plan-title = Plan pour { $root }
-plan-settled = Décidé par les règles
+plan-settled = Décidé par les règles et les recettes
 plan-nothing-settled = Aucune règle ne s'applique ici.
 plan-unreadable = { $count ->
     [one] { $count } dossier illisible.
    *[other] { $count } dossiers illisibles.
 } Relancez en administrateur pour les inclure.
 plan-to-review = À examiner, dossier par dossier
+plan-applications = Applications trouvées : { $names }
+source-recipe = Selon la recette { $name }
 scan-progress = Analyse : { $folders } dossiers, { $size } parcourus
 plan-files ={ $count ->
     [one] { $count } fichier

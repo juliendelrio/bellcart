@@ -104,9 +104,25 @@ Step types. The list is closed: there is no step that runs a command.
 | `export-registry-key` | `key` | Save one registry key to a `.reg` file. |
 | `install` | `winget` | Install with winget, by package identifier. |
 
-Paths may start with a Windows environment variable such as
-`%USERPROFILE%`, `%APPDATA%` or `%LOCALAPPDATA%`. Write them in single
-quotes so backslashes stay literal.
+Paths start with `%USERPROFILE%`, `%APPDATA%` or `%LOCALAPPDATA%`, and
+must not climb out with `..`: a pack that does not follow this does not
+load. Variables are resolved against the scanned profile, not the account
+Bellcart runs as. Write paths in single quotes so backslashes stay literal.
+
+How steps meet rules:
+
+- An application is found when any `detect` path exists. Only then do its
+  `copy` and `skip` steps apply.
+- A step settles exactly its path, a file or a folder, wherever it lies:
+  in what is still to review, or inside a folder a rule settled. Rules are
+  not applied below it, but other recipe steps are.
+- When a rule settles the same path, the decision that keeps more wins
+  (`migrate`, then `archive`, then `leave`), and the rule on a tie. A
+  recipe can rescue a folder from a `leave` rule, never the reverse.
+- When two recipes settle the same path, `copy` wins.
+- A `skip` must point inside `%APPDATA%` or `%LOCALAPPDATA%`, below an
+  application's own folder. A recipe cannot send the user's folders to
+  `leave`.
 
 Texts (`text`, `note`) need `en`. Other languages are optional and fall
 back to English. Recipes in the core pack must also provide `fr`.

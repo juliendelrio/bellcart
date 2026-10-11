@@ -166,6 +166,25 @@ the recipes' job. Site data that may be the user's own (`IndexedDB`,
 `File System`) and WSL or Docker disk images stay to review. On that
 profile the review list went from 76 units to 49.
 
+**D21. Recipe steps settle their exact path, the keeping decision wins,
+and the plan moves to version 3.**
+A detected application's `copy` and `skip` steps become plan nodes with a
+`recipe` source, so the plan says why a file or folder is migrated. A step
+settles its exact path wherever it lies, including inside a folder a rule
+settled: a recipe that needs one sub-folder of `AppData/Local/Programs`
+can take it without the rule being weakened. When a rule and a recipe
+settle the same path, the decision that keeps more wins, and the rule on a
+tie because it carries a reason the user can read; when two recipes
+disagree, `copy` wins. So a recipe can only rescue data from `leave`,
+never send data there against a rule. Its own `skip` is limited at load
+time to paths inside `%APPDATA%` or `%LOCALAPPDATA%`, below an application
+folder, which keeps the user's folders out of a recipe's reach. Variables
+are resolved against the scanned profile (the scan root), because an
+elevated run may be another account; redirected known folders wait for the
+Windows crate. Recipe nodes may be single files (`.gitconfig`), which a
+reader of version 2 could not expect, hence version 3. Versions 1 and 2
+still parse.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

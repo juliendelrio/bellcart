@@ -27,6 +27,7 @@ use rayon::prelude::*;
 
 use crate::pack::RuleSet;
 use crate::plan::{Decision, Plan, PlanNode, Source, SplitBudget, Stats, UnitReason};
+use crate::recipe::{Planned, Recipes, keeps_more};
 use crate::signature::{Named, Sample};
 use crate::tree::{Entry, Kind, Tree};
 use crate::{Error, Result};
@@ -46,15 +47,29 @@ pub struct Scan {
 /// Fails only if `root` itself cannot be read. Unreadable folders below it
 /// are counted in [`Stats::unreadable`] and the scan goes on.
 pub fn scan(tree: &dyn Tree, root: &Path, rules: &RuleSet, budget: &SplitBudget) -> Result<Scan> {
-    scan_with(tree, root, rules, budget, &Progress::default())
+    scan_with(
+        tree,
+        root,
+        rules,
+        &Recipes::default(),
+        budget,
+        &Progress::default(),
+    )
 }
 
-/// [`scan`], counting what it has read in `progress` as it goes, so that
-/// another thread can show how far it is.
+/// [`scan`], applying the steps of the `recipes` found on the profile, and
+/// counting what it has read in `progress` as it goes, so that another
+/// thread can show how far it is.
+///
+/// A recipe step settles exactly its path, wherever it lies: in the review
+/// mass, or inside a folder a rule settled. When a rule settles the same
+/// path, the decision that keeps more wins, and the rule on a tie: a recipe
+/// can rescue a folder from `leave`, never send one there against a rule.
 pub fn scan_with(
     tree: &dyn Tree,
     root: &Path,
     rules: &RuleSet,
+    recipes: &Recipes,
     budget: &SplitBudget,
     progress: &Progress,
 ) -> Result<Scan> {
@@ -66,16 +81,19 @@ pub fn scan_with(
     let walker = Walker {
         tree,
         rules,
+        recipes,
         budget,
         progress,
     };
     let walked = walker.walk(root, String::new(), String::new(), 0, entries);
+    let mut plan = Plan::new(
+        root.to_string_lossy().into_owned(),
+        walked.node,
+        Some(budget.clone()),
+    );
+    plan.applications = recipes.applications().to_vec();
     Ok(Scan {
-        plan: Plan::new(
-            root.to_string_lossy().into_owned(),
-            walked.node,
-            Some(budget.clone()),
-        ),
+        plan,
         samples: walked.samples.into_iter().collect(),
     })
 }
@@ -122,6 +140,7 @@ impl Progress {
 struct Walker<'a> {
     tree: &'a dyn Tree,
     rules: &'a RuleSet,
+    recipes: &'a Recipes,
     budget: &'a SplitBudget,
     progress: &'a Progress,
 }
@@ -134,6 +153,13 @@ struct Walked {
     node: PlanNode,
     review: Stats,
     samples: Vec<(String, Sample)>,
+}
+
+/// An entry of a review folder still to look at: a sub-folder, or a file
+/// already settled by a recipe.
+enum Pending {
+    Dir(String),
+    Settled(PlanNode),
 }
 
 /// A sub-folder of a review folder, in listing order.
@@ -153,11 +179,18 @@ impl Walker<'_> {
     ) -> Walked {
         let mut own = Stats::default();
         let mut files = Vec::new();
-        let mut dirs = Vec::new();
+        let mut pending = Vec::new();
 
         for entry in entries {
             match entry.kind {
                 Kind::File { size, modified } => {
+                    let file_rel = join(&rel, &entry.name);
+                    if let Some(planned) = self.recipes.at(&file_rel) {
+                        let node = file_node(file_rel, &entry.name, size, modified, planned);
+                        self.progress.add_files(&node.stats);
+                        pending.push(Pending::Settled(node));
+                        continue;
+                    }
                     own.add_file(&entry.name, size, modified);
                     files.push(Named {
                         name: entry.name,
@@ -165,16 +198,19 @@ impl Walker<'_> {
                     });
                 }
                 Kind::Other => {}
-                Kind::Dir => dirs.push(entry.name),
+                Kind::Dir => pending.push(Pending::Dir(entry.name)),
             }
         }
         self.progress.add_files(&own);
 
         // `into_par_iter` hands the sub-folders to the thread pool, and
         // `collect` puts the results back in the original order.
-        let children: Vec<Option<Item>> = dirs
+        let children: Vec<Option<Item>> = pending
             .into_par_iter()
-            .map(|child| self.child(abs, &rel, depth, child))
+            .map(|entry| match entry {
+                Pending::Dir(child) => self.child(abs, &rel, depth, child),
+                Pending::Settled(node) => Some(Item::Settled(node)),
+            })
             .collect();
         let mut items = Vec::with_capacity(children.len());
         for child in children {
@@ -213,28 +249,50 @@ impl Walker<'_> {
         }
     }
 
-    /// Lists a sub-folder and either settles it by a rule or walks it.
-    /// `None` when it cannot be listed.
+    /// Lists a sub-folder and either settles it, by a rule or a recipe, or
+    /// walks it. `None` when it cannot be listed.
     fn child(&self, abs: &Path, rel: &str, depth: u32, name: String) -> Option<Item> {
         let child_abs = abs.join(&name);
         let child_rel = join(rel, &name);
         let child_entries = self.list(&child_abs)?;
         let names: Vec<&str> = child_entries.iter().map(|e| e.name.as_str()).collect();
 
-        Some(match self.rules.find(&child_rel, &name, &names) {
-            Some(rule) => Item::Settled(PlanNode {
-                path: child_rel,
-                decision: rule.decision,
-                source: Source::Rule {
+        let rule = self.rules.find(&child_rel, &name, &names);
+        let settled = match (rule, self.recipes.at(&child_rel)) {
+            (Some(rule), Some(planned)) if keeps_more(planned.decision, rule.decision) => {
+                Some((planned.decision, recipe_source(planned)))
+            }
+            (Some(rule), _) => Some((
+                rule.decision,
+                Source::Rule {
                     rule: rule.id.clone(),
                     reason: rule.reason.clone(),
                 },
-                stats: self.measure(&child_abs, child_entries),
-                overrides: Vec::new(),
-                unit: None,
-            }),
+            )),
+            (None, Some(planned)) => Some((planned.decision, recipe_source(planned))),
+            (None, None) => None,
+        };
+        Some(match settled {
+            Some((decision, source)) => {
+                let (stats, overrides) =
+                    self.measure(&child_abs, &child_rel, child_entries, decision);
+                Item::Settled(PlanNode {
+                    path: child_rel,
+                    decision,
+                    source,
+                    stats,
+                    overrides,
+                    unit: None,
+                })
+            }
             None => Item::Review(self.walk(&child_abs, name, child_rel, depth + 1, child_entries)),
         })
+    }
+
+    /// The recipe step on `rel` inside a folder settled as `decision`, if
+    /// it decides otherwise.
+    fn recipe_inside(&self, rel: &str, decision: Decision) -> Option<&Planned> {
+        self.recipes.at(rel).filter(|p| p.decision != decision)
     }
 
     /// Lists a folder, counting it in the progress when it can be read.
@@ -342,33 +400,98 @@ impl Walker<'_> {
             && node.stats.unreadable == 0
     }
 
-    /// Sizes a settled folder without applying rules inside it.
-    fn measure(&self, abs: &Path, entries: Vec<Entry>) -> Stats {
+    /// Sizes a folder settled as `decision`, without applying rules inside
+    /// it. Recipe steps still apply, and come back as its overrides.
+    fn measure(
+        &self,
+        abs: &Path,
+        rel: &str,
+        entries: Vec<Entry>,
+        decision: Decision,
+    ) -> (Stats, Vec<PlanNode>) {
         let mut stats = Stats::default();
-        let mut dirs: Vec<PathBuf> = Vec::new();
+        let mut overrides = Vec::new();
+        let mut dirs: Vec<String> = Vec::new();
         for entry in entries {
             match entry.kind {
-                Kind::File { size, modified } => stats.add_file(&entry.name, size, modified),
+                Kind::File { size, modified } => {
+                    let file_rel = join(rel, &entry.name);
+                    match self.recipe_inside(&file_rel, decision) {
+                        Some(planned) => {
+                            let node = file_node(file_rel, &entry.name, size, modified, planned);
+                            self.progress.add_files(&node.stats);
+                            overrides.push(node);
+                        }
+                        None => stats.add_file(&entry.name, size, modified),
+                    }
+                }
                 Kind::Other => {}
-                Kind::Dir => dirs.push(abs.join(&entry.name)),
+                Kind::Dir => dirs.push(entry.name),
             }
         }
         self.progress.add_files(&stats);
 
-        let children: Vec<Stats> = dirs
+        let children: Vec<(Stats, Vec<PlanNode>)> = dirs
             .into_par_iter()
-            .map(|dir| match self.list(&dir) {
-                Some(entries) => self.measure(&dir, entries),
-                None => Stats {
-                    unreadable: 1,
-                    ..Stats::default()
-                },
+            .map(|name| {
+                let dir_abs: PathBuf = abs.join(&name);
+                let dir_rel = join(rel, &name);
+                let Some(entries) = self.list(&dir_abs) else {
+                    let unreadable = Stats {
+                        unreadable: 1,
+                        ..Stats::default()
+                    };
+                    return (unreadable, Vec::new());
+                };
+                match self.recipe_inside(&dir_rel, decision) {
+                    Some(planned) => {
+                        let (stats, overrides) =
+                            self.measure(&dir_abs, &dir_rel, entries, planned.decision);
+                        let node = PlanNode {
+                            path: dir_rel,
+                            decision: planned.decision,
+                            source: recipe_source(planned),
+                            stats,
+                            overrides,
+                            unit: None,
+                        };
+                        (Stats::default(), vec![node])
+                    }
+                    None => self.measure(&dir_abs, &dir_rel, entries, decision),
+                }
             })
             .collect();
-        for child in &children {
-            stats.merge(child);
+        for (child, nodes) in children {
+            stats.merge(&child);
+            overrides.extend(nodes);
         }
-        stats
+        (stats, overrides)
+    }
+}
+
+fn recipe_source(planned: &Planned) -> Source {
+    Source::Recipe {
+        recipe: planned.recipe.clone(),
+    }
+}
+
+/// A single file settled by a recipe step.
+fn file_node(
+    path: String,
+    name: &str,
+    size: u64,
+    modified: Option<u64>,
+    planned: &Planned,
+) -> PlanNode {
+    let mut stats = Stats::default();
+    stats.add_file(name, size, modified);
+    PlanNode {
+        path,
+        decision: planned.decision,
+        source: recipe_source(planned),
+        stats,
+        overrides: Vec::new(),
+        unit: None,
     }
 }
 

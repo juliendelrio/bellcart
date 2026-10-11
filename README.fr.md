@@ -61,7 +61,9 @@ Plan pour C:\Users\moi
   À laisser       7.1 MB  3 fichiers
   À examiner      1.4 MB  3 fichiers
 
-Décidé par les règles
+Applications trouvées : OpenSSH keys
+
+Décidé par les règles et les recettes
       3.8 MB  À laisser   dev/app/node_modules  (Dépendances réinstallées par un gestionnaire de paquets)
       2.4 MB  À laisser   AppData/Local/Google/Chrome/User Data/Default/Cache  (Cache d'application, reconstruit automatiquement)
     878.9 KB  À laisser   AppData/Local/Temp  (Fichiers temporaires)
