@@ -9,9 +9,9 @@ mod common;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use bellcart::plan::{Decision, SplitBudget};
+use bellcart::plan::{Decision, SplitBudget, Stats, UnitReason};
 use bellcart::scan::{Scan, scan};
-use bellcart::signature::{MAX_CHARS, Signature, signatures};
+use bellcart::signature::{MAX_CHARS, Named, Privacy, Sample, Signature, signatures};
 use bellcart::tree::MemTree;
 use common::small_budget;
 
@@ -249,4 +249,159 @@ fn files_of_a_folded_rest_are_named_with_their_folder() {
         line(&text, "files"),
         "files (2): notes.txt 20 B, Downloads/desktop.ini 5 B"
     );
+}
+
+// Privacy: what a signature says once redacted for a cloud endpoint.
+
+fn redacted_of(scan: &Scan, path: &str) -> String {
+    signatures(scan)
+        .into_iter()
+        .find(|s| s.path == path)
+        .map(|s| s.for_privacy(Privacy::Redacted).to_text())
+        .unwrap_or_else(|| panic!("no signature for `{path}`"))
+}
+
+/// A profile with personal names in several places.
+fn personal_profile() -> MemTree {
+    MemTree::new()
+        .file_at(
+            "Documents/Wedding Smith/guests.xlsx",
+            300,
+            Some(1_000_000_000),
+        )
+        .file("Documents/Wedding Smith/vows.docx", 200)
+        .file("Documents/Wedding Smith/site/node_modules/x.js", 50_000)
+        .file("Documents/Wedding Smith/photos/beach.jpg", 900)
+        .file("Johnson Family Tree/tree.ged", 400)
+        .file("AppData/Roaming/Slack/storage/root-state.json", 300)
+}
+
+#[test]
+fn full_privacy_sends_the_signature_as_built() {
+    let scan = scan_with(&personal_profile(), &small_budget());
+    for signature in signatures(&scan) {
+        assert_eq!(signature.for_privacy(Privacy::Full), signature);
+    }
+}
+
+#[test]
+fn redaction_masks_names_under_personal_folders() {
+    let scan = scan_with(&personal_profile(), &small_budget());
+    let text = redacted_of(&scan, "Documents/Wedding Smith");
+    assert_eq!(line(&text, "path:"), "path: Documents/<1>");
+    assert_eq!(
+        line(&text, "files"),
+        "files (2): <3>.xlsx 300 B, <4>.docx 200 B"
+    );
+    // `photos` is a unit of its own; what is left is `site`, empty once
+    // its `node_modules` is set aside, and masked the same way below.
+    assert_eq!(line(&text, "folders"), "folders (1): <2> 0 B");
+    // The folder a rule settled keeps the name the rule matched.
+    assert_eq!(
+        line(&text, "settled inside:"),
+        "settled inside: <2>/node_modules (leave)"
+    );
+}
+
+#[test]
+fn redaction_keeps_sizes_dates_and_extensions() {
+    let scan = scan_with(&personal_profile(), &small_budget());
+    let full = signature_of(&scan, "Documents/Wedding Smith");
+    let redacted = redacted_of(&scan, "Documents/Wedding Smith");
+    for key in ["size:", "modified:", "extensions:", "unit:"] {
+        assert_eq!(line(&redacted, key), line(&full, key), "{key}");
+    }
+}
+
+#[test]
+fn a_folder_the_user_made_at_the_profile_root_is_masked_too() {
+    let scan = scan_with(&personal_profile(), &small_budget());
+    let text = redacted_of(&scan, "Johnson Family Tree");
+    assert_eq!(line(&text, "path:"), "path: <1>");
+    assert_eq!(line(&text, "files"), "files (1): <2>.ged 400 B");
+}
+
+#[test]
+fn application_paths_stay_in_clear() {
+    let scan = scan_with(&personal_profile(), &small_budget());
+    let text = redacted_of(&scan, "AppData");
+    assert_eq!(text, signature_of(&scan, "AppData"));
+    assert!(text.contains("Roaming"), "{text}");
+}
+
+#[test]
+fn the_profile_root_keeps_the_names_of_its_standard_folders() {
+    let scan = scan_with(
+        &MemTree::new()
+            .file("Documents/a.pdf", 10)
+            .file("AppData/Local/x.db", 10)
+            .file("Secret Project/plan.txt", 10)
+            .file("notes about Bob.txt", 10),
+        &SplitBudget::default(),
+    );
+    let text = redacted_of(&scan, "");
+    let folders = line(&text, "folders");
+    assert!(folders.contains("Documents 10 B"), "{folders}");
+    assert!(folders.contains("AppData 10 B"), "{folders}");
+    assert!(!folders.contains("Secret"), "{folders}");
+    assert!(!line(&text, "files").contains("Bob"), "{text}");
+}
+
+#[test]
+fn the_same_name_gets_the_same_mask_within_a_signature() {
+    let signature = Signature {
+        path: "Documents/Smith".to_owned(),
+        unit: UnitReason::Small,
+        stats: Stats::default(),
+        sample: Sample::new(
+            vec![
+                Named {
+                    name: "Smith".to_owned(),
+                    bytes: 10,
+                },
+                Named {
+                    name: "Jones".to_owned(),
+                    bytes: 5,
+                },
+            ],
+            vec![Named {
+                name: "Smith".to_owned(),
+                bytes: 3,
+            }],
+        ),
+        settled: vec![("Jones/node_modules".to_owned(), Decision::Leave)],
+    };
+    let text = signature.redacted().to_text();
+    assert_eq!(line(&text, "path:"), "path: Documents/<1>");
+    assert_eq!(line(&text, "folders"), "folders (2): <1> 10 B, <2> 5 B");
+    assert_eq!(line(&text, "files"), "files (1): <1> 3 B");
+    assert_eq!(
+        line(&text, "settled inside:"),
+        "settled inside: <2>/node_modules (leave)"
+    );
+}
+
+#[test]
+fn no_personal_name_survives_redaction() {
+    let scan = scan_with(&personal_profile(), &small_budget());
+    let all: String = signatures(&scan)
+        .into_iter()
+        .map(|s| s.for_privacy(Privacy::Redacted).to_text())
+        .collect();
+    for name in [
+        "Wedding", "Smith", "guests", "vows", "beach", "photos", "Johnson", "tree.ged", "site",
+    ] {
+        assert!(!all.contains(name), "`{name}` leaked:\n{all}");
+    }
+}
+
+#[test]
+fn a_redacted_signature_is_the_same_from_one_scan_to_the_next() {
+    let once = || -> Vec<String> {
+        signatures(&scan_with(&personal_profile(), &small_budget()))
+            .iter()
+            .map(|s| s.for_privacy(Privacy::Redacted).to_text())
+            .collect()
+    };
+    assert_eq!(once(), once());
 }

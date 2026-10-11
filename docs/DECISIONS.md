@@ -238,6 +238,22 @@ verdict only decides a review unit nothing else decided: never a rule, a
 recipe or the user. The plan records it as `Source::Arbiter`, hence
 version 4; earlier versions still parse.
 
+**D26. Redaction masks every name outside application paths, keeping
+only the standard folders of a profile.**
+In redacted mode a signature keeps its sizes, counts, dates, extensions
+and unit reason. Paths under `AppData` and the dot folders at the profile
+root stay in clear: they name applications, which is what the arbiter
+needs. Everything else is masked, including folders the user made at the
+profile root, since a name like a family or a client is personal wherever
+it sits; only the standard folders (`Documents`, `Pictures`...) keep their
+name as the first part of a path. A masked name becomes `<n>`, a file
+`<n>.ext`, numbered in order of appearance so the same name reads the same
+within a signature and a signature stays the same from one scan to the
+next. A folder a rule settled keeps its last name (`node_modules`), which
+the rule matched and which says nothing about the person. Redacted is the
+default for an arbiter; `scan --signatures --privacy redacted` shows what
+would be sent.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

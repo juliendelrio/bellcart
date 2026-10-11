@@ -486,3 +486,36 @@ fn a_confirmed_registry_export_saves_its_file() {
     assert!(stdout.contains("Saved: "), "{stdout}");
     assert!(exports.join("registry-HKCU_Environment.reg").exists());
 }
+
+#[test]
+fn redacted_signatures_show_no_personal_name() {
+    let base = fresh_dir("privacy");
+    // A folder the user made at the profile root, listed in its signature.
+    let folder = base.join("profile/Wedding Smith");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(folder.join("guests.xlsx"), "x").unwrap();
+    let profile = base.join("profile");
+    let full = bellcart(&["scan", profile.to_str().unwrap(), "--signatures"]);
+    assert!(String::from_utf8_lossy(&full.stdout).contains("Wedding Smith"));
+    let redacted = bellcart(&[
+        "scan",
+        profile.to_str().unwrap(),
+        "--signatures",
+        "--privacy",
+        "redacted",
+    ]);
+    assert!(redacted.status.success());
+    let stdout = String::from_utf8_lossy(&redacted.stdout);
+    assert!(
+        !stdout.contains("Wedding") && !stdout.contains("guests"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("extensions: xlsx 100%"), "{stdout}");
+}
+
+#[test]
+fn privacy_only_goes_with_signatures() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/packs");
+    let output = bellcart(&["scan", dir, "--privacy", "redacted"]);
+    assert!(!output.status.success());
+}
