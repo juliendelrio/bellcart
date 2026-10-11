@@ -4,6 +4,7 @@ mod i18n;
 mod progress;
 mod render;
 
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -92,20 +93,36 @@ fn run() -> Result<()> {
                     .with_context(|| format!("cannot write {}", out.display()))?;
             }
             if json {
-                println!("{document}");
+                write_out(&format!("{document}\n"))?;
             } else if signatures {
                 let texts: Vec<String> = signature::signatures(&scan)
                     .iter()
                     .map(Signature::to_text)
                     .collect();
-                print!("{}", texts.join("\n"));
+                write_out(&texts.join("\n"))?;
             } else {
-                print!("{}", render::plan(&scan.plan, &text));
+                write_out(&render::plan(&scan.plan, &text))?;
             }
         }
-        Command::Packs => print!("{}", render::pack(&pack, &text)),
+        Command::Packs => write_out(&render::pack(&pack, &text))?,
     }
     Ok(())
+}
+
+/// Writes to stdout. `print!` panics when stdout is a pipe that was closed,
+/// as with `bellcart scan . | more` left early: here that is not an error,
+/// the reader simply wanted no more.
+fn write_out(text: &str) -> Result<()> {
+    let mut stdout = std::io::stdout().lock();
+    match stdout
+        .write_all(text.as_bytes())
+        .and_then(|()| stdout.flush())
+    {
+        Err(error) if error.kind() != std::io::ErrorKind::BrokenPipe => {
+            Err(error).context("cannot write the output")
+        }
+        _ => Ok(()),
+    }
 }
 
 fn core_pack() -> Result<Pack> {
