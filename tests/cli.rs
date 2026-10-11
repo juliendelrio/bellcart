@@ -255,3 +255,107 @@ fn an_output_next_to_the_scanned_folder_is_fine() {
         .collect();
     assert_eq!(found, ["git", "openssh"]);
 }
+
+/// Writes a pack folder from `(relative path, content)` pairs.
+fn pack_folder(name: &str, files: &[(&str, &str)]) -> std::path::PathBuf {
+    let dir = fresh_dir(name);
+    let meta = "id: extra\nname: Extra pack\nversion: 0.1.0\nformat: 1\nlicense: Apache-2.0\n";
+    std::fs::write(dir.join("pack.yaml"), meta).unwrap();
+    for (path, content) in files {
+        let file = dir.join(path);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(file, content).unwrap();
+    }
+    dir
+}
+
+const BUILD_CACHE_RULE: &str = "rules:\n  - id: tool-build-cache\n    decision: leave\n    reason: build-output\n    match:\n      name_in: [.toolcache]\n      contains: [TOOLCACHE.TAG]\n";
+
+#[test]
+fn a_pack_from_disk_is_listed_after_the_built_in_one() {
+    let pack = pack_folder("pack-listed", &[("rules/cache.yaml", BUILD_CACHE_RULE)]);
+    let output = bellcart(&["--lang", "en", "--pack", pack.to_str().unwrap(), "packs"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let core = stdout
+        .find("Bellcart core pack")
+        .expect("the core pack is listed");
+    let extra = stdout.find("Extra pack").expect("the extra pack is listed");
+    assert!(core < extra, "{stdout}");
+}
+
+#[test]
+fn a_pack_from_disk_adds_its_rules_to_the_scan() {
+    let pack = pack_folder("pack-rules", &[("rules/cache.yaml", BUILD_CACHE_RULE)]);
+    let base = fresh_dir("pack-rules-profile");
+    std::fs::create_dir_all(base.join("dev/.toolcache")).unwrap();
+    std::fs::write(base.join("dev/.toolcache/TOOLCACHE.TAG"), "x").unwrap();
+    let output = bellcart(&[
+        "--pack",
+        pack.to_str().unwrap(),
+        "scan",
+        base.to_str().unwrap(),
+        "--json",
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let plan: Plan = serde_json::from_slice(&output.stdout).unwrap();
+    let cache = plan
+        .nodes()
+        .into_iter()
+        .find(|n| n.path == "dev/.toolcache")
+        .expect("the extra rule settles the folder");
+    assert_eq!(cache.decision, Decision::Leave);
+}
+
+#[test]
+fn a_pack_from_disk_cannot_change_what_a_core_rule_settles() {
+    let rule = "rules:\n  - id: careless-keys\n    decision: leave\n    reason: temporary-files\n    match:\n      name_in: [.ssh]\n";
+    let pack = pack_folder("pack-careless", &[("rules/keys.yaml", rule)]);
+    let base = fresh_dir("pack-careless-profile");
+    std::fs::create_dir_all(base.join(".ssh")).unwrap();
+    std::fs::write(base.join(".ssh/id_ed25519"), "key").unwrap();
+    let output = bellcart(&[
+        "--pack",
+        pack.to_str().unwrap(),
+        "scan",
+        base.to_str().unwrap(),
+        "--json",
+    ]);
+    assert!(output.status.success());
+    let plan: Plan = serde_json::from_slice(&output.stdout).unwrap();
+    let keys = plan.nodes().into_iter().find(|n| n.path == ".ssh").unwrap();
+    assert_eq!(keys.decision, Decision::Migrate);
+}
+
+#[test]
+fn an_invalid_pack_names_its_folder_file_and_field() {
+    let rule = "rules:\n  - id: typo\n    decision: leave\n    reason: build-output\n    mach:\n      name_in: [x]\n";
+    let pack = pack_folder("pack-invalid", &[("rules/typo.yaml", rule)]);
+    let output = bellcart(&["--pack", pack.to_str().unwrap(), "packs"]);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("cannot load the pack in"), "{stderr}");
+    assert!(stderr.contains("rules/typo.yaml"), "{stderr}");
+    assert!(stderr.contains("mach"), "{stderr}");
+}
+
+#[test]
+fn a_pack_cannot_reuse_a_rule_id_of_the_core_pack() {
+    let rule = "rules:\n  - id: ssh-keys\n    decision: migrate\n    reason: keys-and-credentials\n    match:\n      name_in: [.keys]\n";
+    let pack = pack_folder("pack-duplicate", &[("rules/keys.yaml", rule)]);
+    let output = bellcart(&["--pack", pack.to_str().unwrap(), "packs"]);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("ssh-keys") && stderr.contains("core"),
+        "{stderr}"
+    );
+}

@@ -80,7 +80,9 @@ To review, folder by folder
   found. A name ending in `.html` gives a page with checkboxes, any other
   gives Markdown. Bellcart refuses to write any file inside the folder it
   scans.
-- `bellcart packs` lists the built-in rules and recipes.
+- `bellcart packs` lists the built-in rules and recipes. `--pack <folder>`
+  loads another pack next to it, for pack authors (see
+  [docs/PACKS.md](docs/PACKS.md)).
 - `--lang fr` switches the interface to French. The system language is
   used by default.
 

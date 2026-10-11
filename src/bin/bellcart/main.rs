@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
-use bellcart::pack::{Pack, RuleSet};
+use bellcart::pack::{Pack, RuleSet, combine};
 use bellcart::plan::SplitBudget;
 use bellcart::signature::{self, Signature};
 use clap::{Parser, Subcommand};
@@ -25,6 +25,11 @@ struct Cli {
     /// Interface language (`en`, `fr`). Defaults to the system language.
     #[arg(long, global = true, env = "BELLCART_LANG")]
     lang: Option<String>,
+
+    /// Also load the pack in this folder, after the built-in one. For pack
+    /// authors; may be given several times.
+    #[arg(long = "pack", global = true, value_name = "FOLDER")]
+    packs: Vec<PathBuf>,
 
     #[command(subcommand)]
     command: Command,
@@ -74,7 +79,14 @@ fn main() -> ExitCode {
 fn run() -> Result<()> {
     let cli = Cli::parse();
     let text = i18n::Localizer::new(cli.lang.as_deref());
-    let pack = core_pack()?;
+    let mut packs = vec![core_pack()?];
+    for folder in &cli.packs {
+        packs.push(
+            Pack::from_dir(folder)
+                .with_context(|| format!("cannot load the pack in {}", folder.display()))?,
+        );
+    }
+    let library = combine(&packs)?;
 
     match cli.command {
         Command::Scan {
@@ -89,11 +101,11 @@ fn run() -> Result<()> {
             for file in out.iter().chain(&notebook) {
                 outside(&path, file)?;
             }
-            let rules = RuleSet::compile(&pack.rules)?;
+            let rules = RuleSet::compile(&library.rules)?;
             let scan = progress::scan(
                 &path,
                 &rules,
-                &pack.recipes,
+                &library.recipes,
                 &SplitBudget::default(),
                 jobs.map(usize::from),
                 &text,
@@ -104,7 +116,7 @@ fn run() -> Result<()> {
                     .with_context(|| format!("cannot write {}", out.display()))?;
             }
             if let Some(file) = notebook {
-                let book = bellcart::notebook::notebook(&scan.plan.applications, &pack.recipes);
+                let book = bellcart::notebook::notebook(&scan.plan.applications, &library.recipes);
                 let content = notebook::render(
                     &book,
                     &scan.plan.root,
@@ -126,7 +138,13 @@ fn run() -> Result<()> {
                 write_out(&render::plan(&scan.plan, &text))?;
             }
         }
-        Command::Packs => write_out(&render::pack(&pack, &text))?,
+        Command::Packs => {
+            let listing: Vec<String> = packs.iter().map(|p| render::pack(p, &text)).collect();
+            write_out(&listing.join(
+                "
+",
+            ))?;
+        }
     }
     Ok(())
 }
