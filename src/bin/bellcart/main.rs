@@ -13,7 +13,7 @@ use std::process::ExitCode;
 use anyhow::{Context, Result};
 use bellcart::pack::{Pack, RuleSet, combine};
 use bellcart::plan::SplitBudget;
-use bellcart::signature::{self, Signature};
+use bellcart::signature::{self, Privacy};
 use clap::{Parser, Subcommand};
 use include_dir::{Dir, include_dir};
 
@@ -56,6 +56,10 @@ enum Command {
         /// summary: what an arbiter would be sent.
         #[arg(long, conflicts_with = "json")]
         signatures: bool,
+        /// With `--signatures`: `redacted` shows what a cloud arbiter would
+        /// be sent, names under personal folders masked.
+        #[arg(long, value_enum, default_value_t = PrivacyArg::Full, requires = "signatures")]
+        privacy: PrivacyArg,
         /// How many folders to list at once. Defaults to one per
         /// processor; `1` scans one folder at a time, which can be faster
         /// on a spinning hard disk.
@@ -73,6 +77,24 @@ enum Command {
     },
     /// Show what the built-in pack contains.
     Packs,
+}
+
+/// How much of a signature leaves the machine.
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum PrivacyArg {
+    /// The signature as built, for a local or trusted endpoint.
+    Full,
+    /// Names under personal folders masked, for a cloud endpoint.
+    Redacted,
+}
+
+impl From<PrivacyArg> for Privacy {
+    fn from(arg: PrivacyArg) -> Self {
+        match arg {
+            PrivacyArg::Full => Privacy::Full,
+            PrivacyArg::Redacted => Privacy::Redacted,
+        }
+    }
 }
 
 fn main() -> ExitCode {
@@ -105,6 +127,7 @@ fn run() -> Result<()> {
             out,
             notebook,
             signatures,
+            privacy,
             jobs,
         } => {
             // Checked before the scan, so a mistake costs no waiting.
@@ -141,7 +164,7 @@ fn run() -> Result<()> {
             } else if signatures {
                 let texts: Vec<String> = signature::signatures(&scan)
                     .iter()
-                    .map(Signature::to_text)
+                    .map(|s| s.for_privacy(privacy.into()).to_text())
                     .collect();
                 write_out(&texts.join("\n"))?;
             } else {

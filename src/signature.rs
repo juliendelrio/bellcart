@@ -8,9 +8,10 @@
 //! [`Signature`] keeps the data apart from the text, so that a redacted
 //! form can mask names later without changing what is collected.
 
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
-use crate::plan::{Decision, PlanNode, Stats, UnitReason, human_bytes};
+use crate::plan::{Decision, PlanNode, Stats, UnitReason, extension_of, human_bytes};
 use crate::scan::Scan;
 
 /// Most entries kept per list of names during the scan.
@@ -245,6 +246,176 @@ impl Signature {
             let _ = writeln!(out, "settled inside: {}", items.join(", "));
         }
         out
+    }
+}
+
+/// How much of a signature may leave the machine (SPEC-V1 section 9).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Privacy {
+    /// Names under personal folders are masked. Meant for cloud endpoints.
+    #[default]
+    Redacted,
+    /// The signature as built. Meant for a local or trusted endpoint.
+    Full,
+}
+
+/// Folders every Windows profile has. Their names say nothing about the
+/// person, so a redacted signature keeps them as the first part of a path.
+const KNOWN_FOLDERS: &[&str] = &[
+    "3D Objects",
+    "Contacts",
+    "Desktop",
+    "Documents",
+    "Downloads",
+    "Favorites",
+    "Links",
+    "Music",
+    "OneDrive",
+    "Pictures",
+    "Saved Games",
+    "Searches",
+    "Videos",
+];
+
+fn is_known_folder(name: &str) -> bool {
+    KNOWN_FOLDERS.iter().any(|k| k.eq_ignore_ascii_case(name))
+}
+
+/// Whether a path belongs to applications rather than to the person:
+/// `AppData` and the dot folders at the profile root (`.cache`, `.vscode`).
+fn is_application_path(path: &str) -> bool {
+    let first = path.split('/').next().unwrap_or_default();
+    first.eq_ignore_ascii_case("AppData") || first.starts_with('.')
+}
+
+/// Placeholders for masked names: the same name always gets the same one
+/// within a signature, in order of appearance.
+#[derive(Default)]
+struct Masks {
+    given: BTreeMap<String, usize>,
+}
+
+impl Masks {
+    fn number(&mut self, name: &str) -> usize {
+        let next = self.given.len() + 1;
+        *self.given.entry(name.to_owned()).or_insert(next)
+    }
+
+    fn folder(&mut self, name: &str) -> String {
+        format!("<{}>", self.number(name))
+    }
+
+    /// A masked file keeps its extension, which is not personal and says
+    /// what kind of file it is.
+    fn file(&mut self, name: &str) -> String {
+        let number = self.number(name);
+        match extension_of(name) {
+            ext if ext.is_empty() => format!("<{number}>"),
+            ext => format!("<{number}>.{ext}"),
+        }
+    }
+
+    /// Masks every component of a relative path; the last is a file when
+    /// `file` is set.
+    fn path(&mut self, path: &str, file: bool) -> String {
+        let parts: Vec<&str> = path.split('/').collect();
+        let last = parts.len().saturating_sub(1);
+        parts
+            .iter()
+            .enumerate()
+            .map(|(i, part)| {
+                if file && i == last {
+                    self.file(part)
+                } else {
+                    self.folder(part)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("/")
+    }
+}
+
+impl Signature {
+    /// This signature as `privacy` allows it to be sent.
+    pub fn for_privacy(&self, privacy: Privacy) -> Signature {
+        match privacy {
+            Privacy::Full => self.clone(),
+            Privacy::Redacted => self.redacted(),
+        }
+    }
+
+    /// Masks the names of a unit under personal folders. Sizes, counts,
+    /// dates and extensions stay, and so do application paths.
+    pub fn redacted(&self) -> Signature {
+        if is_application_path(&self.path) {
+            return self.clone();
+        }
+        let mut masks = Masks::default();
+        let path = if self.path.is_empty() {
+            String::new()
+        } else {
+            let (first, rest) = match self.path.split_once('/') {
+                Some((first, rest)) => (first, Some(rest)),
+                None => (self.path.as_str(), None),
+            };
+            let head = if is_known_folder(first) {
+                first.to_owned()
+            } else {
+                masks.folder(first)
+            };
+            match rest {
+                Some(rest) => format!("{head}/{}", masks.path(rest, false)),
+                None => head,
+            }
+        };
+        let at_root = self.path.is_empty();
+        let rename = |entries: &[Named], masks: &mut Masks, file: bool| -> Vec<Named> {
+            entries
+                .iter()
+                .map(|n| {
+                    // At the profile root, its standard folders keep their
+                    // names: `Documents` or `AppData` says nothing personal.
+                    let generic = at_root
+                        && !file
+                        && (is_known_folder(&n.name) || is_application_path(&n.name));
+                    Named {
+                        name: if generic {
+                            n.name.clone()
+                        } else {
+                            masks.path(&n.name, file)
+                        },
+                        bytes: n.bytes,
+                    }
+                })
+                .collect()
+        };
+        let folders = rename(&self.sample.folders, &mut masks, false);
+        let files = rename(&self.sample.files, &mut masks, true);
+        // What a rule settled is named by the rule (`node_modules`,
+        // `.venv`): that last name stays, the folders above it do not.
+        let settled = self
+            .settled
+            .iter()
+            .map(|(rel, decision)| {
+                let masked = match rel.rsplit_once('/') {
+                    Some((above, last)) => format!("{}/{last}", masks.path(above, false)),
+                    None => rel.clone(),
+                };
+                (masked, *decision)
+            })
+            .collect();
+        Signature {
+            path,
+            unit: self.unit.clone(),
+            stats: self.stats.clone(),
+            sample: Sample {
+                folders,
+                folder_count: self.sample.folder_count,
+                files,
+                file_count: self.sample.file_count,
+            },
+            settled,
+        }
     }
 }
 

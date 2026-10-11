@@ -72,7 +72,9 @@ To review, folder by folder
 
 - `bellcart scan <folder>` prints the summary above; `--json` prints the
   full plan, `--out plan.json` saves it, and `--signatures` prints what
-  an arbiter would read about each folder to review. The scan lists
+  an arbiter would read about each folder to review (`--privacy redacted`
+  masks names under personal folders, as a cloud arbiter would get
+  them). The scan lists
   several folders at once; `--jobs 1` lists one at a time, which can be
   faster on a spinning hard disk.
 - `--notebook notebook.html` writes the migration notebook: what to do
