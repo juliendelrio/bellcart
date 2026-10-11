@@ -206,6 +206,21 @@ across packs rather than overriding each other, so a mistake shows as an
 error instead of a silent replacement. Questions stay those of the core
 pack until an arbiter needs others.
 
+**D24. Export primitives are fixed commands, built by the engine and run
+by the front end after an explicit yes.**
+Three primitives exist: `winget export`, `code --list-extensions` and
+`reg export`. The engine builds each command line from the primitive alone
+(program, arguments, output file in the folder the user chose) and never
+runs it; `bellcart export` shows the full command and runs it only on an
+explicit yes, an empty answer or the end of the input meaning no. No shell
+is involved: `code`, a batch file on Windows, is started as `code.cmd`,
+which Rust only allows with safe argument quoting. A registry key is
+limited when the pack loads to `HKCU\` and plain characters, so it cannot
+read as an option or reach the machine's settings. The export folder must
+be outside the scanned profile and is not created otherwise. The commands
+run as the current account: exporting for another profile waits for the
+elevated case of milestone M5.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.
