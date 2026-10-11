@@ -79,6 +79,9 @@ pub fn plan(plan: &Plan, recipes: &[Recipe], text: &Localizer) -> String {
                 Source::Recipe { recipe } => {
                     text.with("source-recipe", &[("name", name_of(recipe).into())])
                 }
+                Source::Arbiter { backend, .. } => {
+                    text.with("source-arbiter", &[("backend", backend.as_str().into())])
+                }
                 Source::Default => continue,
             };
             let label = text.get(&format!("decision-{}", node.decision.as_str()));

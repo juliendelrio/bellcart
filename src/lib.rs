@@ -22,5 +22,6 @@ pub mod scan;
 pub mod schema;
 pub mod signature;
 pub mod tree;
+pub mod verdict;
 
 pub use error::{Error, Result};

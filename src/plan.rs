@@ -48,6 +48,14 @@ pub enum Source {
     /// A `copy` or `skip` step in the recipe of an application found on the
     /// profile. `recipe` is its id, listed in [`Plan::applications`].
     Recipe { recipe: String },
+    /// An arbiter's answers about a review unit, combined under the
+    /// prudence rules. `opinion` is what it suggested: on a `review` node,
+    /// a `leave` waiting for the user to confirm.
+    Arbiter {
+        backend: String,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        opinion: Option<Decision>,
+    },
     /// Inherited default: no rule matched.
     Default,
 }
@@ -250,7 +258,8 @@ pub struct Totals {
 /// (`PlanNode::unit`), and the plan records its `split` budget.
 /// 3: a node may be settled by a recipe (`Source::Recipe`) and may be a
 /// single file; the plan lists the `applications` found.
-pub const PLAN_VERSION: u32 = 3;
+/// 4: a review unit may be decided by an arbiter (`Source::Arbiter`).
+pub const PLAN_VERSION: u32 = 4;
 
 impl Plan {
     pub fn new(root: String, tree: PlanNode, split: Option<SplitBudget>) -> Self {
@@ -269,6 +278,41 @@ impl Plan {
         }
     }
 
+    /// Applies an arbiter's verdict to the review unit at `path`. Returns
+    /// `false`, changing nothing, when there is no such unit or when it was
+    /// already decided: a verdict never overrides a rule, a recipe or the
+    /// user.
+    pub fn apply_verdict(
+        &mut self,
+        path: &str,
+        verdict: &crate::verdict::Verdict,
+        backend: &str,
+    ) -> bool {
+        let Some(node) = find_mut(&mut self.tree, path) else {
+            return false;
+        };
+        if node.unit.is_none() || node.source != Source::Default {
+            return false;
+        }
+        node.decision = verdict.decision;
+        node.source = Source::Arbiter {
+            backend: backend.to_owned(),
+            opinion: verdict.opinion,
+        };
+        self.retotal();
+        true
+    }
+
+    /// Recomputes `totals` from the tree.
+    pub fn retotal(&mut self) {
+        let mut totals: BTreeMap<Decision, Totals> = Decision::ALL
+            .into_iter()
+            .map(|d| (d, Totals::default()))
+            .collect();
+        accumulate(&self.tree, &mut totals);
+        self.totals = totals;
+    }
+
     /// Every node of the plan, depth first.
     pub fn nodes(&self) -> Vec<&PlanNode> {
         let mut out = Vec::new();
@@ -284,6 +328,15 @@ fn accumulate(node: &PlanNode, totals: &mut BTreeMap<Decision, Totals>) {
     for child in &node.overrides {
         accumulate(child, totals);
     }
+}
+
+fn find_mut<'a>(node: &'a mut PlanNode, path: &str) -> Option<&'a mut PlanNode> {
+    if node.path == path {
+        return Some(node);
+    }
+    node.overrides
+        .iter_mut()
+        .find_map(|child| find_mut(child, path))
 }
 
 fn collect<'a>(node: &'a PlanNode, out: &mut Vec<&'a PlanNode>) {

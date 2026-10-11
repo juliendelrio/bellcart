@@ -67,6 +67,7 @@ src/recipe.rs         recipe variables, detection, steps settled in the plan
 src/notebook.rs       the tasks of the migration notebook
 src/export.rs         export primitives: fixed commands, never run by the engine
 src/arbiter.rs        model contract (System One shaped), `none` backend
+src/verdict.rs        answers to a decision, under the prudence rules
 src/schema.rs         JSON Schema generation
 src/bin/bellcart/     CLI: argument parsing, i18n, text rendering only
 packs/core/           rules, recipes, questions embedded in the binary
@@ -76,6 +77,7 @@ tests/scan.rs         the behaviour specification
 tests/signatures.rs   what a signature says, and its budget
 tests/notebook.rs     what the migration notebook asks the user to do
 tests/export.rs       which exports are offered, which a pack may ask for
+tests/verdict.rs      every path from arbiter answers to a decision
 tests/core_pack.rs    checks on the shipped pack and its translations
 tests/cli.rs          end-to-end on the real binary
 ```

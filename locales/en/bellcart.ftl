@@ -15,6 +15,7 @@ plan-unreadable = { $count ->
 plan-to-review = To review, folder by folder
 plan-applications = Applications found: { $names }
 source-recipe = From the { $name } recipe
+source-arbiter = Answers of the { $backend } arbiter
 scan-progress = Scanning: { $folders } folders, { $size } read
 plan-files ={ $count ->
     [one] { $count } file

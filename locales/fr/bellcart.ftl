@@ -13,6 +13,7 @@ plan-unreadable = { $count ->
 plan-to-review = À examiner, dossier par dossier
 plan-applications = Applications trouvées : { $names }
 source-recipe = Selon la recette { $name }
+source-arbiter = Réponses de l'arbitre { $backend }
 scan-progress = Analyse : { $folders } dossiers, { $size } parcourus
 plan-files ={ $count ->
     [one] { $count } fichier

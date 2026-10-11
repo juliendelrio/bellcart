@@ -221,6 +221,23 @@ be outside the scanned profile and is not created otherwise. The commands
 run as the current account: exporting for another profile waits for the
 elevated case of milestone M5.
 
+**D25. Arbiter answers are combined in code; an uncalibrated `leave` is
+held for the user or archived; the plan moves to version 4.**
+`verdict::combine` turns typed answers into a decision. `migrate` and
+`archive` apply, since a mistake there costs space. A `leave` applies only
+from a calibrated backend reporting at least 0.9 confidence, and only when
+the other answers agree: rebuildable (`regenerable` at least 0.7), not
+personal (`personal` at most 0.3), of little importance (level 1 or less).
+A missing answer counts as disagreement. Otherwise, a `leave` the answers
+support stays to review with the opinion shown, for the user to confirm
+in one click, and a `leave` they contradict goes to `archive`, where the
+data is kept. A test sweeps every combination of answers, absurd values
+included, and finds no path from an uncalibrated backend to `leave`.
+Explanations are typed reasons for templates, never generated prose. A
+verdict only decides a review unit nothing else decided: never a rule, a
+recipe or the user. The plan records it as `Source::Arbiter`, hence
+version 4; earlier versions still parse.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.
