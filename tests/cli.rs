@@ -84,3 +84,20 @@ fn no_progress_is_printed_when_the_output_is_not_a_terminal() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn a_reader_that_stops_early_is_not_an_error() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/packs");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_bellcart"))
+        .args(["scan", dir, "--json"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("bellcart starts");
+    // Close the reading end before bellcart writes anything.
+    drop(child.stdout.take());
+    let output = child.wait_with_output().expect("bellcart ends");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert!(!stderr.contains("panicked"), "{stderr}");
+}
