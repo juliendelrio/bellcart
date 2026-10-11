@@ -1,7 +1,7 @@
 //! `bellcart export`: runs the export primitives of the applications found,
 //! one at a time, each only after the user says yes.
 
-use std::io::{BufRead, Write};
+use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -41,7 +41,7 @@ pub fn run(profile: &Path, folder: &Path, library: &Library, text: &Localizer) -
             invocation.display(),
             text.get("export-ask")
         ))?;
-        if !confirmed(&mut answers)? {
+        if !crate::ask::confirmed(&mut answers)? {
             say(&format!("{}\n", text.get("export-skipped")))?;
             continue;
         }
@@ -74,15 +74,6 @@ fn label(export: &Export, text: &Localizer) -> String {
         Export::VscodeExtensions => text.get("export-vscode"),
         Export::RegistryKey(key) => text.with("export-registry", &[("key", key.as_str().into())]),
     }
-}
-
-/// Reads one answer. Only an explicit yes counts: an empty line, the end
-/// of the input or anything else means no.
-fn confirmed(answers: &mut impl BufRead) -> Result<bool> {
-    let mut line = String::new();
-    answers.read_line(&mut line)?;
-    let answer = line.trim().to_lowercase();
-    Ok(["y", "yes", "o", "oui"].contains(&answer.as_str()))
 }
 
 /// Runs one command, without a shell.
@@ -126,26 +117,4 @@ fn say(text: &str) -> Result<()> {
     stdout.write_all(text.as_bytes())?;
     stdout.flush()?;
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn only_an_explicit_yes_confirms() {
-        for (answer, expected) in [
-            ("y\n", true),
-            ("Yes\n", true),
-            (" o \n", true),
-            ("OUI\r\n", true),
-            ("\n", false),
-            ("", false),
-            ("n\n", false),
-            ("yes please\n", false),
-        ] {
-            let mut input = answer.as_bytes();
-            assert_eq!(confirmed(&mut input).unwrap(), expected, "{answer:?}");
-        }
-    }
 }

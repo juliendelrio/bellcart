@@ -254,6 +254,25 @@ the rule matched and which says nothing about the person. Redacted is the
 default for an arbiter; `scan --signatures --privacy redacted` shows what
 would be sent.
 
+**D27. `openai-chat` asks for one enum per question, talks only to the
+configured endpoint, and every answer goes to a local log.**
+The backend sends the signature with a strict JSON schema whose
+properties are the questions, each an `enum` of its options, its levels,
+or `yes`/`no`/`unsure` (mapped to 1, 0 and 0.5, which are not calibrated
+probabilities). A value outside the enum is dropped as no opinion. The
+backend declares itself uncalibrated, so its `leave` is never applied on
+its own (D25). Requests go only to the configured URL: no redirect is
+followed and no proxy is taken from the environment; plain `http` is only
+accepted for this machine, so a key and signatures never cross a network
+in clear. The key comes from `BELLCART_ARBITER_KEY`, never from the command
+line where it would stay in the shell history. `bellcart arbitrate` prints
+the exact first request and sends nothing without a yes; `--preview`
+prints every signature and sends nothing. Each answer is appended to a
+JSON Lines log with the signature as sent, the question set version, the
+backend, the model, the answers and the verdict; corrections are later
+lines of the same log. The log is outside the scanned profile like every
+output, and a line cut short by a crash is skipped on reading.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

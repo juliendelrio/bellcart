@@ -12,9 +12,11 @@
 //! [`tree::MemTree`].
 
 pub mod arbiter;
+pub mod decision_log;
 pub mod error;
 pub mod export;
 pub mod notebook;
+pub mod openai_chat;
 pub mod pack;
 pub mod plan;
 pub mod recipe;

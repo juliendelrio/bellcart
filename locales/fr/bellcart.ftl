@@ -75,3 +75,11 @@ export-skipped = Ignorée.
 export-done = Enregistré : { $file }
 export-failed = Échec : { $error }
 export-missing = { $program } est introuvable sur ce PC.
+
+arbitrate-none = Rien à soumettre à un arbitre : aucun dossier n'est à examiner.
+arbitrate-preview = Voici la requête exacte pour le premier dossier. Les autres ne diffèrent que par leur résumé.
+arbitrate-confirm = Envoyer { $count } résumés de dossiers à { $url } ? [o/N]
+arbitrate-nothing-sent = Rien n'a été envoyé.
+arbitrate-failed = { $path } : { $error }
+arbitrate-stopped = Arrêt après { $count } échecs d'affilée : le point d'accès répond-il ?
+arbitrate-leave-to-confirm = l'arbitre propose de le laisser : à confirmer

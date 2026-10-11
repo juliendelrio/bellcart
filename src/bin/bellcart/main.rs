@@ -1,5 +1,7 @@
 //! The `bellcart` command line.
 
+mod arbitrate;
+mod ask;
 mod export;
 mod i18n;
 mod notebook;
@@ -74,6 +76,39 @@ enum Command {
         /// The folder to save the exports in, outside the profile.
         #[arg(long, value_name = "FOLDER")]
         to: PathBuf,
+    },
+    /// Put the folders to review to an arbiter: an OpenAI-compatible
+    /// endpoint you configure. Shows what will be sent and asks first. The
+    /// key, if the endpoint needs one, is read from BELLCART_ARBITER_KEY.
+    Arbitrate {
+        /// The profile to scan.
+        path: PathBuf,
+        /// The API base, such as `http://localhost:11434/v1` or
+        /// `https://api.openai.com/v1`.
+        #[arg(long)]
+        endpoint: String,
+        /// The model to ask.
+        #[arg(long)]
+        model: String,
+        /// `redacted` masks names under personal folders, for a cloud
+        /// endpoint. `full` sends signatures as built.
+        #[arg(long, value_enum, default_value_t = PrivacyArg::Redacted)]
+        privacy: PrivacyArg,
+        /// Write the plan, with the arbiter's decisions, to this file.
+        #[arg(long, value_name = "FILE")]
+        out: Option<PathBuf>,
+        /// The decision log to append to.
+        #[arg(long, value_name = "FILE", default_value_os_t = arbitrate::default_log())]
+        log: PathBuf,
+        /// Only the N largest folders to review.
+        #[arg(long, value_name = "N")]
+        limit: Option<usize>,
+        /// Print every signature as it would be sent, and send nothing.
+        #[arg(long)]
+        preview: bool,
+        /// Seconds to wait for each answer.
+        #[arg(long, value_name = "SECONDS", default_value_t = 60)]
+        timeout: u64,
     },
     /// Show what the built-in pack contains.
     Packs,
@@ -172,6 +207,34 @@ fn run() -> Result<()> {
             }
         }
         Command::Export { path, to } => export::run(&path, &to, &library, &text)?,
+        Command::Arbitrate {
+            path,
+            endpoint,
+            model,
+            privacy,
+            out,
+            log,
+            limit,
+            preview,
+            timeout,
+        } => {
+            let questions = packs[0]
+                .questions
+                .as_ref()
+                .context("the built-in pack has no questions")?;
+            let options = arbitrate::Options {
+                profile: path,
+                endpoint,
+                model,
+                privacy: privacy.into(),
+                out,
+                log,
+                limit,
+                preview,
+                timeout: std::time::Duration::from_secs(timeout),
+            };
+            arbitrate::run(&options, &library, questions, &text)?;
+        }
         Command::Packs => {
             let listing: Vec<String> = packs.iter().map(|p| render::pack(p, &text)).collect();
             write_out(&listing.join(
