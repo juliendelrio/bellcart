@@ -110,9 +110,21 @@ pub fn human_bytes(bytes: u64) -> String {
     }
 }
 
+/// The lowercase extension of a file name, `""` when it has none.
+///
+/// A suffix of more than three digits is not an extension: it is a counter,
+/// a process number or a year (`app.exe.old.33452`, `report.2024`), and
+/// each value would otherwise count as an extension of its own. Three
+/// digits stay, for the parts of split archives (`backup.7z.001`).
 fn extension_of(name: &str) -> String {
     match name.rsplit_once('.') {
-        Some((stem, ext)) if !stem.is_empty() => ext.to_lowercase(),
+        Some((stem, ext)) if !stem.is_empty() => {
+            if ext.len() > 3 && ext.bytes().all(|b| b.is_ascii_digit()) {
+                String::new()
+            } else {
+                ext.to_lowercase()
+            }
+        }
         _ => String::new(),
     }
 }

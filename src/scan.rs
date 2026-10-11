@@ -277,6 +277,7 @@ impl Walker<'_> {
         let mut overrides = Vec::new();
         let mut samples = Vec::new();
         let mut folded = Vec::new();
+        let mut tiny_rests = Vec::new();
         for item in items {
             match item {
                 Item::Settled(node) => overrides.push(node),
@@ -284,6 +285,26 @@ impl Walker<'_> {
                     rest.merge(&child.review);
                     folded.push(named(&child));
                     settled_within(child.node, &mut overrides);
+                }
+                // Cut, with a rest too small to judge on its own: that rest
+                // joins ours, and its units move up. A rest holding an
+                // unreadable folder stays, so it shows where access failed.
+                Item::Review(child) if self.is_tiny_rest(&child.node) => {
+                    let Walked {
+                        name,
+                        node,
+                        samples: mut child_samples,
+                        ..
+                    } = child;
+                    rest.merge(&node.stats);
+                    overrides.extend(node.overrides);
+                    if let Some(at) = child_samples
+                        .iter()
+                        .position(|(path, _)| *path == node.path)
+                    {
+                        tiny_rests.push((name, child_samples.remove(at).1));
+                    }
+                    samples.extend(child_samples);
                 }
                 // Cut, with nothing of its own to judge: its units move up.
                 Item::Review(child) if child.node.unit.is_none() => {
@@ -298,7 +319,11 @@ impl Walker<'_> {
         }
         let has_rest = rest.files > 0 || rest.unreadable > 0;
         if has_rest {
-            samples.push((rel.clone(), Sample::new(folded, files)));
+            let mut sample = Sample::new(folded, files);
+            for (name, tiny) in tiny_rests {
+                sample.absorb(tiny, &name);
+            }
+            samples.push((rel.clone(), sample));
         }
         let node = PlanNode {
             path: rel,
@@ -309,6 +334,12 @@ impl Walker<'_> {
             unit: has_rest.then_some(UnitReason::Rest),
         };
         (node, samples)
+    }
+
+    fn is_tiny_rest(&self, node: &PlanNode) -> bool {
+        node.unit == Some(UnitReason::Rest)
+            && node.stats.bytes < self.budget.min_unit
+            && node.stats.unreadable == 0
     }
 
     /// Sizes a settled folder without applying rules inside it.

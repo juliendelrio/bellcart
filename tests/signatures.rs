@@ -233,3 +233,20 @@ fn signatures_come_largest_first() {
     let order: Vec<String> = signatures(&scan).into_iter().map(|s| s.path).collect();
     assert_eq!(order, ["large", "medium", "small"]);
 }
+
+#[test]
+fn files_of_a_folded_rest_are_named_with_their_folder() {
+    let scan = scan_with(
+        &MemTree::new()
+            .file("Downloads/desktop.ini", 5)
+            .file("Downloads/old/a.zip", 700)
+            .file("Downloads/new/b.mp4", 700)
+            .file("notes.txt", 20),
+        &small_budget(),
+    );
+    let text = signature_of(&scan, "");
+    assert_eq!(
+        line(&text, "files"),
+        "files (2): notes.txt 20 B, Downloads/desktop.ini 5 B"
+    );
+}
