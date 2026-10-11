@@ -176,6 +176,33 @@
           ]
         },
         {
+          "description": "An arbiter's answers about a review unit, combined under the\nprudence rules. `opinion` is what it suggested: on a `review` node,\na `leave` waiting for the user to confirm.",
+          "type": "object",
+          "properties": {
+            "backend": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string",
+              "const": "arbiter"
+            },
+            "opinion": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Decision"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "by",
+            "backend"
+          ]
+        },
+        {
           "description": "Inherited default: no rule matched.",
           "type": "object",
           "properties": {

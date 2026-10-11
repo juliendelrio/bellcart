@@ -62,14 +62,14 @@ fn node<'a>(plan: &'a Plan, path: &str) -> &'a PlanNode {
 fn rule_of(node: &PlanNode) -> &str {
     match &node.source {
         Source::Rule { rule, .. } => rule,
-        Source::Recipe { .. } | Source::Default => "",
+        _ => "",
     }
 }
 
 fn recipe_of(node: &PlanNode) -> &str {
     match &node.source {
         Source::Recipe { recipe } => recipe,
-        Source::Rule { .. } | Source::Default => "",
+        _ => "",
     }
 }
 
