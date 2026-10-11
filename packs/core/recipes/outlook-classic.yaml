@@ -1,6 +1,8 @@
 # yaml-language-server: $schema=../../../schemas/recipe.schema.json
 id: outlook-classic
-name: Outlook (classic)
+name:
+  en: Outlook (classic)
+  fr: Outlook (classique)
 detect:
   any:
     - path: '%APPDATA%\Microsoft\Signatures'

@@ -5,7 +5,7 @@
 //! The engine only gathers the tasks. Their wording, the language and the
 //! format (Markdown, HTML) belong to the front ends.
 
-use crate::pack::{Recipe, Step, Text};
+use crate::pack::{Name, Recipe, Step, Text};
 use crate::plan::Application;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -20,7 +20,7 @@ pub struct Notebook {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Chapter {
     pub recipe: String,
-    pub name: String,
+    pub name: Name,
     pub tasks: Vec<Task>,
 }
 

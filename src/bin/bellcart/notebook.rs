@@ -60,7 +60,7 @@ pub fn render(notebook: &Notebook, root: &str, text: &Localizer, format: Format)
             for (heading, chapters) in sections {
                 let _ = write!(out, "\n## {}\n", markdown(&heading));
                 for chapter in chapters {
-                    let _ = write!(out, "\n### {}\n\n", markdown(&chapter.name));
+                    let _ = write!(out, "\n### {}\n\n", markdown(chapter.name.get(text.lang())));
                     for line in lines(chapter) {
                         let code = line.code.map(|c| format!("`{c}`")).unwrap_or_default();
                         let _ = writeln!(
@@ -92,7 +92,11 @@ pub fn render(notebook: &Notebook, root: &str, text: &Localizer, format: Format)
             for (heading, chapters) in sections {
                 let _ = writeln!(out, "<h2>{}</h2>", html(&heading));
                 for chapter in chapters {
-                    let _ = writeln!(out, "<h3>{}</h3>\n<ul>", html(&chapter.name));
+                    let _ = writeln!(
+                        out,
+                        "<h3>{}</h3>\n<ul>",
+                        html(chapter.name.get(text.lang()))
+                    );
                     for line in lines(chapter) {
                         let code = line
                             .code

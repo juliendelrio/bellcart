@@ -145,7 +145,7 @@ fn run() -> Result<()> {
                     .collect();
                 write_out(&texts.join("\n"))?;
             } else {
-                write_out(&render::plan(&scan.plan, &text))?;
+                write_out(&render::plan(&scan.plan, &library.recipes, &text))?;
             }
         }
         Command::Export { path, to } => export::run(&path, &to, &library, &text)?,
