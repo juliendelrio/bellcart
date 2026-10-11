@@ -162,6 +162,30 @@ questions:
 Keep each question atomic. Ids are stable because decision logs refer to
 them; bump `version` when a question changes meaning.
 
+## Trying a pack
+
+Load a pack folder next to the built-in one with `--pack`, as many times
+as needed:
+
+```sh
+bellcart --pack ./my-pack packs
+bellcart --pack ./my-pack scan C:\Users\me --notebook notebook.html
+```
+
+The folder goes through the same checks as the core pack. An error names
+the folder, the file, the line and the field:
+
+```text
+bellcart: cannot load the pack in ./my-pack: invalid pack file rules/typo.yaml:
+error: line 5 column 5: unknown field `mach`, expected one of id, decision, reason, match
+```
+
+Rules of a pack loaded with `--pack` come after the core rules. The first
+match wins, so a pack can settle folders the core pack leaves to review,
+but cannot change what a core rule decides. Pack, rule and recipe ids must
+be unique across all packs. A `reason` that no locale defines is shown as
+its key: reuse the reasons listed in `locales/en/bellcart.ftl`.
+
 ## Sources and licensing
 
 Other projects publish databases of where applications keep their data.

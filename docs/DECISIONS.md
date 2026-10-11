@@ -197,6 +197,15 @@ task shows the command to run. A file Bellcart writes (`--out`,
 `--notebook`) is refused when it falls inside the scanned folder, compared
 on canonical paths: the read-only rule covers Bellcart's own outputs.
 
+**D23. Packs loaded from disk come after the core pack and add to it.**
+`--pack <folder>` lets pack authors try a pack with the same checks as the
+core one. Its rules come after the core rules and the first match wins, so
+a pack loaded from disk can settle more folders but cannot change what the
+core pack decides: it cannot send `.ssh` to `leave`. Ids must be unique
+across packs rather than overriding each other, so a mistake shows as an
+error instead of a silent replacement. Questions stay those of the core
+pack until an arbiter needs others.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

@@ -318,6 +318,53 @@ fn check_recipe_paths(recipe: &Recipe) -> std::result::Result<(), String> {
     Ok(())
 }
 
+/// The rules and recipes of several packs, in the order the packs come.
+#[derive(Debug, Clone, Default)]
+pub struct Library {
+    pub rules: Vec<Rule>,
+    pub recipes: Vec<Recipe>,
+}
+
+/// Puts packs together, the core pack first.
+///
+/// Rules keep the order of their packs, and the first match wins: a pack
+/// loaded after the core pack can add rules but never change what a core
+/// rule settles. Pack, rule and recipe ids must be unique across packs.
+pub fn combine(packs: &[Pack]) -> Result<Library> {
+    let mut library = Library::default();
+    let mut pack_ids = std::collections::BTreeSet::new();
+    let mut rule_ids: BTreeMap<&str, &str> = BTreeMap::new();
+    let mut recipe_ids: BTreeMap<&str, &str> = BTreeMap::new();
+    for pack in packs {
+        let id = pack.meta.id.as_str();
+        if !pack_ids.insert(id) {
+            return Err(Error::PackFile {
+                file: "pack.yaml".to_owned(),
+                message: format!("pack `{id}` is loaded twice"),
+            });
+        }
+        for rule in &pack.rules {
+            if let Some(owner) = rule_ids.insert(&rule.id, id) {
+                return Err(Error::Rule {
+                    rule: rule.id.clone(),
+                    message: format!("id already used by pack `{owner}`"),
+                });
+            }
+        }
+        for recipe in &pack.recipes {
+            if let Some(owner) = recipe_ids.insert(&recipe.id, id) {
+                return Err(Error::PackFile {
+                    file: format!("recipes/{}.yaml", recipe.id),
+                    message: format!("recipe id already used by pack `{owner}`"),
+                });
+            }
+        }
+        library.rules.extend(pack.rules.iter().cloned());
+        library.recipes.extend(pack.recipes.iter().cloned());
+    }
+    Ok(library)
+}
+
 fn check_id(id: &str) -> std::result::Result<(), String> {
     let ok = !id.is_empty()
         && id

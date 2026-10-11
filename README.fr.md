@@ -83,7 +83,9 @@ Décidé par les règles et les recettes
   application trouvée. Un nom finissant par `.html` donne une page avec
   des cases à cocher, tout autre nom donne du Markdown. Bellcart refuse
   d'écrire un fichier dans le dossier qu'il analyse.
-- `bellcart packs` liste les règles et recettes intégrées.
+- `bellcart packs` liste les règles et recettes intégrées. `--pack
+  <dossier>` charge un autre pack à côté, pour les auteurs de packs (voir
+  [docs/PACKS.md](docs/PACKS.md)).
 - La langue du système est utilisée par défaut ; `--lang en` force
   l'anglais.
 
