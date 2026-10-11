@@ -14,6 +14,7 @@
 pub mod arbiter;
 pub mod decision_log;
 pub mod error;
+pub mod eval;
 pub mod export;
 pub mod notebook;
 pub mod openai_chat;

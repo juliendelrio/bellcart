@@ -97,6 +97,11 @@ Décidé par les règles et les recettes
   (`--privacy full` pour les envoyer), n'applique jamais un « laisser »
   sur la seule parole du modèle, et consigne chaque réponse dans
   `bellcart-decisions.jsonl`.
+- `bellcart label <profil> --out labels.jsonl` vous demande, dossier par
+  dossier, ce que vous en feriez, et `bellcart eval --labels labels.jsonl
+  --endpoint <url> --model <nom>` rejoue ces réponses face à un modèle :
+  accord par décision, et surtout tout dossier à garder qui serait laissé
+  derrière.
 - `bellcart packs` liste les règles et recettes intégrées. `--pack
   <dossier>` charge un autre pack à côté, pour les auteurs de packs (voir
   [docs/PACKS.md](docs/PACKS.md)).

@@ -2,6 +2,7 @@
 
 mod arbitrate;
 mod ask;
+mod evaluate;
 mod export;
 mod i18n;
 mod notebook;
@@ -110,6 +111,31 @@ enum Command {
         #[arg(long, value_name = "SECONDS", default_value_t = 60)]
         timeout: u64,
     },
+    /// Label the folders to review by hand, building a set to evaluate
+    /// arbiters on. Stops and resumes: labelled folders are skipped.
+    Label {
+        /// The profile to scan.
+        path: PathBuf,
+        /// The labelled set to append to (JSON Lines).
+        #[arg(long, value_name = "FILE")]
+        out: PathBuf,
+    },
+    /// Replay a labelled set against an arbiter and report agreement, and
+    /// any folder to keep that would be left behind.
+    Eval {
+        /// The labelled set, as written by `bellcart label`.
+        #[arg(long, value_name = "FILE")]
+        labels: PathBuf,
+        #[arg(long)]
+        endpoint: String,
+        #[arg(long)]
+        model: String,
+        #[arg(long, value_enum, default_value_t = PrivacyArg::Redacted)]
+        privacy: PrivacyArg,
+        /// Seconds to wait for each answer.
+        #[arg(long, value_name = "SECONDS", default_value_t = 60)]
+        timeout: u64,
+    },
     /// Show what the built-in pack contains.
     Packs,
 }
@@ -207,6 +233,27 @@ fn run() -> Result<()> {
             }
         }
         Command::Export { path, to } => export::run(&path, &to, &library, &text)?,
+        Command::Label { path, out } => evaluate::label(&path, &out, &library, &text)?,
+        Command::Eval {
+            labels,
+            endpoint,
+            model,
+            privacy,
+            timeout,
+        } => {
+            let questions = packs[0]
+                .questions
+                .as_ref()
+                .context("the built-in pack has no questions")?;
+            let options = evaluate::EvalOptions {
+                labels,
+                endpoint,
+                model,
+                privacy: privacy.into(),
+                timeout: std::time::Duration::from_secs(timeout),
+            };
+            evaluate::eval(&options, questions, &text)?;
+        }
         Command::Arbitrate {
             path,
             endpoint,

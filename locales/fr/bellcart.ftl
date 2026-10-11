@@ -83,3 +83,14 @@ arbitrate-nothing-sent = Rien n'a été envoyé.
 arbitrate-failed = { $path } : { $error }
 arbitrate-stopped = Arrêt après { $count } échecs d'affilée : le point d'accès répond-il ?
 arbitrate-leave-to-confirm = l'arbitre propose de le laisser : à confirmer
+
+label-prompt = m (migrer), a (archiver), l (laisser), s (sauter), q (quitter) ?
+label-already = { $count } dossiers déjà étiquetés sont sautés.
+label-done = { $count } nouvelles étiquettes dans { $file }.
+eval-confirm = Envoyer { $count } résumés étiquetés à { $url } ? [o/N]
+eval-title = { $backend } sur { $count } dossiers étiquetés : { $agreed } en accord
+eval-label = { $label } : { $agreed } sur { $total } en accord
+eval-lost-none = Aucun dossier à garder ne serait laissé derrière.
+eval-lost = Dossiers à garder qui seraient laissés derrière : { $paths }
+eval-leave-suggested = Laisser proposé, et retenu pour l'utilisateur, sur des dossiers à migrer : { $paths }
+eval-failed = Sans réponse : { $paths }

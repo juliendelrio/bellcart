@@ -87,3 +87,14 @@ arbitrate-nothing-sent = Nothing was sent.
 arbitrate-failed = { $path }: { $error }
 arbitrate-stopped = Stopped after { $count } failures in a row: is the endpoint up?
 arbitrate-leave-to-confirm = the arbiter suggests leaving it: to confirm
+
+label-prompt = m (migrate), a (archive), l (leave), s (skip), q (quit)?
+label-already = { $count } folders already labelled are skipped.
+label-done = { $count } new labels in { $file }.
+eval-confirm = Send { $count } labelled summaries to { $url }? [y/N]
+eval-title = { $backend } on { $count } labelled folders: { $agreed } agreed
+eval-label = { $label }: { $agreed } of { $total } agreed
+eval-lost-none = No folder to keep would be left behind.
+eval-lost = Folders to keep that would be left behind: { $paths }
+eval-leave-suggested = Leave suggested, and held for the user, on folders to migrate: { $paths }
+eval-failed = Without an answer: { $paths }

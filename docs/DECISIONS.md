@@ -273,6 +273,22 @@ backend, the model, the answers and the verdict; corrections are later
 lines of the same log. The log is outside the scanned profile like every
 output, and a line cut short by a crash is skipped on reading.
 
+**D28. The labelled set is built with `bellcart label` and keeps both
+forms of each signature; `eval` fails when a folder to keep would be
+left.**
+Hand labelling is the evaluation set of every later arbiter decision, so
+it gets its own command: each folder to review is shown, largest first,
+and the answer is appended at once, so labelling can stop and resume. A
+label stores the full and the redacted signature, so one set evaluates a
+backend in either privacy mode. `eval` compares the backend's suggestion
+(a held `leave` counts as `leave`) with the label and reports agreement
+per decision. The figure that matters is separate: any folder labelled
+`migrate` or `archive` whose verdict would apply `leave`. It must be zero,
+and `eval` exits with an error otherwise, so a change of backend or of
+the combination rules can be guarded in a script. A suggested `leave` on
+a folder labelled `migrate` is listed too: held for the user, it still
+measures how far a backend can be trusted.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.
