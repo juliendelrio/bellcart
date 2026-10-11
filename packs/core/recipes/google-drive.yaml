@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: google-drive
+name: Google Drive for desktop
+detect:
+  any:
+    - path: '%LOCALAPPDATA%\Google\DriveFS'
+before:
+  # The `google-drive-cache` rule leaves DriveFS: the files live in the
+  # cloud and the client downloads them again. That is only true once every
+  # change has been uploaded. A file edited while sync is pending exists
+  # only in that cache, so the user must check before leaving.
+  - type: manual
+    text:
+      en: >-
+        Open Google Drive from the notification area and wait until it says
+        that everything is up to date. A file still waiting to upload exists
+        only on this PC, in a cache Bellcart leaves behind.
+      fr: >-
+        Ouvrez Google Drive depuis la zone de notification et attendez qu'il
+        indique que tout est à jour. Un fichier encore en attente d'envoi
+        n'existe que sur ce PC, dans un cache que Bellcart laisse derrière.
+  - type: manual
+    text:
+      en: >-
+        Check the Drive settings for folders of this PC backed up to Google
+        Photos or Drive. They stay where they are: the plan decides for them
+        like any other folder.
+      fr: >-
+        Vérifiez dans les paramètres de Drive les dossiers de ce PC
+        sauvegardés vers Google Photos ou Drive. Ils restent où ils sont : le
+        plan décide pour eux comme pour tout autre dossier.
+after:
+  - type: install
+    winget: Google.GoogleDrive
+  - type: manual
+    text:
+      en: >-
+        Sign in to Google Drive, then choose how My Drive appears: streamed
+        (files downloaded when opened) or mirrored (a full copy on the disk).
+        Your files come back from the cloud either way.
+      fr: >-
+        Connectez-vous à Google Drive, puis choisissez comment Mon Drive
+        apparaît : en flux (les fichiers sont téléchargés à l'ouverture) ou en
+        miroir (une copie complète sur le disque). Vos fichiers reviennent du
+        cloud dans les deux cas.

@@ -82,3 +82,17 @@ fn an_application_without_steps_on_one_side_has_no_chapter_there() {
     assert_eq!(book.before[0].tasks, [Task::ExportWingetPackages]);
     assert_eq!(names(&book.after), ["winget-apps"]);
 }
+
+#[test]
+fn leaving_the_google_drive_cache_comes_with_a_check_before_leaving() {
+    // The cache is left by a rule; the notebook must ask to check that
+    // nothing is still waiting to upload.
+    let book = notebook_for(&MemTree::new().file("AppData/Local/Google/DriveFS/1234/metadata", 1));
+    assert_eq!(names(&book.before), ["google-drive"]);
+    assert!(
+        matches!(&book.before[0].tasks[0], Task::Manual(text) if text.en.contains("up to date"))
+    );
+    assert!(book.after[0].tasks.contains(&Task::Install {
+        winget: "Google.GoogleDrive".to_owned()
+    }));
+}
