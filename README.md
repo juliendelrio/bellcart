@@ -92,6 +92,11 @@ To review, folder by folder
   sending anything, masks personal names by default (`--privacy full`
   to send them), never applies a "leave" on the model's word alone, and
   logs every answer to `bellcart-decisions.jsonl`.
+- `bellcart label <profile> --out labels.jsonl` asks you, folder by
+  folder, what you would do with it, and `bellcart eval --labels
+  labels.jsonl --endpoint <url> --model <name>` replays those answers
+  against a model: agreement per decision, and above all any folder to
+  keep that would be left behind.
 - `bellcart packs` lists the built-in rules and recipes. `--pack <folder>`
   loads another pack next to it, for pack authors (see
   [docs/PACKS.md](docs/PACKS.md)).

@@ -416,3 +416,106 @@ fn a_line_cut_short_does_not_spoil_the_log() {
     std::fs::write(&file, format!("{good}\n{{\"event\":\"answ\n{good}\n")).unwrap();
     assert_eq!(bellcart::decision_log::read(&file).unwrap().len(), 2);
 }
+
+// `bellcart label` and `bellcart eval`, end to end.
+
+#[test]
+fn label_records_what_the_user_says_and_resumes() {
+    let (profile, outputs) = profile("label");
+    let labels = outputs.join("labels.jsonl");
+    let args = [
+        "--lang",
+        "en",
+        "label",
+        profile.to_str().unwrap(),
+        "--out",
+        labels.to_str().unwrap(),
+    ];
+    let output = arbitrate(&args, "a\n");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let set = bellcart::eval::read_labels(&labels).unwrap();
+    assert_eq!(set.len(), 1);
+    assert_eq!(set[0].label, Decision::Archive);
+    assert!(set[0].full.contains("Wedding"));
+    assert!(!set[0].redacted.contains("Wedding"));
+
+    // A second run skips what is labelled already.
+    let output = arbitrate(&args, "m\n");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("1 folders already labelled are skipped"),
+        "{stdout}"
+    );
+    assert_eq!(bellcart::eval::read_labels(&labels).unwrap().len(), 1);
+}
+
+#[test]
+fn eval_reports_agreement_on_the_labelled_set() {
+    let (_, outputs) = profile("eval");
+    let labels = outputs.join("labels.jsonl");
+    bellcart::eval::append_label(
+        &labels,
+        &bellcart::eval::Labelled {
+            path: "Downloads".to_owned(),
+            full: "path: Downloads".to_owned(),
+            redacted: "path: Downloads".to_owned(),
+            label: Decision::Archive,
+        },
+    )
+    .unwrap();
+    let fake = start(vec![Reply::Answers(all_answers())]);
+    let args = [
+        "--lang",
+        "en",
+        "eval",
+        "--labels",
+        labels.to_str().unwrap(),
+        "--endpoint",
+        &fake.base,
+        "--model",
+        "m",
+    ];
+    let output = arbitrate(&args, "y\n");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "{stdout}");
+    assert!(
+        stdout.contains("on 1 labelled folders: 1 agreed"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("No folder to keep would be left behind."),
+        "{stdout}"
+    );
+    assert_eq!(
+        fake.received.recv().unwrap().body["messages"][1]["content"],
+        "path: Downloads"
+    );
+}
+
+#[test]
+fn eval_sends_nothing_without_a_yes() {
+    let (_, outputs) = profile("eval-no");
+    let labels = outputs.join("labels.jsonl");
+    std::fs::write(&labels, "").unwrap();
+    let fake = start(vec![Reply::Answers(all_answers())]);
+    let args = [
+        "eval",
+        "--labels",
+        labels.to_str().unwrap(),
+        "--endpoint",
+        &fake.base,
+        "--model",
+        "m",
+    ];
+    let output = arbitrate(&args, "n\n");
+    assert!(output.status.success());
+    assert!(
+        fake.received
+            .recv_timeout(Duration::from_millis(300))
+            .is_err()
+    );
+}
