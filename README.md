@@ -75,6 +75,11 @@ To review, folder by folder
   an arbiter would read about each folder to review. The scan lists
   several folders at once; `--jobs 1` lists one at a time, which can be
   faster on a spinning hard disk.
+- `--notebook notebook.html` writes the migration notebook: what to do
+  by hand before leaving the old PC and on arrival, for each application
+  found. A name ending in `.html` gives a page with checkboxes, any other
+  gives Markdown. Bellcart refuses to write any file inside the folder it
+  scans.
 - `bellcart packs` lists the built-in rules and recipes.
 - `--lang fr` switches the interface to French. The system language is
   used by default.

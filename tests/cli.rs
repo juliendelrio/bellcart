@@ -101,3 +101,157 @@ fn a_reader_that_stops_early_is_not_an_error() {
     assert!(output.status.success(), "{stderr}");
     assert!(!stderr.contains("panicked"), "{stderr}");
 }
+
+/// A fresh folder under Cargo's temporary directory for integration tests.
+fn fresh_dir(name: &str) -> std::path::PathBuf {
+    let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("a temporary folder");
+    dir
+}
+
+/// A small profile with Git and SSH keys, and a folder to write outputs to.
+fn profile_and_outputs(name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+    let base = fresh_dir(name);
+    let profile = base.join("profile");
+    std::fs::create_dir_all(profile.join(".ssh")).unwrap();
+    std::fs::write(profile.join(".gitconfig"), "[user]\n").unwrap();
+    std::fs::write(profile.join(".ssh/id_ed25519"), "key").unwrap();
+    let outputs = base.join("outputs");
+    std::fs::create_dir_all(&outputs).unwrap();
+    (profile, outputs)
+}
+
+#[test]
+fn scan_writes_a_markdown_notebook_in_the_chosen_language() {
+    let (profile, outputs) = profile_and_outputs("notebook-md");
+    let file = outputs.join("carnet.md");
+    let output = bellcart(&[
+        "--lang",
+        "fr",
+        "scan",
+        profile.to_str().unwrap(),
+        "--notebook",
+        file.to_str().unwrap(),
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let book = std::fs::read_to_string(&file).expect("the notebook is written");
+    assert!(book.starts_with("# Carnet de migration pour "), "{book}");
+    assert!(
+        book.contains("\n## Avant de quitter l'ancien PC\n"),
+        "{book}"
+    );
+    assert!(book.contains("\n### Git\n"), "{book}");
+    assert!(
+        book.contains("- [ ] Emportez `%USERPROFILE%\\.gitconfig`\n"),
+        "{book}"
+    );
+    assert!(
+        book.contains("- [ ] Installez-la avec winget : `winget install --id Git.Git -e`"),
+        "{book}"
+    );
+}
+
+#[test]
+fn scan_writes_an_html_notebook_with_checkboxes() {
+    let (profile, outputs) = profile_and_outputs("notebook-html");
+    let file = outputs.join("notebook.html");
+    let output = bellcart(&[
+        "--lang",
+        "en",
+        "scan",
+        profile.to_str().unwrap(),
+        "--notebook",
+        file.to_str().unwrap(),
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let book = std::fs::read_to_string(&file).expect("the notebook is written");
+    assert!(
+        book.starts_with("<!doctype html>\n<html lang=\"en\">"),
+        "{book}"
+    );
+    assert!(
+        book.contains("<h2>Before you leave the old PC</h2>"),
+        "{book}"
+    );
+    assert!(
+        book.contains("<input type=\"checkbox\"> Take <code>%USERPROFILE%\\.gitconfig</code>"),
+        "{book}"
+    );
+}
+
+#[test]
+fn a_notebook_with_no_application_says_so() {
+    let base = fresh_dir("notebook-empty");
+    let profile = base.join("profile");
+    std::fs::create_dir_all(profile.join("Documents")).unwrap();
+    std::fs::write(profile.join("Documents/a.txt"), "a").unwrap();
+    let file = base.join("notebook.md");
+    let output = bellcart(&[
+        "--lang",
+        "en",
+        "scan",
+        profile.to_str().unwrap(),
+        "--notebook",
+        file.to_str().unwrap(),
+    ]);
+    assert!(output.status.success());
+    let book = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        book.contains("No application with a recipe was found"),
+        "{book}"
+    );
+}
+
+#[test]
+fn no_output_is_written_inside_the_scanned_folder() {
+    let (profile, _) = profile_and_outputs("inside");
+    for option in ["--out", "--notebook"] {
+        let file = profile.join("plan.json");
+        let output = bellcart(&[
+            "scan",
+            profile.to_str().unwrap(),
+            option,
+            file.to_str().unwrap(),
+        ]);
+        assert!(
+            !output.status.success(),
+            "{option} inside the scan must fail"
+        );
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("inside the scanned folder"), "{stderr}");
+        assert!(!profile.join("plan.json").exists(), "{option} wrote a file");
+    }
+}
+
+#[test]
+fn an_output_next_to_the_scanned_folder_is_fine() {
+    let (profile, outputs) = profile_and_outputs("outside");
+    let file = outputs.join("plan.json");
+    let output = bellcart(&[
+        "scan",
+        profile.to_str().unwrap(),
+        "--out",
+        file.to_str().unwrap(),
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let plan: Plan = serde_json::from_slice(&std::fs::read(&file).unwrap()).unwrap();
+    let found: Vec<&str> = plan
+        .applications
+        .iter()
+        .map(|a| a.recipe.as_str())
+        .collect();
+    assert_eq!(found, ["git", "openssh"]);
+}

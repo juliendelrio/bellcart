@@ -185,6 +185,18 @@ Windows crate. Recipe nodes may be single files (`.gitconfig`), which a
 reader of version 2 could not expect, hence version 3. Versions 1 and 2
 still parse.
 
+**D22. The engine gathers the notebook's tasks, the front end words them,
+and no output is written inside the scanned tree.**
+`notebook()` returns, per application found, the tasks of its recipe
+before leaving and on arrival, with the pack's own texts; the CLI words
+the generated ones (copy, export, install) in the interface language and
+writes Markdown or HTML, as it will for the web interface. Paths are shown
+as recipes write them (`%APPDATA%\...`), which is what the user will type
+on the new PC. Until the export primitives run from Bellcart, an export
+task shows the command to run. A file Bellcart writes (`--out`,
+`--notebook`) is refused when it falls inside the scanned folder, compared
+on canonical paths: the read-only rule covers Bellcart's own outputs.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

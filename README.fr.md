@@ -78,6 +78,11 @@ Décidé par les règles et les recettes
   qu'un arbitre lirait sur chaque dossier à examiner. L'analyse lit
   plusieurs dossiers à la fois ; `--jobs 1` les lit un par un, ce qui
   peut être plus rapide sur un disque dur à plateaux.
+- `--notebook carnet.html` écrit le carnet de migration : ce qu'il faut
+  faire à la main avant de quitter l'ancien PC et à l'arrivée, pour chaque
+  application trouvée. Un nom finissant par `.html` donne une page avec
+  des cases à cocher, tout autre nom donne du Markdown. Bellcart refuse
+  d'écrire un fichier dans le dossier qu'il analyse.
 - `bellcart packs` liste les règles et recettes intégrées.
 - La langue du système est utilisée par défaut ; `--lang en` force
   l'anglais.

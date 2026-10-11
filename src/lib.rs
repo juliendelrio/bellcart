@@ -13,6 +13,7 @@
 
 pub mod arbiter;
 pub mod error;
+pub mod notebook;
 pub mod pack;
 pub mod plan;
 pub mod recipe;

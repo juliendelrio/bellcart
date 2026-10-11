@@ -34,7 +34,6 @@ impl Localizer {
     }
 
     /// The language code in use, for texts that live in packs.
-    #[allow(dead_code)]
     pub fn lang(&self) -> &str {
         self.lang
     }

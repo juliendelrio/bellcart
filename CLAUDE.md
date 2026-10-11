@@ -63,6 +63,8 @@ src/scan.rs           tree + rules -> plan
 src/plan.rs           the plan format (published, versioned)
 src/pack.rs           pack format, loader, rule matching
 src/signature.rs      text summary of a review unit (the arbiter's state)
+src/recipe.rs         recipe variables, detection, steps settled in the plan
+src/notebook.rs       the tasks of the migration notebook
 src/arbiter.rs        model contract (System One shaped), `none` backend
 src/schema.rs         JSON Schema generation
 src/bin/bellcart/     CLI: argument parsing, i18n, text rendering only
@@ -71,6 +73,7 @@ locales/<lang>/       interface strings (Fluent)
 schemas/              generated, checked in, do not edit by hand
 tests/scan.rs         the behaviour specification
 tests/signatures.rs   what a signature says, and its budget
+tests/notebook.rs     what the migration notebook asks the user to do
 tests/core_pack.rs    checks on the shipped pack and its translations
 tests/cli.rs          end-to-end on the real binary
 ```
