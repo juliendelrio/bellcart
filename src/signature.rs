@@ -55,6 +55,25 @@ impl Sample {
             files: largest(files),
         }
     }
+
+    /// Takes in the sample of a sub-folder's rest that joins this one, its
+    /// names prefixed with that sub-folder so they stay unambiguous.
+    pub fn absorb(&mut self, other: Sample, folder: &str) {
+        let prefixed = |entries: Vec<Named>| {
+            entries.into_iter().map(|n| Named {
+                name: format!("{folder}/{}", n.name),
+                bytes: n.bytes,
+            })
+        };
+        self.folder_count += other.folder_count;
+        self.file_count += other.file_count;
+        let mut folders = std::mem::take(&mut self.folders);
+        folders.extend(prefixed(other.folders));
+        self.folders = largest(folders);
+        let mut files = std::mem::take(&mut self.files);
+        files.extend(prefixed(other.files));
+        self.files = largest(files);
+    }
 }
 
 /// Sorts largest first, then by name so that ties are stable.

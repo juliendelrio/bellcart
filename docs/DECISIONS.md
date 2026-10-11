@@ -137,6 +137,21 @@ adds to without a lock; the engine still prints nothing, and the CLI draws
 one line on stderr only when it is a terminal. On the maintainer's
 profile, warm cache, 12 threads: 0.75 s instead of 2.8 s.
 
+**D19. A rest smaller than `min_unit` joins the rest of the folder above,
+and long digit suffixes are not extensions.**
+A folder that is cut keeps its own files as a "rest" unit. Often that rest
+is a `desktop.ini` or a few kilobytes next to large sub-folders, and it
+made units no one would judge apart. Such a rest now joins the rest of the
+folder above, its names prefixed with their folder in the signature, the
+way sub-folders under `min_unit` already did. A rest that holds an
+unreadable folder stays where it is, to show where access failed. A
+suffix of four digits or more (`app.exe.old.33452`, `report.2024`) is a
+counter, a process number or a year, and each value counted as an
+extension of its own; three digits stay, for split archive parts. The
+default budget is kept: on the maintainer's Windows 11 profile it gives
+76 units instead of 91, the smallest 105 MB, all with a reason that reads
+well. Other profiles may move the defaults again.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

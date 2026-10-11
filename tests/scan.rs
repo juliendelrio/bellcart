@@ -255,6 +255,73 @@ fn sub_folders_below_the_unit_size_stay_in_their_parents_rest() {
 }
 
 #[test]
+fn a_rest_too_small_to_judge_joins_the_rest_of_the_folder_above() {
+    let plan = cut(&MemTree::new()
+        .file("Downloads/desktop.ini", 5)
+        .file("Downloads/old/a.zip", 700)
+        .file("Downloads/new/b.mp4", 700)
+        .file("notes.txt", 20));
+
+    assert!(!has_node(&plan, "Downloads"));
+    assert_eq!(node(&plan, "Downloads/old").unit, Some(UnitReason::Small));
+    assert_eq!(node(&plan, "Downloads/new").unit, Some(UnitReason::Small));
+    assert_eq!(plan.tree.unit, Some(UnitReason::Rest));
+    assert_eq!(plan.tree.stats.bytes, 25);
+    assert_eq!(plan.tree.stats.files, 2);
+}
+
+#[test]
+fn a_rest_of_at_least_the_unit_size_keeps_its_own_node() {
+    let plan = cut(&MemTree::new()
+        .file("Downloads/setup.exe", 100)
+        .file("Downloads/old/a.zip", 700)
+        .file("Downloads/new/b.mp4", 700));
+
+    assert_eq!(node(&plan, "Downloads").unit, Some(UnitReason::Rest));
+    assert_eq!(node(&plan, "Downloads").stats.bytes, 100);
+}
+
+#[test]
+fn a_small_rest_with_an_unreadable_folder_keeps_its_own_node() {
+    // Where access was denied must stay visible where it happened.
+    let plan = cut(&MemTree::new()
+        .file("Downloads/old/a.zip", 700)
+        .file("Downloads/new/b.mp4", 700)
+        .unreadable("Downloads/locked"));
+
+    assert_eq!(node(&plan, "Downloads").unit, Some(UnitReason::Rest));
+    assert_eq!(node(&plan, "Downloads").stats.unreadable, 1);
+}
+
+#[test]
+fn a_tiny_rest_at_the_root_stays_where_it_is() {
+    let plan = cut(&MemTree::new()
+        .file("desktop.ini", 5)
+        .file("old/a.zip", 700)
+        .file("new/b.mp4", 700));
+
+    assert_eq!(plan.tree.unit, Some(UnitReason::Rest));
+    assert_eq!(plan.tree.stats.bytes, 5);
+}
+
+#[test]
+fn long_numeric_suffixes_are_not_extensions() {
+    let plan = plan(
+        &MemTree::new()
+            .file("claude.exe.old.12.33452", 10)
+            .file("backup.7z.001", 20)
+            .file("report.2024", 40),
+    );
+
+    let extensions = &plan.tree.stats.extensions;
+    // Split archives number their parts with three digits.
+    assert_eq!(extensions["001"], 20);
+    // Longer runs of digits are counters, process numbers or years.
+    assert_eq!(extensions[""], 50);
+    assert_eq!(extensions.len(), 2);
+}
+
+#[test]
 fn a_folder_dominated_by_one_extension_is_one_unit_however_deep() {
     let plan = cut(&MemTree::new()
         .file("Pictures/2023/01/a.jpg", 400)
