@@ -73,7 +73,9 @@ Décidé par les règles
 
 - `bellcart scan <dossier>` affiche ce résumé ; `--json` affiche le plan
   complet, `--out plan.json` l'enregistre, et `--signatures` affiche ce
-  qu'un arbitre lirait sur chaque dossier à examiner.
+  qu'un arbitre lirait sur chaque dossier à examiner. L'analyse lit
+  plusieurs dossiers à la fois ; `--jobs 1` les lit un par un, ce qui
+  peut être plus rapide sur un disque dur à plateaux.
 - `bellcart packs` liste les règles et recettes intégrées.
 - La langue du système est utilisée par défaut ; `--lang en` force
   l'anglais.

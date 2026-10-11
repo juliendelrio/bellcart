@@ -119,6 +119,24 @@ extensions, always in the same order. The data (`Signature`) is kept apart
 from the text so a redacted form can come later without changing what is
 collected.
 
+## 2026-10-11
+
+**D18. The scan is parallel with `rayon`, and reports progress as
+counters.**
+A profile is a few very unequal trees (`AppData` alone can weigh as much
+as everything else), so threads must take work from each other as they
+run out: `rayon` does that work stealing, and is the standard Rust crate
+for it. Writing it on `std::thread::scope` would save a dependency at the
+cost of concurrency code of our own. Results are collected back in listing
+order, so the plan does not depend on the number of threads, which a test
+checks. The engine does not choose the pool: it runs in whatever pool the
+caller installs, and the CLI sets its size with `--jobs`, since parallel
+reads can be slower than sequential ones on a spinning disk. Progress is
+three atomic counters (folders listed, files seen, bytes) that the scan
+adds to without a lock; the engine still prints nothing, and the CLI draws
+one line on stderr only when it is a terminal. On the maintainer's
+profile, warm cache, 12 threads: 0.75 s instead of 2.8 s.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

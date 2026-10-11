@@ -14,9 +14,16 @@
 //! The plan lists the places where the decision changes, plus one `review`
 //! node per unit. Cutting never decides anything: it only creates `review`
 //! nodes, and leaves the totals unchanged.
+//!
+//! Sub-folders are listed in parallel with `rayon`, on whatever thread
+//! pool the caller runs the scan in. Results are put back in listing order,
+//! so the plan is the same whatever the number of threads.
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use rayon::prelude::*;
 
 use crate::pack::RuleSet;
 use crate::plan::{Decision, Plan, PlanNode, Source, SplitBudget, Stats, UnitReason};
@@ -39,14 +46,28 @@ pub struct Scan {
 /// Fails only if `root` itself cannot be read. Unreadable folders below it
 /// are counted in [`Stats::unreadable`] and the scan goes on.
 pub fn scan(tree: &dyn Tree, root: &Path, rules: &RuleSet, budget: &SplitBudget) -> Result<Scan> {
+    scan_with(tree, root, rules, budget, &Progress::default())
+}
+
+/// [`scan`], counting what it has read in `progress` as it goes, so that
+/// another thread can show how far it is.
+pub fn scan_with(
+    tree: &dyn Tree,
+    root: &Path,
+    rules: &RuleSet,
+    budget: &SplitBudget,
+    progress: &Progress,
+) -> Result<Scan> {
     let entries = tree.read_dir(root).map_err(|source| Error::Io {
         path: root.to_path_buf(),
         source,
     })?;
+    progress.folders.fetch_add(1, Ordering::Relaxed);
     let walker = Walker {
         tree,
         rules,
         budget,
+        progress,
     };
     let walked = walker.walk(root, String::new(), String::new(), 0, entries);
     Ok(Scan {
@@ -59,10 +80,50 @@ pub fn scan(tree: &dyn Tree, root: &Path, rules: &RuleSet, budget: &SplitBudget)
     })
 }
 
+/// How much a running scan has read so far: every folder listed, and
+/// every file seen, settled or not.
+///
+/// The counters are atomics: the scan threads add to them without a lock,
+/// and any thread may read them at any time. Each count is exact once the
+/// scan is over; while it runs, the three are read one after the other and
+/// may be a few entries apart.
+#[derive(Debug, Default)]
+pub struct Progress {
+    folders: AtomicU64,
+    files: AtomicU64,
+    bytes: AtomicU64,
+}
+
+/// A reading of [`Progress`].
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Counts {
+    pub folders: u64,
+    pub files: u64,
+    pub bytes: u64,
+}
+
+impl Progress {
+    pub fn counts(&self) -> Counts {
+        Counts {
+            folders: self.folders.load(Ordering::Relaxed),
+            files: self.files.load(Ordering::Relaxed),
+            bytes: self.bytes.load(Ordering::Relaxed),
+        }
+    }
+
+    /// Adds the files of one folder at once, to touch the shared counters
+    /// once per folder rather than once per file.
+    fn add_files(&self, stats: &Stats) {
+        self.files.fetch_add(stats.files, Ordering::Relaxed);
+        self.bytes.fetch_add(stats.bytes, Ordering::Relaxed);
+    }
+}
+
 struct Walker<'a> {
     tree: &'a dyn Tree,
     rules: &'a RuleSet,
     budget: &'a SplitBudget,
+    progress: &'a Progress,
 }
 
 /// A review folder once walked: its node, already cut, the figures of
@@ -92,7 +153,7 @@ impl Walker<'_> {
     ) -> Walked {
         let mut own = Stats::default();
         let mut files = Vec::new();
-        let mut items = Vec::new();
+        let mut dirs = Vec::new();
 
         for entry in entries {
             match entry.kind {
@@ -104,36 +165,22 @@ impl Walker<'_> {
                     });
                 }
                 Kind::Other => {}
-                Kind::Dir => {
-                    let child_abs = abs.join(&entry.name);
-                    let child_rel = join(&rel, &entry.name);
-                    let Ok(child_entries) = self.tree.read_dir(&child_abs) else {
-                        own.unreadable += 1;
-                        continue;
-                    };
-                    let names: Vec<&str> = child_entries.iter().map(|e| e.name.as_str()).collect();
+                Kind::Dir => dirs.push(entry.name),
+            }
+        }
+        self.progress.add_files(&own);
 
-                    items.push(match self.rules.find(&child_rel, &entry.name, &names) {
-                        Some(rule) => Item::Settled(PlanNode {
-                            path: child_rel,
-                            decision: rule.decision,
-                            source: Source::Rule {
-                                rule: rule.id.clone(),
-                                reason: rule.reason.clone(),
-                            },
-                            stats: self.measure(&child_abs, child_entries),
-                            overrides: Vec::new(),
-                            unit: None,
-                        }),
-                        None => Item::Review(self.walk(
-                            &child_abs,
-                            entry.name,
-                            child_rel,
-                            depth + 1,
-                            child_entries,
-                        )),
-                    });
-                }
+        // `into_par_iter` hands the sub-folders to the thread pool, and
+        // `collect` puts the results back in the original order.
+        let children: Vec<Option<Item>> = dirs
+            .into_par_iter()
+            .map(|child| self.child(abs, &rel, depth, child))
+            .collect();
+        let mut items = Vec::with_capacity(children.len());
+        for child in children {
+            match child {
+                Some(item) => items.push(item),
+                None => own.unreadable += 1,
             }
         }
 
@@ -164,6 +211,37 @@ impl Walker<'_> {
             review,
             samples,
         }
+    }
+
+    /// Lists a sub-folder and either settles it by a rule or walks it.
+    /// `None` when it cannot be listed.
+    fn child(&self, abs: &Path, rel: &str, depth: u32, name: String) -> Option<Item> {
+        let child_abs = abs.join(&name);
+        let child_rel = join(rel, &name);
+        let child_entries = self.list(&child_abs)?;
+        let names: Vec<&str> = child_entries.iter().map(|e| e.name.as_str()).collect();
+
+        Some(match self.rules.find(&child_rel, &name, &names) {
+            Some(rule) => Item::Settled(PlanNode {
+                path: child_rel,
+                decision: rule.decision,
+                source: Source::Rule {
+                    rule: rule.id.clone(),
+                    reason: rule.reason.clone(),
+                },
+                stats: self.measure(&child_abs, child_entries),
+                overrides: Vec::new(),
+                unit: None,
+            }),
+            None => Item::Review(self.walk(&child_abs, name, child_rel, depth + 1, child_entries)),
+        })
+    }
+
+    /// Lists a folder, counting it in the progress when it can be read.
+    fn list(&self, dir: &Path) -> Option<Vec<Entry>> {
+        let entries = self.tree.read_dir(dir).ok()?;
+        self.progress.folders.fetch_add(1, Ordering::Relaxed);
+        Some(entries)
     }
 
     /// Why this folder is one unit, or `None` if it must be cut.
@@ -236,21 +314,28 @@ impl Walker<'_> {
     /// Sizes a settled folder without applying rules inside it.
     fn measure(&self, abs: &Path, entries: Vec<Entry>) -> Stats {
         let mut stats = Stats::default();
-        let mut pending = vec![(abs.to_path_buf(), entries)];
-        while let Some((dir, entries)) = pending.pop() {
-            for entry in entries {
-                match entry.kind {
-                    Kind::File { size, modified } => stats.add_file(&entry.name, size, modified),
-                    Kind::Other => {}
-                    Kind::Dir => {
-                        let child = dir.join(&entry.name);
-                        match self.tree.read_dir(&child) {
-                            Ok(children) => pending.push((child, children)),
-                            Err(_) => stats.unreadable += 1,
-                        }
-                    }
-                }
+        let mut dirs: Vec<PathBuf> = Vec::new();
+        for entry in entries {
+            match entry.kind {
+                Kind::File { size, modified } => stats.add_file(&entry.name, size, modified),
+                Kind::Other => {}
+                Kind::Dir => dirs.push(abs.join(&entry.name)),
             }
+        }
+        self.progress.add_files(&stats);
+
+        let children: Vec<Stats> = dirs
+            .into_par_iter()
+            .map(|dir| match self.list(&dir) {
+                Some(entries) => self.measure(&dir, entries),
+                None => Stats {
+                    unreadable: 1,
+                    ..Stats::default()
+                },
+            })
+            .collect();
+        for child in &children {
+            stats.merge(child);
         }
         stats
     }

@@ -28,7 +28,9 @@ pub enum Kind {
     Other,
 }
 
-pub trait Tree {
+/// `Sync` because the scan lists several folders at once from different
+/// threads, all sharing the same tree.
+pub trait Tree: Sync {
     /// Lists `dir`. Entries are returned sorted by name.
     fn read_dir(&self, dir: &Path) -> io::Result<Vec<Entry>>;
 }

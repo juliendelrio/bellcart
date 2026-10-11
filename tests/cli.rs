@@ -55,3 +55,32 @@ fn a_missing_folder_is_a_clean_error() {
         "no backtrace, one line: {stderr}"
     );
 }
+
+#[test]
+fn one_job_gives_the_same_plan_as_the_default() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/packs");
+    let default = bellcart(&["scan", dir, "--json"]);
+    let sequential = bellcart(&["scan", dir, "--json", "--jobs", "1"]);
+    assert!(sequential.status.success());
+    assert_eq!(sequential.stdout, default.stdout);
+}
+
+#[test]
+fn zero_jobs_is_refused() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/packs");
+    let output = bellcart(&["scan", dir, "--jobs", "0"]);
+    assert!(!output.status.success());
+}
+
+#[test]
+fn no_progress_is_printed_when_the_output_is_not_a_terminal() {
+    // Tests capture stderr, so it is not a terminal here.
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/packs");
+    let output = bellcart(&["scan", dir, "--json"]);
+    assert!(output.status.success());
+    assert!(
+        output.stderr.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
