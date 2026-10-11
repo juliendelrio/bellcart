@@ -89,6 +89,14 @@ Décidé par les règles et les recettes
   par les recettes (liste winget des applications, extensions de VS Code,
   clés de registre). Chaque commande est affichée en entier et ne se
   lance que si vous répondez oui.
+- `bellcart arbitrate <profil> --endpoint <url> --model <nom>` soumet les
+  dossiers à examiner à un modèle derrière un point d'accès compatible
+  OpenAI (un serveur local ou une API en ligne ; la clé éventuelle est lue
+  dans `BELLCART_ARBITER_KEY`). Il montre la requête exacte et demande
+  avant d'envoyer quoi que ce soit, masque les noms personnels par défaut
+  (`--privacy full` pour les envoyer), n'applique jamais un « laisser »
+  sur la seule parole du modèle, et consigne chaque réponse dans
+  `bellcart-decisions.jsonl`.
 - `bellcart packs` liste les règles et recettes intégrées. `--pack
   <dossier>` charge un autre pack à côté, pour les auteurs de packs (voir
   [docs/PACKS.md](docs/PACKS.md)).

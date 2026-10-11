@@ -85,6 +85,13 @@ To review, folder by folder
 - `bellcart export <profile> --to <folder>` runs the exports the recipes
   ask for (the winget list of applications, VS Code extensions, registry
   keys). Each command is shown in full and runs only if you answer yes.
+- `bellcart arbitrate <profile> --endpoint <url> --model <name>` puts the
+  folders to review to a model behind an OpenAI-compatible endpoint (a
+  local server or a cloud API; the key, if any, is read from
+  `BELLCART_ARBITER_KEY`). It shows the exact request and asks before
+  sending anything, masks personal names by default (`--privacy full`
+  to send them), never applies a "leave" on the model's word alone, and
+  logs every answer to `bellcart-decisions.jsonl`.
 - `bellcart packs` lists the built-in rules and recipes. `--pack <folder>`
   loads another pack next to it, for pack authors (see
   [docs/PACKS.md](docs/PACKS.md)).

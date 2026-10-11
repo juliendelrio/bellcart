@@ -16,4 +16,7 @@ pub enum Error {
 
     #[error("invalid rule `{rule}`: {message}")]
     Rule { rule: String, message: String },
+
+    #[error("arbiter: {0}")]
+    Arbiter(String),
 }

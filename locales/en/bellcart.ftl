@@ -79,3 +79,11 @@ export-skipped = Skipped.
 export-done = Saved: { $file }
 export-failed = Failed: { $error }
 export-missing = { $program } was not found on this PC.
+
+arbitrate-none = Nothing to put to an arbiter: no folder is left to review.
+arbitrate-preview = This is the exact request for the first folder. The others differ only by their summary.
+arbitrate-confirm = Send { $count } folder summaries to { $url }? [y/N]
+arbitrate-nothing-sent = Nothing was sent.
+arbitrate-failed = { $path }: { $error }
+arbitrate-stopped = Stopped after { $count } failures in a row: is the endpoint up?
+arbitrate-leave-to-confirm = the arbiter suggests leaving it: to confirm

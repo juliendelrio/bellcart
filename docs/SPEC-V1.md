@@ -270,7 +270,8 @@ It must never be a tree of half a million checkboxes.
 | Recipe detection, `copy` and `skip` steps in the plan | done |
 | Migration notebook, Markdown and HTML | done |
 | Export primitives, `bellcart export` | done |
-| `openai-chat` backend, decision log, privacy modes | to build |
+| `openai-chat` backend, decision log, privacy modes | done |
+| `bellcart eval` on a labelled set | to build |
 | Web interface | to build |
 | Windows crate: known folders, elevation | to build |
 | Signed release pipeline | to build |

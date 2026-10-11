@@ -26,3 +26,6 @@ pub fn small_budget() -> bellcart::plan::SplitBudget {
         max_depth: 4,
     }
 }
+
+#[allow(dead_code)]
+pub mod fake_arbiter;
