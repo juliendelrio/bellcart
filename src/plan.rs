@@ -321,6 +321,26 @@ impl Plan {
         true
     }
 
+    /// Records the user's decision for the folder at `path` and everything
+    /// under it, whether or not the plan has a node there: every node at
+    /// or below `path` takes `decision`, except those a rule or a recipe
+    /// settled, which keep theirs ("take this folder, but not those").
+    /// Returns the paths changed, empty when there was nothing to change.
+    pub fn apply_user_below(&mut self, path: &str, decision: Decision) -> Vec<String> {
+        let mut changed = Vec::new();
+        below_mut(&mut self.tree, path, &mut |node| {
+            if !matches!(node.source, Source::Rule { .. } | Source::Recipe { .. }) {
+                node.decision = decision;
+                node.source = Source::User;
+                changed.push(node.path.clone());
+            }
+        });
+        if !changed.is_empty() {
+            self.retotal();
+        }
+        changed
+    }
+
     /// Recomputes `totals` from the tree.
     pub fn retotal(&mut self) {
         let mut totals: BTreeMap<Decision, Totals> = Decision::ALL
@@ -355,6 +375,26 @@ fn find_mut<'a>(node: &'a mut PlanNode, path: &str) -> Option<&'a mut PlanNode> 
     node.overrides
         .iter_mut()
         .find_map(|child| find_mut(child, path))
+}
+
+/// Whether `path` is `folder` or lies under it.
+pub fn is_within(path: &str, folder: &str) -> bool {
+    folder.is_empty()
+        || path == folder
+        || path
+            .strip_prefix(folder)
+            .is_some_and(|rest| rest.starts_with('/'))
+}
+
+/// Calls `f` on every node at or under `folder`. Nodes are not nested by
+/// path alone (a cut moves units up), so the whole tree is visited.
+fn below_mut(node: &mut PlanNode, folder: &str, f: &mut impl FnMut(&mut PlanNode)) {
+    if is_within(&node.path, folder) {
+        f(node);
+    }
+    for child in &mut node.overrides {
+        below_mut(child, folder, f);
+    }
 }
 
 fn collect<'a>(node: &'a PlanNode, out: &mut Vec<&'a PlanNode>) {

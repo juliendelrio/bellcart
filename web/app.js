@@ -12,6 +12,7 @@ let review = null;   // what /api/review said
 let skipped = new Set();
 let step = "choose";
 let settledOpen = false; // keep the settled list open across redraws
+let scope = null;    // a parent chosen in the card's path: { card, folder }
 
 // ---------------------------------------------------------------- helpers
 
@@ -23,10 +24,10 @@ function t(key, args) {
   return text;
 }
 
-function plural(count, one, other) {
+function plural(count, one, other, args) {
   // French puts 0 in the singular: 0 dossier.
   const single = count === 1 || (session.lang === "fr" && count === 0);
-  return t(single ? one : other, { count });
+  return t(single ? one : other, { ...args, count });
 }
 
 function h(tag, attrs, ...children) {
@@ -60,6 +61,11 @@ function month(secs) {
 }
 
 function shown(path) { return path === "" ? t("ui-root") : path; }
+
+// Same test as the engine: `path` is `folder` or lies under it.
+function within(path, folder) {
+  return folder === "" || path === folder || path.startsWith(`${folder}/`);
+}
 
 async function api(method, path, body) {
   const response = await fetch(path, {
@@ -180,6 +186,56 @@ function nextCard() {
   return review.queue.find((c) => !skipped.has(c.path)) || review.queue[0];
 }
 
+// The folder a decision on this card applies to, and whether it is a parent.
+function decisionFor(card) {
+  return scope && scope.card === card.path ? { path: scope.folder, below: true } : { path: card.path, below: false };
+}
+
+// The card's path, each parent a button that moves the decision up to it.
+function crumbs(card) {
+  if (card.path === "") return shown(card.path);
+  const parts = card.path.split("/");
+  const out = [];
+  parts.forEach((part, i) => {
+    const folder = parts.slice(0, i + 1).join("/");
+    if (i > 0) out.push(h("span", { class: "sep", "aria-hidden": "true" }, "/"));
+    const chosen = scope && scope.card === card.path && scope.folder === folder;
+    if (i === parts.length - 1) {
+      out.push(scope && scope.card === card.path
+        ? h("button", { class: "crumb", type: "button", onclick: () => { scope = null; renderReview(); } }, part)
+        : h("span", { class: "here" }, part));
+    } else {
+      out.push(h("button", {
+        class: chosen ? "crumb chosen" : "crumb",
+        type: "button",
+        title: t("ui-crumb-up", { path: folder }),
+        "aria-pressed": chosen ? "true" : "false",
+        onclick: () => { scope = { card: card.path, folder }; renderReview(); },
+      }, part));
+    }
+  });
+  return out;
+}
+
+// What a decision on a parent covers, from what the page already knows.
+function scopeView(card) {
+  if (!scope || scope.card !== card.path) return null;
+  const folder = scope.folder;
+  const pending = review.queue.filter((c) => within(c.path, folder));
+  const size = bytes(pending.reduce((sum, c) => sum + c.bytes, 0));
+  const below = review.settled.filter((n) => within(n.path, folder));
+  const kept = below.filter((n) => n.by === "rule" || n.by === "recipe").length;
+  const changed = below.length - kept;
+  return h("section", { class: "scope", "aria-live": "polite" },
+    h("h2", {}, t("ui-scope-title", { path: folder })),
+    h("ul", { class: "small" },
+      h("li", {}, plural(pending.length, "ui-scope-pending-one", "ui-scope-pending-other", { size })),
+      changed ? h("li", {}, plural(changed, "ui-scope-changed-one", "ui-scope-changed-other")) : null,
+      kept ? h("li", {}, plural(kept, "ui-scope-kept-one", "ui-scope-kept-other")) : null),
+    h("button", { class: "link", type: "button", onclick: () => { scope = null; renderReview(); } },
+      t("ui-scope-back", { path: card.path })));
+}
+
 function listOf(entries, total) {
   const items = entries.map((e) => h("li", {}, h("span", { title: e.name }, e.name), h("span", {}, bytes(e.bytes))));
   if (total > entries.length) items.push(h("li", { class: "muted" }, h("span", {}, t("ui-more", { count: total - entries.length })), h("span", {}, "")));
@@ -201,16 +257,17 @@ function cardView(card) {
   } else if (card.opinion) {
     opinion = h("p", { class: "opinion" }, t("ui-card-opinion", { decision: t(`decision-${card.opinion}`) }));
   }
-  const decide = (decision) => () => setDecision(card.path, decision);
+  const decide = (decision) => () => { const at = decisionFor(card); setDecision(at.path, decision, at.below); };
   return h("article", { class: "panel card stack", "aria-labelledby": "card-path" },
     h("div", {},
       h("div", { class: "muted small" }, t("ui-card-position", { index, count: review.queue.length })),
-      h("div", { class: "path", id: "card-path" }, shown(card.path)),
+      h("div", { class: "path", id: "card-path" }, crumbs(card)),
       h("div", { class: "facts" },
         h("span", {}, bytes(card.bytes)),
         h("span", {}, plural(card.files, "ui-file-one", "ui-file-other")),
         card.oldest ? h("span", {}, t("ui-card-modified", { oldest: month(card.oldest), newest: month(card.newest) })) : null,
         card.unreadable ? h("span", { class: "error" }, plural(card.unreadable, "ui-unreadable-one", "ui-unreadable-other")) : null)),
+    scopeView(card),
     card.reason ? h("p", {}, h("span", { class: "chip" }, card.reason)) : null,
     opinion,
     h("div", { class: "columns" },
@@ -227,7 +284,7 @@ function cardView(card) {
       h("button", { class: "d d-archive", onclick: decide("archive") }, t("ui-action-archive"), h("kbd", {}, "A")),
       h("button", { class: "d d-leave", onclick: decide("leave") }, t("ui-action-leave"), h("kbd", {}, "L")),
       h("span", { class: "spacer" }),
-      h("button", { onclick: () => { skipped.add(card.path); renderReview(); } }, t("ui-action-later"), h("kbd", {}, "→"))));
+      h("button", { onclick: () => { skipped.add(card.path); scope = null; renderReview(); } }, t("ui-action-later"), h("kbd", {}, "→"))));
 }
 
 function settledView() {
@@ -282,11 +339,15 @@ function renderReview() {
   );
 }
 
-async function setDecision(path, decision) {
+async function setDecision(path, decision, below) {
   try {
-    review = await api("POST", "/api/decide", { path, decision });
+    review = await api("POST", "/api/decide", { path, decision, below: below === true });
     skipped.delete(path);
-    toast(t("ui-decided", { path: shown(path), decision: t(`decision-${decision}`) }));
+    scope = null;
+    const named = { path: shown(path), decision: t(`decision-${decision}`) };
+    toast(below
+      ? plural(review.changed, "ui-decided-below-one", "ui-decided-below-other", named)
+      : t("ui-decided", named));
     renderReview();
   } catch (error) {
     toast(t("ui-error", { error: error.message }));
@@ -301,8 +362,9 @@ document.addEventListener("keydown", (event) => {
   if (!card) return;
   const key = event.key.toLowerCase();
   const decisions = { m: "migrate", a: "archive", l: "leave" };
-  if (decisions[key]) { event.preventDefault(); setDecision(card.path, decisions[key]); }
-  if (event.key === "ArrowRight") { event.preventDefault(); skipped.add(card.path); renderReview(); }
+  if (decisions[key]) { event.preventDefault(); const at = decisionFor(card); setDecision(at.path, decisions[key], at.below); }
+  if (event.key === "ArrowRight") { event.preventDefault(); skipped.add(card.path); scope = null; renderReview(); }
+  if (event.key === "Escape" && scope) { event.preventDefault(); scope = null; renderReview(); }
 });
 
 // The arbiter: show exactly what goes out, send only on a click.
