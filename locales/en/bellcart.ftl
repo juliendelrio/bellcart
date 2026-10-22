@@ -188,6 +188,7 @@ ui-arbiter-progress = The arbiter answered { $done } of { $total }
 ui-arbiter-failed = The arbiter stopped: { $error }
 ui-export-title = Export the plan and the notebook
 ui-export-help = Choose a folder outside the analysed profile, for instance on a USB drive. Bellcart writes the plan (plan.json), the migration notebook (notebook.html and notebook.md) and your decisions.
+ui-export-inside = This folder is inside the analysed profile ({ $profile }): Bellcart never writes there. Choose a folder outside it, on a USB drive for instance.
 ui-export-label = Export folder
 ui-export-go = Write the files
 ui-export-done = Written
