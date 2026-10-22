@@ -426,9 +426,42 @@
               "description": "Translation key of the reason, as in `Source::Rule`.",
               "type": "string"
             },
+            "propose": {
+              "description": "The decision the rule proposes. Only the user can take it.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Decision"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "reason": {
               "type": "string",
               "const": "rule"
+            },
+            "rule": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "reason",
+            "rule",
+            "key"
+          ]
+        },
+        {
+          "description": "A sub-folder of a folder a rule cuts one level (an application's\nfolder in AppData/Local): judged whole, whatever its size.",
+          "type": "object",
+          "properties": {
+            "key": {
+              "description": "Translation key of what such a sub-folder is.",
+              "type": "string"
+            },
+            "reason": {
+              "type": "string",
+              "const": "part"
             },
             "rule": {
               "type": "string"

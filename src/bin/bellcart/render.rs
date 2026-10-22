@@ -189,6 +189,8 @@ pub fn unit_reason(unit: &UnitReason, text: &Localizer) -> String {
         UnitReason::DepthLimit => text.get("unit-depth-limit"),
         UnitReason::Leaf => text.get("unit-leaf"),
         UnitReason::Rest => text.get("unit-rest"),
-        UnitReason::Rule { key, .. } => text.get(&format!("reason-{key}")),
+        UnitReason::Rule { key, .. } | UnitReason::Part { key, .. } => {
+            text.get(&format!("reason-{key}"))
+        }
     }
 }

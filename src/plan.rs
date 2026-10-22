@@ -211,6 +211,16 @@ pub enum UnitReason {
         rule: String,
         /// Translation key of the reason, as in `Source::Rule`.
         key: String,
+        /// The decision the rule proposes. Only the user can take it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        propose: Option<Decision>,
+    },
+    /// A sub-folder of a folder a rule cuts one level (an application's
+    /// folder in AppData/Local): judged whole, whatever its size.
+    Part {
+        rule: String,
+        /// Translation key of what such a sub-folder is.
+        key: String,
     },
 }
 
@@ -270,7 +280,9 @@ pub struct Totals {
 /// single file; the plan lists the `applications` found.
 /// 4: a review unit may be decided by an arbiter (`Source::Arbiter`).
 /// 5: any node may be decided by the user (`Source::User`).
-/// 6: a unit may be one because a rule recognised it (`UnitReason::Rule`).
+/// 6: a unit may be one because a rule recognised it (`UnitReason::Rule`,
+/// with the decision it proposes) or cut its parent one level
+/// (`UnitReason::Part`).
 pub const PLAN_VERSION: u32 = 6;
 
 impl Plan {

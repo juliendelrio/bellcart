@@ -435,6 +435,7 @@ fn describe(unit: &UnitReason) -> String {
         }
         // The key is pack data, never a name from the disk.
         UnitReason::Rule { key, .. } => format!("recognised by a rule: {key}"),
+        UnitReason::Part { key, .. } => format!("one folder judged whole: {key}"),
     }
 }
 

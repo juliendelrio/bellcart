@@ -324,9 +324,9 @@ fn a_folder_the_user_made_at_the_profile_root_is_masked_too() {
 #[test]
 fn application_paths_stay_in_clear() {
     let scan = scan_with(&personal_profile(), &small_budget());
-    let text = redacted_of(&scan, "AppData");
-    assert_eq!(text, signature_of(&scan, "AppData"));
-    assert!(text.contains("Roaming"), "{text}");
+    let text = redacted_of(&scan, "AppData/Roaming/Slack");
+    assert_eq!(text, signature_of(&scan, "AppData/Roaming/Slack"));
+    assert!(text.contains("storage"), "{text}");
 }
 
 #[test]

@@ -191,6 +191,12 @@ button.link { border: 0; background: none; padding: 0; color: var(--accent); tex
 .actions .d-archive { border-color: var(--archive); }
 .actions .d-leave { border-color: var(--leave); }
 .actions .spacer { flex: 1; }
+.actions button.proposed { background: var(--c, var(--accent)); color: var(--accent-ink); }
+.actions .d-migrate.proposed { --c: var(--migrate); }
+.actions .d-archive.proposed { --c: var(--archive); }
+.actions .d-leave.proposed { --c: var(--leave); }
+.actions button.proposed kbd { color: inherit; border-color: currentColor; }
+.card h2.app { font-size: 20px; margin: 2px 0 0; }
 kbd {
   font: 12px ui-monospace, Consolas, monospace; border: 1px solid var(--line);
   border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; margin-left: 6px; color: var(--muted);

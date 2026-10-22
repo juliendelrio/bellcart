@@ -69,6 +69,17 @@
       },
       "additionalProperties": false
     },
+    "Name": {
+      "description": "A name shown to the user: one string for every language, or a [`Text`]\nwhen it reads differently in some.\n\n`untagged` lets serde try each form in turn, so both `name: Git` and\n`name: {en: Installed applications, fr: Applications installées}` load.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/Text"
+        }
+      ]
+    },
     "Rule": {
       "description": "Settles a folder and everything under it.",
       "type": "object",
@@ -84,6 +95,35 @@
         "match": {
           "$ref": "#/$defs/Matcher"
         },
+        "name": {
+          "description": "What the folder belongs to, shown on its card: an application's\nname. Only with `decision: review`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Name"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parts": {
+          "description": "With `decision: review`: cut the folder one level instead of making\nit one unit. Each sub-folder no other rule knows is one unit, of the\nkind this translation key names (`reason-<key>`); the small ones\nshare the folder's rest, whose card shows `reason`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "propose": {
+          "description": "With `decision: review`: the decision proposed on the card, which\nthe user takes with one key. Never applied without the user.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Decision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "reason": {
           "description": "Translation key. `locales/*/bellcart.ftl` must define `reason-<key>`.",
           "type": "string"
@@ -95,6 +135,21 @@
         "decision",
         "reason",
         "match"
+      ]
+    },
+    "Text": {
+      "description": "A text shown to the user. English is mandatory, other languages are\noptional and fall back to English.",
+      "type": "object",
+      "properties": {
+        "en": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      },
+      "required": [
+        "en"
       ]
     }
   }
