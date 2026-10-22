@@ -19,7 +19,7 @@
 //! pool the caller runs the scan in. Results are put back in listing order,
 //! so the plan is the same whatever the number of threads.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -85,17 +85,33 @@ pub fn scan_with(
         budget,
         progress,
     };
-    let walked = walker.walk(root, String::new(), String::new(), 0, entries);
+    let walked = walker.walk(root, String::new(), String::new(), 0, entries, None);
+    // Folding a folder into a larger unit leaves its samples behind: keep
+    // only those of the units the plan has.
+    let mut units = BTreeSet::new();
+    units_in(&walked.node, &mut units);
+    let samples = walked
+        .samples
+        .into_iter()
+        .filter(|(path, _)| units.contains(path))
+        .collect();
     let mut plan = Plan::new(
         root.to_string_lossy().into_owned(),
         walked.node,
         Some(budget.clone()),
     );
     plan.applications = recipes.applications().to_vec();
-    Ok(Scan {
-        plan,
-        samples: walked.samples.into_iter().collect(),
-    })
+    Ok(Scan { plan, samples })
+}
+
+/// The paths of the review units at or under `node`.
+fn units_in(node: &PlanNode, out: &mut BTreeSet<String>) {
+    if node.unit.is_some() {
+        out.insert(node.path.clone());
+    }
+    for child in &node.overrides {
+        units_in(child, out);
+    }
 }
 
 /// How much a running scan has read so far: every folder listed, and
@@ -159,13 +175,16 @@ struct Walked {
 /// already settled by a recipe.
 enum Pending {
     Dir(String),
-    Settled(PlanNode),
+    Settled(Box<PlanNode>),
 }
 
 /// A sub-folder of a review folder, in listing order.
 enum Item {
     Settled(PlanNode),
     Review(Walked),
+    /// A folder a `review` rule recognised: one unit of its own, never cut
+    /// and never folded into another.
+    Recognised(Walked),
 }
 
 impl Walker<'_> {
@@ -176,6 +195,7 @@ impl Walker<'_> {
         rel: String,
         depth: u32,
         entries: Vec<Entry>,
+        recognised: Option<UnitReason>,
     ) -> Walked {
         let mut own = Stats::default();
         let mut files = Vec::new();
@@ -188,7 +208,7 @@ impl Walker<'_> {
                     if let Some(planned) = self.recipes.at(&file_rel) {
                         let node = file_node(file_rel, &entry.name, size, modified, planned);
                         self.progress.add_files(&node.stats);
-                        pending.push(Pending::Settled(node));
+                        pending.push(Pending::Settled(Box::new(node)));
                         continue;
                     }
                     own.add_file(&entry.name, size, modified);
@@ -209,7 +229,7 @@ impl Walker<'_> {
             .into_par_iter()
             .map(|entry| match entry {
                 Pending::Dir(child) => self.child(abs, &rel, depth, child),
-                Pending::Settled(node) => Some(Item::Settled(node)),
+                Pending::Settled(node) => Some(Item::Settled(*node)),
             })
             .collect();
         let mut items = Vec::with_capacity(children.len());
@@ -227,17 +247,20 @@ impl Walker<'_> {
             }
         }
 
-        let (node, samples) = match self.stop(&review, depth, &items) {
+        let stop = recognised.or_else(|| self.stop(&review, depth, &items));
+        let (node, samples) = match stop {
             Some(reason) => {
                 let folders = items
                     .iter()
                     .filter_map(|item| match item {
                         Item::Review(child) => Some(named(child)),
-                        Item::Settled(_) => None,
+                        Item::Settled(_) | Item::Recognised(_) => None,
                     })
                     .collect();
                 let sample = (rel.clone(), Sample::new(folders, files));
-                (as_unit(rel, review.clone(), reason, items), vec![sample])
+                let (node, mut samples) = as_unit(rel, review.clone(), reason, items);
+                samples.push(sample);
+                (node, samples)
             }
             None => self.cut(rel, own, files, items),
         };
@@ -257,7 +280,11 @@ impl Walker<'_> {
         let child_entries = self.list(&child_abs)?;
         let names: Vec<&str> = child_entries.iter().map(|e| e.name.as_str()).collect();
 
-        let rule = self.rules.find(&child_rel, &name, &names);
+        // A `review` rule settles nothing: it makes the folder one unit.
+        let (rule, recognised) = match self.rules.find(&child_rel, &name, &names) {
+            Some(rule) if rule.decision == Decision::Review => (None, Some(rule)),
+            other => (other, None),
+        };
         let settled = match (rule, self.recipes.at(&child_rel)) {
             (Some(rule), Some(planned)) if keeps_more(planned.decision, rule.decision) => {
                 Some((planned.decision, recipe_source(planned)))
@@ -285,7 +312,19 @@ impl Walker<'_> {
                     unit: None,
                 })
             }
-            None => Item::Review(self.walk(&child_abs, name, child_rel, depth + 1, child_entries)),
+            None => {
+                let unit = recognised.map(|rule| UnitReason::Rule {
+                    rule: rule.id.clone(),
+                    key: rule.reason.clone(),
+                });
+                let found = unit.is_some();
+                let walked = self.walk(&child_abs, name, child_rel, depth + 1, child_entries, unit);
+                if found {
+                    Item::Recognised(walked)
+                } else {
+                    Item::Review(walked)
+                }
+            }
         })
     }
 
@@ -339,10 +378,15 @@ impl Walker<'_> {
         for item in items {
             match item {
                 Item::Settled(node) => overrides.push(node),
+                Item::Recognised(child) => {
+                    overrides.push(child.node);
+                    samples.extend(child.samples);
+                }
                 Item::Review(child) if child.review.bytes < self.budget.min_unit => {
                     rest.merge(&child.review);
                     folded.push(named(&child));
                     settled_within(child.node, &mut overrides);
+                    samples.extend(child.samples);
                 }
                 // Cut, with a rest too small to judge on its own: that rest
                 // joins ours, and its units move up. A rest holding an
@@ -497,29 +541,51 @@ fn file_node(
 
 /// Makes a review folder one unit: everything to review under it joins its
 /// stats, and only the settled folders keep their own nodes.
-fn as_unit(rel: String, stats: Stats, reason: UnitReason, items: Vec<Item>) -> PlanNode {
+/// Makes `rel` one unit. The samples returned are those of the recognised
+/// units inside it, which keep their own node; the scan drops the others.
+fn as_unit(
+    rel: String,
+    stats: Stats,
+    reason: UnitReason,
+    items: Vec<Item>,
+) -> (PlanNode, Vec<(String, Sample)>) {
     let mut overrides = Vec::new();
+    let mut samples = Vec::new();
     for item in items {
         match item {
             Item::Settled(node) => overrides.push(node),
-            Item::Review(child) => settled_within(child.node, &mut overrides),
+            Item::Recognised(child) => {
+                overrides.push(child.node);
+                samples.extend(child.samples);
+            }
+            Item::Review(child) => {
+                settled_within(child.node, &mut overrides);
+                samples.extend(child.samples);
+            }
         }
     }
-    PlanNode {
+    let node = PlanNode {
         path: rel,
         decision: Decision::Review,
         source: Source::Default,
         stats,
         overrides,
         unit: Some(reason),
-    }
+    };
+    (node, samples)
+}
+
+/// A unit a `review` rule made: it is never folded into another.
+fn is_recognised(node: &PlanNode) -> bool {
+    matches!(node.unit, Some(UnitReason::Rule { .. }))
 }
 
 /// Collects the settled nodes of a review node that is being folded into a
-/// larger one. Its review figures are already counted by the caller.
+/// larger one, and the recognised units, which stay. Its review figures are
+/// already counted by the caller.
 fn settled_within(node: PlanNode, out: &mut Vec<PlanNode>) {
     for child in node.overrides {
-        if child.decision == Decision::Review {
+        if child.decision == Decision::Review && !is_recognised(&child) {
             settled_within(child, out);
         } else {
             out.push(child);

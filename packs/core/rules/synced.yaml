@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../../schemas/rules.schema.json
+#
+# Folders a sync client keeps in step with a server or a cloud. Their
+# content is also stored there, except files still waiting to upload and
+# files the sync filters exclude: those exist only on this PC. So no rule
+# leaves them. A `review` rule makes each one a single unit to judge, with
+# a reason that says what it is, and the recipe of the client adds the
+# checks to make before leaving.
+rules:
+  # Synology Drive Client puts this hidden folder at the root of every
+  # folder it syncs, wherever the user chose to put it.
+  - id: synology-drive-folder
+    decision: review
+    reason: synced-synology-drive
+    match:
+      path_glob: "**"
+      contains: [.SynologyWorkingDirectory]

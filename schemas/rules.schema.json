@@ -74,7 +74,7 @@
       "type": "object",
       "properties": {
         "decision": {
-          "description": "`review` is not allowed here: it is the absence of a decision.",
+          "description": "`review` settles nothing: it makes the folder one unit to review,\nwhatever its size, with this reason. Rules still apply inside it.\nUse it for folders Bellcart recognises but must not decide, such as\na synced folder.",
           "$ref": "#/$defs/Decision"
         },
         "id": {

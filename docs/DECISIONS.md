@@ -324,6 +324,22 @@ those", and the card says how many before the user decides. Files that sit
 directly in the parent may belong to a rest higher up; that rest stays a
 card of its own. Each changed node is logged as a correction.
 
+**D31. A synced folder is recognised by a `review` rule and judged as one
+unit; no rule leaves it.**
+A folder a sync client keeps in step with a server (Synology Drive here)
+is mostly stored there too, but files waiting to upload and files the sync
+rules leave out exist only on this PC. Leaving it by rule would risk the
+worst bug, and cutting it into sub-folders hides what it is. So a rule may
+now take `decision: review`: it settles nothing, but makes the folder one
+unit, whatever its size, with the rule's reason on the card (plan version
+6, `UnitReason::Rule`). Such a unit is never folded into a larger one, and
+rules still apply inside it. The client's recipe adds the checks to make
+before leaving it: sync up to date, sync rules, backup tasks. Google Drive
+in streamed mode keeps its files in the DriveFS cache, which the
+`google-drive-cache` rule leaves after the recipe has the user check the sync;
+its mirror folder and OneDrive should become such units once their markers
+are checked on real machines (#56).
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

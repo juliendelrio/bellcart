@@ -46,6 +46,7 @@ reason-temporary-files = Temporary files
 reason-system-managed = Managed by Windows
 reason-keys-and-credentials = Keys and credentials: small, and painful to lose
 reason-cloud-sync-cache = Local cache of a cloud drive, synced again by its client
+reason-synced-synology-drive = Folder synced with a Synology NAS: its content is also on the NAS, except files waiting to upload and files the sync rules leave out
 reason-crash-reports = Crash reports, only of use to the application's developers
 reason-installed-program = Installed program, to install again on the new PC
 reason-update-download = Update already downloaded, fetched again when needed

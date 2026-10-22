@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: synology-drive
+name: Synology Drive Client
+detect:
+  any:
+    - path: '%LOCALAPPDATA%\SynologyDrive'
+before:
+  # The `synology-drive-folder` rule makes each synced folder one unit to
+  # review. Leaving it is safe only once the NAS has everything: these
+  # steps say what to check.
+  - type: manual
+    text:
+      en: >-
+        Open Synology Drive Client from the notification area and wait until
+        every sync task says it is up to date. A file still waiting to upload
+        exists only on this PC.
+      fr: >-
+        Ouvrez Synology Drive Client depuis la zone de notification et
+        attendez que chaque tâche de synchronisation soit à jour. Un fichier
+        encore en attente d'envoi n'existe que sur ce PC.
+  - type: manual
+    text:
+      en: >-
+        In each sync task, check the sync rules: file types, file sizes and
+        folders left out of the sync are not on the NAS. Migrate or archive
+        them, or the synced folder as a whole.
+      fr: >-
+        Dans chaque tâche, vérifiez les règles de synchronisation : les types
+        de fichiers, les tailles et les dossiers exclus ne sont pas sur le
+        NAS. Migrez-les ou archivez-les, ou bien le dossier synchronisé en
+        entier.
+  - type: manual
+    text:
+      en: >-
+        Check the backup tasks too: they copy folders of this PC to the NAS,
+        and those folders stay where they are. The plan decides for them like
+        any other folder.
+      fr: >-
+        Vérifiez aussi les tâches de sauvegarde : elles copient des dossiers
+        de ce PC vers le NAS, et ces dossiers restent où ils sont. Le plan
+        décide pour eux comme pour tout autre dossier.
+after:
+  - type: install
+    winget: Synology.DriveClient
+  - type: manual
+    text:
+      en: >-
+        Connect Synology Drive Client to your NAS with the same account, then
+        create the sync tasks again. Your files come back from the NAS.
+      fr: >-
+        Connectez Synology Drive Client à votre NAS avec le même compte, puis
+        recréez les tâches de synchronisation. Vos fichiers reviennent du NAS.
