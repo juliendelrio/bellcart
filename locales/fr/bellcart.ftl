@@ -44,6 +44,7 @@ reason-system-managed = Géré par Windows
 reason-keys-and-credentials = Clés et identifiants : petits, et pénibles à perdre
 reason-cloud-sync-cache = Cache local d'un stockage en ligne, resynchronisé par son logiciel
 reason-synced-synology-drive = Dossier synchronisé avec un NAS Synology : son contenu est aussi sur le NAS, sauf les fichiers en attente d'envoi et ceux que les règles de synchronisation excluent
+reason-application-data = Données des applications : la plupart reviennent en réinstallant les applications, les recettes repèrent le reste. Peut contenir de vraies données (courrier, sauvegardes de jeux, disques de machines virtuelles)
 reason-crash-reports = Rapports de plantage, utiles seulement aux développeurs de l'application
 reason-installed-program = Programme installé, à réinstaller sur le nouveau PC
 reason-update-download = Mise à jour déjà téléchargée, récupérée de nouveau au besoin

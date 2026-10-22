@@ -1364,3 +1364,62 @@ fn samples_are_kept_only_for_the_units_of_the_plan() {
     units_sorted.sort_unstable();
     assert_eq!(sampled, units_sorted);
 }
+
+fn appdata_unit(plan: &Plan, path: &str) -> bool {
+    let node = node(plan, path);
+    node.decision == Decision::Review
+        && node.unit
+            == Some(UnitReason::Rule {
+                rule: "appdata".to_owned(),
+                key: "application-data".to_owned(),
+            })
+}
+
+#[test]
+fn application_data_is_one_unit_instead_of_one_card_per_application() {
+    let plan = cut(&MemTree::new()
+        .file("AppData/Local/Docker/disk.vhdx", 5_000)
+        .file("AppData/Local/Slack/data.db", 2_000)
+        .file("AppData/Roaming/Thunderbird/Profiles/inbox", 3_000)
+        .file("Documents/cv.docx", 600));
+
+    assert!(appdata_unit(&plan, "AppData"));
+    assert_eq!(node(&plan, "AppData").stats.bytes, 10_000);
+    assert!(!has_node(&plan, "AppData/Local/Docker"));
+}
+
+#[test]
+fn a_folder_named_appdata_without_application_folders_is_cut_as_usual() {
+    let plan = cut(&MemTree::new()
+        .file("AppData/report-2024.pdf", 5_000)
+        .file("AppData/photos/a.jpg", 5_000));
+
+    assert!(!has_node(&plan, "AppData") || !appdata_unit(&plan, "AppData"));
+}
+
+#[test]
+fn caches_and_recipes_still_settle_their_folders_inside_application_data() {
+    let tree = MemTree::new()
+        .file("AppData/Local/Temp/a.tmp", 4_000)
+        .file("AppData/Roaming/Code/User/settings.json", 2)
+        .file("AppData/Local/Docker/disk.vhdx", 5_000);
+    let plan = with_core_recipes(&tree);
+
+    assert!(appdata_unit(&plan, "AppData"));
+    assert_eq!(node(&plan, "AppData/Local/Temp").decision, Decision::Leave);
+    assert_eq!(
+        recipe_of(node(&plan, "AppData/Roaming/Code/User/settings.json")),
+        "vscode"
+    );
+    assert_eq!(node(&plan, "AppData").stats.bytes, 5_000);
+}
+
+#[test]
+fn application_data_holding_only_settled_folders_is_no_card() {
+    let plan = cut(&MemTree::new()
+        .file("AppData/Local/Temp/a.tmp", 4_000)
+        .file("Documents/cv.docx", 600));
+
+    assert!(!has_node(&plan, "AppData"));
+    assert_eq!(node(&plan, "AppData/Local/Temp").decision, Decision::Leave);
+}

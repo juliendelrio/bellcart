@@ -340,6 +340,16 @@ in streamed mode keeps its files in the DriveFS cache, which the
 its mirror folder and OneDrive should become such units once their markers
 are checked on real machines (#56).
 
+**D32. The profile's AppData is one unit to review.**
+On a real profile, 27 of 47 cards were application folders under AppData.
+Most of AppData comes back when the applications are reinstalled, and the
+recipes settle what does not; caches stay left by their rules. But it can
+hold the only copy of real data (mail stores, game saves, virtual machine
+disks), so a `review` rule (D31) makes it one card rather than deciding
+it. It is recognised by `AppData` holding `Local`, `LocalLow` or
+`Roaming`. A recognised folder with nothing left to review once its
+rules and recipes are applied is no card at all.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

@@ -334,7 +334,7 @@ fn the_profile_root_keeps_the_names_of_its_standard_folders() {
     let scan = scan_with(
         &MemTree::new()
             .file("Documents/a.pdf", 10)
-            .file("AppData/Local/x.db", 10)
+            .file("Pictures/x.jpg", 10)
             .file("Secret Project/plan.txt", 10)
             .file("notes about Bob.txt", 10),
         &SplitBudget::default(),
@@ -342,7 +342,7 @@ fn the_profile_root_keeps_the_names_of_its_standard_folders() {
     let text = redacted_of(&scan, "");
     let folders = line(&text, "folders");
     assert!(folders.contains("Documents 10 B"), "{folders}");
-    assert!(folders.contains("AppData 10 B"), "{folders}");
+    assert!(folders.contains("Pictures 10 B"), "{folders}");
     assert!(!folders.contains("Secret"), "{folders}");
     assert!(!line(&text, "files").contains("Bob"), "{text}");
 }
