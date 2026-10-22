@@ -72,7 +72,8 @@ To review, folder by folder
 
 - `bellcart ui` opens the review interface in your browser: choose the
   profile, analyse it, decide folder by folder with three carts and
-  their totals, correct what rules settled, then export the plan and
+  their totals (click a parent in a folder's path to decide from there,
+  with all it contains), correct what rules settled, then export the plan and
   the notebook. It runs on this machine only. Add `--endpoint` and
   `--model` to offer an arbiter there too.
 - `bellcart scan <folder>` prints the summary above; `--json` prints the

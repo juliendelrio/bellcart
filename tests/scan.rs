@@ -1178,3 +1178,70 @@ fn a_parallel_scan_with_recipes_gives_the_same_plan_as_a_sequential_one() {
     let sequential = on(1);
     assert_eq!(on(8), sequential);
 }
+
+fn work_tree() -> MemTree {
+    MemTree::new()
+        .file("Work/client-a/a.pdf", 800)
+        .file("Work/client-b/b.zip", 800)
+        .file("Work/client-b/node_modules/x.js", 5_000)
+        .file("Workshop/c.pdf", 800)
+        .file("Documents/c.docx", 600)
+}
+
+#[test]
+fn a_decision_from_a_parent_covers_every_folder_below_it_even_without_a_node() {
+    let mut plan = cut(&work_tree());
+    assert!(!has_node(&plan, "Work"));
+
+    let changed = plan.apply_user_below("Work", Decision::Migrate);
+
+    assert_eq!(changed, ["Work/client-a", "Work/client-b"]);
+    for path in changed {
+        assert_eq!(node(&plan, &path).decision, Decision::Migrate);
+        assert_eq!(node(&plan, &path).source, Source::User);
+    }
+    assert_eq!(plan.totals[&Decision::Migrate].bytes, 1_600);
+}
+
+#[test]
+fn a_decision_from_a_parent_keeps_what_rules_settled_below_it() {
+    let mut plan = cut(&work_tree());
+    plan.apply_user_below("Work", Decision::Migrate);
+
+    let deps = node(&plan, "Work/client-b/node_modules");
+    assert_eq!(deps.decision, Decision::Leave);
+    assert_eq!(rule_of(deps), "node-modules");
+}
+
+#[test]
+fn a_decision_from_a_parent_does_not_reach_a_sibling_with_a_longer_name() {
+    let mut plan = cut(&work_tree());
+    plan.apply_user_below("Work", Decision::Archive);
+
+    let workshop = node(&plan, "Workshop");
+    assert_eq!(workshop.decision, Decision::Review);
+    assert_eq!(workshop.source, Source::Default);
+}
+
+#[test]
+fn a_decision_from_a_parent_replaces_the_users_earlier_choices_below_it() {
+    let mut plan = cut(&work_tree());
+    assert!(plan.apply_user("Work/client-a", Decision::Leave));
+
+    plan.apply_user_below("Work", Decision::Archive);
+
+    assert_eq!(node(&plan, "Work/client-a").decision, Decision::Archive);
+}
+
+#[test]
+fn a_decision_from_a_folder_with_nothing_to_decide_changes_nothing() {
+    let mut plan = cut(&work_tree());
+    let before = plan.clone();
+
+    assert!(plan.apply_user_below("Nowhere", Decision::Leave).is_empty());
+    assert!(
+        plan.apply_user_below("Work/client-b/node_modules", Decision::Migrate)
+            .is_empty()
+    );
+    assert_eq!(plan, before);
+}

@@ -312,6 +312,18 @@ writes the plan, the notebook in HTML and Markdown, and the user's
 decisions and arbiter answers to the decision log, in a folder outside
 the scanned profile.
 
+**D30. A decision taken from a parent folder covers every node at or
+under it, except what a rule or a recipe settled.**
+On a review card, each parent in the path can be chosen; migrate, archive
+or leave then apply to that folder and all it contains. The plan may have
+no node for the parent (a cut moves units up, D15 and D19), so the decision goes
+to every node whose path lies under it, the user's earlier choices and the
+arbiter's included: the newest choice of the user wins. Nodes settled by a
+rule or a recipe keep their decision, as in "take this folder, but not
+those", and the card says how many before the user decides. Files that sit
+directly in the parent may belong to a rest higher up; that rest stays a
+card of its own. Each changed node is logged as a correction.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

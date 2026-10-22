@@ -75,7 +75,9 @@ Décidé par les règles et les recettes
 
 - `bellcart ui` ouvre l'interface d'examen dans votre navigateur :
   choisir le profil, l'analyser, décider dossier par dossier avec trois
-  chariots et leurs totaux, corriger ce que les règles ont réglé, puis
+  chariots et leurs totaux (cliquez un parent dans le chemin d'un dossier
+  pour décider à partir de lui, avec tout son contenu), corriger ce que
+  les règles ont réglé, puis
   exporter le plan et le carnet. Elle ne tourne que sur cette machine.
   Ajoutez `--endpoint` et `--model` pour y proposer aussi un arbitre.
 - `bellcart scan <dossier>` affiche ce résumé ; `--json` affiche le plan

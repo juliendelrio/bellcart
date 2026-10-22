@@ -275,6 +275,32 @@ fn a_whole_session_from_scan_to_export() {
 }
 
 #[test]
+fn a_decision_from_a_parent_folder_keeps_what_rules_and_recipes_settled() {
+    let (profile, export) = profile("ui-below");
+    let ui = Ui::start(&profile, &[]);
+    let before = ui.scan(&profile);
+
+    let (status, review) = ui.post(
+        "/api/decide",
+        json!({ "path": "", "decision": "migrate", "below": true }),
+    );
+    assert_eq!(status, 200, "{review}");
+    assert_eq!(review["changed"], 1);
+    assert!(review["queue"].as_array().unwrap().is_empty());
+    assert_eq!(review["totals"]["leave"], before["totals"]["leave"]);
+
+    let (status, _) = ui.post(
+        "/api/decide",
+        json!({ "path": "Nowhere", "decision": "leave", "below": true }),
+    );
+    assert_eq!(status, 404);
+
+    ui.post("/api/export", json!({ "folder": export }));
+    let log = bellcart::decision_log::read(&export.join("bellcart-decisions.jsonl")).unwrap();
+    assert_eq!(log.len(), 1);
+}
+
+#[test]
 fn the_export_is_refused_inside_the_profile() {
     let (profile, _) = profile("ui-export-inside");
     let ui = Ui::start(&profile, &[]);

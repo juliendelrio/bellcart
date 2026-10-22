@@ -347,22 +347,38 @@ impl App {
         let (Some(path), Some(decision)) = (path, decision) else {
             return error(400, "a path and a decision are needed");
         };
+        // `below`: the decision holds for the folder and all it contains,
+        // chosen from a parent in the card's path.
+        let below = input.get("below").and_then(Value::as_bool) == Some(true);
         let mut session = self.session();
         let Some(scan) = session.scan.as_mut() else {
             return error(409, "nothing scanned yet");
         };
-        if !scan.plan.apply_user(path, decision) {
+        let changed = if below {
+            scan.plan.apply_user_below(path, decision)
+        } else if scan.plan.apply_user(path, decision) {
+            vec![path.to_owned()]
+        } else {
+            Vec::new()
+        };
+        if changed.is_empty() {
             return error(404, "no such folder in the plan");
         }
-        session.log.push(Entry::Corrected {
-            time: decision_log::now(),
-            path: path.to_owned(),
-            decision,
-        });
+        let count = changed.len();
+        let time = decision_log::now();
+        session
+            .log
+            .extend(changed.into_iter().map(|path| Entry::Corrected {
+                time,
+                path,
+                decision,
+            }));
         let Some(scan) = &session.scan else {
             return error(409, "nothing scanned yet");
         };
-        (200, review_model(scan, &self.library, text))
+        let mut model = review_model(scan, &self.library, text);
+        model["changed"] = json!(count);
+        (200, model)
     }
 
     fn export(&self, input: &Value, text: &Localizer) -> Reply {
