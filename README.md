@@ -74,7 +74,8 @@ To review, folder by folder
   profile, analyse it, decide folder by folder with three carts and
   their totals (click a parent in a folder's path to decide from there,
   with all it contains), correct what rules settled, then export the plan and
-  the notebook. It runs on this machine only. Add `--endpoint` and
+  the notebook. Each decision is saved as you make it, and the next
+  session offers to resume. It runs on this machine only. Add `--endpoint` and
   `--model` to offer an arbiter there too.
 - `bellcart scan <folder>` prints the summary above; `--json` prints the
   full plan, `--out plan.json` saves it, and `--signatures` prints what

@@ -32,6 +32,7 @@ use serde_json::{Value, json};
 use tiny_http::{Header, Method, Request, Response, Server};
 
 use crate::i18n::Localizer;
+use crate::saved::{self, Choice, Saved};
 
 const INDEX: &str = include_str!("../../../web/index.html");
 const SCRIPT: &str = include_str!("../../../web/app.js");
@@ -72,6 +73,11 @@ struct Session {
     arbiter_total: usize,
     arbiter_running: bool,
     arbiter_error: Option<String>,
+    /// Where this session's decisions are saved as they are made, and what
+    /// is saved there. `None` when the export folder is inside the profile.
+    saved: Option<(PathBuf, Saved)>,
+    /// How many saved decisions the last scan replayed.
+    resumed: usize,
 }
 
 pub fn run(
@@ -110,6 +116,8 @@ pub fn run(
         arbiter_total: 0,
         arbiter_running: false,
         arbiter_error: None,
+        saved: None,
+        resumed: 0,
     }));
     let app = App {
         port,
@@ -231,9 +239,21 @@ impl App {
 
     fn session_info(&self, text: &Localizer) -> Reply {
         let session = self.session();
+        let profile = session.profile.as_ref().unwrap_or(&self.default_profile);
+        let resumable = saved::location(profile, &default_export(profile))
+            .and_then(|file| Saved::load(&file, profile).map(|s| (file, s)))
+            .filter(|(_, s)| !s.decisions.is_empty())
+            .map(|(file, s)| {
+                json!({
+                    "profile": s.profile,
+                    "count": s.decisions.len(),
+                    "file": file.display().to_string(),
+                })
+            });
         (
             200,
             json!({
+                "saved": resumable,
                 "lang": text.lang(),
                 "strings": text.patterns(),
                 "profile": session
@@ -264,6 +284,18 @@ impl App {
             );
         }
         let progress = Arc::new(Progress::default());
+        // Resume the decisions saved for this profile, or start over: the
+        // file is then rewritten at the first new decision.
+        let resume = input.get("resume").and_then(Value::as_bool) == Some(true);
+        let saved = saved::location(&profile, &default_export(&profile)).map(|file| {
+            let kept = resume.then(|| Saved::load(&file, &profile)).flatten();
+            let saved = kept.unwrap_or_else(|| Saved::new(&profile));
+            (file, saved)
+        });
+        let replay: Vec<Choice> = saved
+            .as_ref()
+            .map(|(_, s)| s.decisions.clone())
+            .unwrap_or_default();
         {
             let mut session = self.session();
             if session.phase == Phase::Scanning {
@@ -274,6 +306,8 @@ impl App {
             session.progress = Arc::clone(&progress);
             session.scan = None;
             session.log.clear();
+            session.saved = saved;
+            session.resumed = 0;
         }
         let shared = Arc::clone(&self.session);
         let library = Arc::clone(&self.library);
@@ -296,7 +330,21 @@ impl App {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             match result {
-                Ok(scan) => {
+                Ok(mut scan) => {
+                    let time = decision_log::now();
+                    let mut resumed = 0;
+                    for choice in &replay {
+                        let changed = saved::apply(&mut scan.plan, choice);
+                        resumed += usize::from(!changed.is_empty());
+                        session
+                            .log
+                            .extend(changed.into_iter().map(|path| Entry::Corrected {
+                                time,
+                                path,
+                                decision: choice.decision,
+                            }));
+                    }
+                    session.resumed = resumed;
                     session.scan = Some(scan);
                     session.phase = Phase::Review;
                 }
@@ -336,7 +384,10 @@ impl App {
         let Some(scan) = &session.scan else {
             return error(409, "nothing scanned yet");
         };
-        (200, review_model(scan, &self.library, text))
+        let mut model = review_model(scan, &self.library, text);
+        model["resumed"] = json!(session.resumed);
+        model["saved_to"] = json!(session.saved.as_ref().map(|(f, _)| f.display().to_string()));
+        (200, model)
     }
 
     fn decide(&self, input: &Value, text: &Localizer) -> Reply {
@@ -365,6 +416,15 @@ impl App {
             return error(404, "no such folder in the plan");
         }
         let count = changed.len();
+        // Saved at once, so that closing the page loses nothing.
+        let save_error = session.saved.as_mut().and_then(|(file, saved)| {
+            saved.decisions.push(Choice {
+                path: path.to_owned(),
+                decision,
+                below,
+            });
+            saved.write(file).err().map(|e| format!("{e:#}"))
+        });
         let time = decision_log::now();
         session
             .log
@@ -378,6 +438,7 @@ impl App {
         };
         let mut model = review_model(scan, &self.library, text);
         model["changed"] = json!(count);
+        model["save_error"] = json!(save_error);
         (200, model)
     }
 

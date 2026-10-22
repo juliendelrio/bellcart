@@ -350,6 +350,18 @@ it. It is recognised by `AppData` holding `Local`, `LocalLow` or
 `Roaming`. A recognised folder with nothing left to review once its
 rules and recipes are applied is no card at all.
 
+**D33. The review interface saves each decision as it is made, outside
+the profile, and the next session replays them on a fresh scan.**
+Closing the page lost every decision. Each decision is now written at once
+to `bellcart-session.json` in the proposed export folder, which is checked
+to be outside the scanned profile (when it is not, nothing is saved and
+the page says so). The file holds the decisions in order, not the scan:
+scanning again takes about a second, and replaying the decisions on a
+fresh scan keeps the plan true to the disk. A decision whose folder is gone
+is skipped. The first screen offers to resume, which Enter does, or to
+start over; starting over replaces the file at the first new decision, not
+before, so a mistaken click loses nothing.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

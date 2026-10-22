@@ -37,6 +37,9 @@ impl Ui {
             .arg(profile)
             .args(["--no-browser", "--port", "0"])
             .args(extra)
+            // The proposed export folder, where the session is saved, is
+            // next to where Bellcart starts: one per test.
+            .current_dir(profile.parent().unwrap())
             .env_remove("BELLCART_ARBITER_KEY")
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -108,6 +111,11 @@ impl Ui {
     fn scan(&self, profile: &Path) -> Value {
         let (status, body) = self.post("/api/scan", json!({ "profile": profile }));
         assert_eq!(status, 200, "{body}");
+        self.wait_review()
+    }
+
+    /// Waits for the scan started to end, and returns the review.
+    fn wait_review(&self) -> Value {
         let started = Instant::now();
         loop {
             let progress = self.get("/api/progress");
@@ -298,6 +306,93 @@ fn a_decision_from_a_parent_folder_keeps_what_rules_and_recipes_settled() {
     ui.post("/api/export", json!({ "folder": export }));
     let log = bellcart::decision_log::read(&export.join("bellcart-decisions.jsonl")).unwrap();
     assert_eq!(log.len(), 1);
+}
+
+fn saved_session(profile: &Path) -> Value {
+    let file = profile
+        .parent()
+        .unwrap()
+        .join("bellcart-export/bellcart-session.json");
+    serde_json::from_slice(&std::fs::read(file).unwrap()).unwrap()
+}
+
+#[test]
+fn decisions_are_saved_as_they_are_made_and_resumed_by_the_next_session() {
+    let (profile, _) = profile("ui-resume");
+    {
+        let ui = Ui::start(&profile, &[]);
+        assert_eq!(ui.get("/api/session")["saved"], Value::Null);
+        let review = ui.scan(&profile);
+        assert!(
+            review["saved_to"]
+                .as_str()
+                .unwrap()
+                .ends_with("bellcart-session.json")
+        );
+        let (status, _) = ui.post("/api/decide", json!({ "path": "", "decision": "archive" }));
+        assert_eq!(status, 200);
+        assert_eq!(
+            saved_session(&profile)["decisions"][0]["decision"],
+            "archive"
+        );
+    }
+
+    let ui = Ui::start(&profile, &[]);
+    assert_eq!(ui.get("/api/session")["saved"]["count"], 1);
+    let (status, _) = ui.post("/api/scan", json!({ "profile": profile, "resume": true }));
+    assert_eq!(status, 200);
+    let review = ui.wait_review();
+    assert_eq!(review["resumed"], 1);
+    assert!(review["queue"].as_array().unwrap().is_empty());
+    assert!(review["totals"]["archive"]["bytes"].as_u64().unwrap() > 0);
+}
+
+#[test]
+fn starting_over_ignores_the_saved_decisions_until_a_new_one_replaces_them() {
+    let (profile, _) = profile("ui-start-over");
+    {
+        let ui = Ui::start(&profile, &[]);
+        ui.scan(&profile);
+        ui.post("/api/decide", json!({ "path": "", "decision": "archive" }));
+    }
+    let ui = Ui::start(&profile, &[]);
+    let review = ui.scan(&profile);
+    assert_eq!(review["resumed"], 0);
+    assert_eq!(review["queue"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        saved_session(&profile)["decisions"][0]["decision"],
+        "archive"
+    );
+
+    ui.post("/api/decide", json!({ "path": "", "decision": "migrate" }));
+    let decisions = saved_session(&profile)["decisions"].clone();
+    assert_eq!(decisions.as_array().unwrap().len(), 1);
+    assert_eq!(decisions[0]["decision"], "migrate");
+}
+
+#[test]
+fn decisions_saved_for_another_profile_are_not_offered() {
+    let (profile, _) = profile("ui-other-profile");
+    let other = profile.parent().unwrap().join("other");
+    std::fs::create_dir_all(&other).unwrap();
+    let file = profile
+        .parent()
+        .unwrap()
+        .join("bellcart-export/bellcart-session.json");
+    std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+    let saved = json!({
+        "format": 1,
+        "profile": other,
+        "decisions": [{ "path": "", "decision": "leave" }],
+    });
+    std::fs::write(&file, saved.to_string()).unwrap();
+
+    let ui = Ui::start(&profile, &[]);
+    assert_eq!(ui.get("/api/session")["saved"], Value::Null);
+    ui.post("/api/scan", json!({ "profile": profile, "resume": true }));
+    let review = ui.wait_review();
+    assert_eq!(review["resumed"], 0);
+    assert_eq!(review["queue"].as_array().unwrap().len(), 1);
 }
 
 #[test]

@@ -2,3 +2,4 @@
 *.plan.json
 .DS_Store
 Thumbs.db
+/bellcart-export
