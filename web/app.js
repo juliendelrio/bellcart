@@ -115,22 +115,34 @@ function renderSteps() {
 function choose(message) {
   step = "choose";
   const input = h("input", { type: "text", id: "profile", value: session.profile, spellcheck: "false", autocomplete: "off" });
-  const start = async (event) => {
+  const saved = session.saved;
+  const scan = (resume) => async (event) => {
     event.preventDefault();
     try {
-      await api("POST", "/api/scan", { profile: input.value });
+      await api("POST", "/api/scan", { profile: input.value, resume });
       analyse();
     } catch (error) {
       choose(error);
     }
   };
+  // Decisions saved by an earlier session on this profile: resume them, or
+  // start over. They only apply to the profile they were made on.
+  const resumeView = saved ? h("section", { class: "panel stack", "aria-labelledby": "resume-title" },
+    h("h2", { id: "resume-title" }, t("ui-resume-title")),
+    h("p", { class: "muted small" }, plural(saved.count, "ui-resume-help-one", "ui-resume-help-other", { profile: saved.profile, file: saved.file })),
+    h("div", { class: "row" },
+      h("button", { class: "primary", type: "button", onclick: (e) => { input.value = saved.profile; scan(true)(e); } }, t("ui-resume")),
+      h("button", { type: "button", onclick: scan(false) }, t("ui-start-over")))) : null;
   show(
     h("h1", {}, t("ui-choose-title")),
     h("p", { class: "muted" }, t("ui-choose-help")),
-    h("form", { class: "panel stack", onsubmit: start },
+    resumeView,
+    // Enter resumes when the field still names the profile with saved
+    // decisions: starting over must be the explicit button.
+    h("form", { class: "panel stack", onsubmit: (e) => scan(Boolean(saved) && input.value.trim() === saved.profile)(e) },
       h("div", {}, h("label", { for: "profile" }, t("ui-choose-label")), input),
       message ? failure(message) : null,
-      h("div", { class: "row" }, h("button", { class: "primary", type: "submit" }, t("ui-choose-start")))),
+      h("div", { class: "row" }, h("button", { class: saved ? null : "primary", type: "submit" }, t("ui-choose-start")))),
   );
   input.focus();
 }
@@ -166,6 +178,7 @@ async function startReview() {
   review = await api("GET", "/api/review");
   step = "review";
   renderReview();
+  if (review.resumed) toast(plural(review.resumed, "ui-resumed-one", "ui-resumed-other"));
 }
 
 function carts() {
@@ -327,6 +340,7 @@ function renderReview() {
   show(
     top,
     h("p", { class: "muted" }, t("ui-review-help")),
+    h("p", { class: "muted small" }, review.saved_to ? t("ui-saved-to", { file: review.saved_to }) : t("ui-not-saved")),
     review.applications.length ? h("p", { class: "small" }, t("ui-applications", { names: review.applications.join(", ") })) : null,
     carts(),
     arbiterView(),
@@ -341,7 +355,15 @@ function renderReview() {
 
 async function setDecision(path, decision, below) {
   try {
+    const savedTo = review.saved_to;
     review = await api("POST", "/api/decide", { path, decision, below: below === true });
+    review.saved_to = savedTo;
+    if (review.save_error) {
+      toast(t("ui-save-failed", { error: review.save_error }));
+      skipped.delete(path);
+      scope = null;
+      return renderReview();
+    }
     skipped.delete(path);
     scope = null;
     const named = { path: shown(path), decision: t(`decision-${decision}`) };
