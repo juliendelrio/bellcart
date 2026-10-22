@@ -362,6 +362,22 @@ is skipped. The first screen offers to resume, which Enter does, or to
 start over; starting over replaces the file at the first new decision, not
 before, so a mistaken click loses nothing.
 
+**D34. AppData is cut into one card per application, and known
+applications come with a proposed decision. This replaces D32.**
+One card for all of AppData was not clear. `AppData/Local`, `LocalLow` and
+`Roaming` are now cut one level (`parts`): each application folder is one
+unit, never cut further, so a card is about one application; those under
+`min_unit` share one card per folder, which lists their names. A pack
+catalogue (`apps.yaml`) recognises known applications, also inside vendor
+folders (`Google/Chrome`, `Microsoft/Edge`): each has its own card, even a
+small one, titled with its name, with a proposed decision and its reason.
+The user takes it with Enter or picks another; a proposal is never applied
+on its own, so a wrong one costs a keystroke, not data. Even so, `leave` is
+proposed only where the data is elsewhere for sure (cloud account,
+download, cache), and mail or virtual disks get migrate or archive. Such
+containers and their parts are never folded into a unit above, and a
+folder with nothing left to review is no card.
+
 ## Proposed, to confirm
 
 **P1. Licence: Apache-2.0** for code and for the core pack.

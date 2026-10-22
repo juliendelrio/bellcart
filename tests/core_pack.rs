@@ -35,12 +35,14 @@ fn every_rule_reason_is_translated_in_every_language() {
     for lang in ["en", "fr"] {
         let keys = locale_keys(lang);
         for rule in &pack.rules {
-            let key = format!("reason-{}", rule.reason);
-            assert!(
-                keys.contains(&key),
-                "rule `{}` uses `{key}`, which locales/{lang}/bellcart.ftl does not define",
-                rule.id
-            );
+            for used in std::iter::once(&rule.reason).chain(rule.parts.as_ref()) {
+                let key = format!("reason-{used}");
+                assert!(
+                    keys.contains(&key),
+                    "rule `{}` uses `{key}`, which locales/{lang}/bellcart.ftl does not define",
+                    rule.id
+                );
+            }
         }
     }
 }
@@ -106,5 +108,37 @@ fn the_destination_question_offers_the_three_carts() {
     };
     for option in ["migrate", "archive", "leave", "inspect"] {
         assert!(criteria.contains_key(option), "missing option `{option}`");
+    }
+}
+
+#[test]
+fn a_rule_that_proposes_to_leave_says_where_the_data_is() {
+    // A proposal is never applied without the user, but `leave` must still
+    // come with a reason that says why nothing is lost.
+    let allowed = [
+        "app-cloud-account",
+        "installed-program",
+        "app-sync-client",
+        "app-downloaded-tools",
+        "application-cache",
+    ];
+    for rule in &common::core_pack().rules {
+        if rule.propose == Some(bellcart::plan::Decision::Leave) {
+            assert!(
+                allowed.contains(&rule.reason.as_str()),
+                "rule `{}` proposes leave for `{}`",
+                rule.id,
+                rule.reason
+            );
+        }
+    }
+}
+
+#[test]
+fn every_rule_that_proposes_names_what_it_recognised() {
+    for rule in &common::core_pack().rules {
+        if rule.propose.is_some() {
+            assert!(rule.name.is_some(), "rule `{}` has no name", rule.id);
+        }
     }
 }

@@ -85,7 +85,7 @@ pub fn scan_with(
         budget,
         progress,
     };
-    let walked = walker.walk(root, String::new(), String::new(), 0, entries, None);
+    let walked = walker.walk(root, String::new(), String::new(), 0, entries, Mode::Cut);
     // Folding a folder into a larger unit leaves its samples behind: keep
     // only those of the units the plan has.
     let mut units = BTreeSet::new();
@@ -187,6 +187,18 @@ enum Item {
     Recognised(Walked),
 }
 
+/// How a review folder is walked.
+#[derive(Clone)]
+enum Mode {
+    /// Cut by the budget.
+    Cut,
+    /// Judged whole, for this reason.
+    Unit(UnitReason),
+    /// Cut one level: each sub-folder is judged whole for `part`, and the
+    /// small ones share the folder's rest, which carries `rest`.
+    Parts { part: UnitReason, rest: UnitReason },
+}
+
 impl Walker<'_> {
     fn walk(
         &self,
@@ -195,7 +207,7 @@ impl Walker<'_> {
         rel: String,
         depth: u32,
         entries: Vec<Entry>,
-        recognised: Option<UnitReason>,
+        mode: Mode,
     ) -> Walked {
         let mut own = Stats::default();
         let mut files = Vec::new();
@@ -228,7 +240,7 @@ impl Walker<'_> {
         let children: Vec<Option<Item>> = pending
             .into_par_iter()
             .map(|entry| match entry {
-                Pending::Dir(child) => self.child(abs, &rel, depth, child),
+                Pending::Dir(child) => self.child(abs, &rel, depth, child, &mode),
                 Pending::Settled(node) => Some(Item::Settled(*node)),
             })
             .collect();
@@ -247,22 +259,41 @@ impl Walker<'_> {
             }
         }
 
-        let stop = recognised.or_else(|| self.stop(&review, depth, &items));
+        let stop = match &mode {
+            Mode::Cut => self.stop(&review, depth, &items),
+            Mode::Unit(reason) => Some(reason.clone()),
+            Mode::Parts { .. } => None,
+        };
         let (node, samples) = match stop {
             Some(reason) => {
                 let folders = items
                     .iter()
                     .filter_map(|item| match item {
-                        Item::Review(child) => Some(named(child)),
-                        Item::Settled(_) | Item::Recognised(_) => None,
+                        // A sub-folder whose content all has its own node
+                        // adds nothing to this unit.
+                        Item::Review(child) if child.review.files > 0 => Some(named(child)),
+                        Item::Review(_) | Item::Settled(_) | Item::Recognised(_) => None,
                     })
                     .collect();
                 let sample = (rel.clone(), Sample::new(folders, files));
-                let (node, mut samples) = as_unit(rel, review.clone(), reason, items);
-                samples.push(sample);
+                let (mut node, mut samples) = as_unit(rel, review.clone(), reason, items);
+                if review.files == 0 && review.unreadable == 0 {
+                    // Nothing left to judge here: no card, only what it holds.
+                    node.unit = None;
+                } else {
+                    samples.push(sample);
+                }
                 (node, samples)
             }
-            None => self.cut(rel, own, files, items),
+            None => {
+                let (mut node, samples) = self.cut(rel, own, files, items);
+                if let Mode::Parts { rest, .. } = mode
+                    && node.unit == Some(UnitReason::Rest)
+                {
+                    node.unit = Some(rest);
+                }
+                (node, samples)
+            }
         };
         Walked {
             name,
@@ -274,7 +305,9 @@ impl Walker<'_> {
 
     /// Lists a sub-folder and either settles it, by a rule or a recipe, or
     /// walks it. `None` when it cannot be listed.
-    fn child(&self, abs: &Path, rel: &str, depth: u32, name: String) -> Option<Item> {
+    /// `mode` is the parent's: in a folder cut into parts, a sub-folder no
+    /// rule knows is one part.
+    fn child(&self, abs: &Path, rel: &str, depth: u32, name: String, mode: &Mode) -> Option<Item> {
         let child_abs = abs.join(&name);
         let child_rel = join(rel, &name);
         let child_entries = self.list(&child_abs)?;
@@ -313,22 +346,49 @@ impl Walker<'_> {
                 })
             }
             None => {
-                let unit = recognised.map(|rule| UnitReason::Rule {
-                    rule: rule.id.clone(),
-                    key: rule.reason.clone(),
-                });
-                let found = unit.is_some();
-                let mut walked =
-                    self.walk(&child_abs, name, child_rel, depth + 1, child_entries, unit);
-                // Recognised, but everything in it is settled: no card.
-                let empty = walked.review.files == 0 && walked.review.unreadable == 0;
-                if found && empty {
-                    walked.node.unit = None;
-                }
-                if found && !empty {
-                    Item::Recognised(walked)
-                } else {
-                    Item::Review(walked)
+                let depth = depth + 1;
+                let walk =
+                    |mode| self.walk(&child_abs, name, child_rel, depth, child_entries, mode);
+                match recognised {
+                    // A folder whose sub-folders are the units, such as the
+                    // applications in AppData/Local. Never folded into a
+                    // larger unit, unless nothing in it is left to review.
+                    Some(rule) if rule.parts.is_some() => {
+                        let walked = walk(Mode::Parts {
+                            part: UnitReason::Part {
+                                rule: rule.id.clone(),
+                                key: rule.parts.clone().unwrap_or_default(),
+                            },
+                            rest: UnitReason::Rule {
+                                rule: rule.id.clone(),
+                                key: rule.reason.clone(),
+                                propose: None,
+                            },
+                        });
+                        if walked.review.files == 0 && walked.review.unreadable == 0 {
+                            Item::Review(walked)
+                        } else {
+                            Item::Recognised(walked)
+                        }
+                    }
+                    Some(rule) => {
+                        let mut walked = walk(Mode::Unit(UnitReason::Rule {
+                            rule: rule.id.clone(),
+                            key: rule.reason.clone(),
+                            propose: rule.propose,
+                        }));
+                        // Recognised, but everything in it is settled: no card.
+                        if walked.review.files == 0 && walked.review.unreadable == 0 {
+                            walked.node.unit = None;
+                            Item::Review(walked)
+                        } else {
+                            Item::Recognised(walked)
+                        }
+                    }
+                    None => match mode {
+                        Mode::Parts { part, .. } => Item::Review(walk(Mode::Unit(part.clone()))),
+                        Mode::Cut | Mode::Unit(_) => Item::Review(walk(Mode::Cut)),
+                    },
                 }
             }
         })
@@ -385,7 +445,7 @@ impl Walker<'_> {
             match item {
                 Item::Settled(node) => overrides.push(node),
                 Item::Recognised(child) => {
-                    overrides.push(child.node);
+                    keep(child.node, &mut overrides);
                     samples.extend(child.samples);
                 }
                 Item::Review(child) if child.review.bytes < self.budget.min_unit => {
@@ -561,7 +621,7 @@ fn as_unit(
         match item {
             Item::Settled(node) => overrides.push(node),
             Item::Recognised(child) => {
-                overrides.push(child.node);
+                keep(child.node, &mut overrides);
                 samples.extend(child.samples);
             }
             Item::Review(child) => {
@@ -581,9 +641,24 @@ fn as_unit(
     (node, samples)
 }
 
-/// A unit a `review` rule made: it is never folded into another.
+/// Keeps a recognised node. One cut into parts with no rest of its own has
+/// nothing to judge: its parts move up.
+fn keep(node: PlanNode, overrides: &mut Vec<PlanNode>) {
+    if node.unit.is_some() {
+        overrides.push(node);
+    } else {
+        overrides.extend(node.overrides);
+    }
+}
+
+/// A unit a `review` rule made, or one of its parts: never folded into a
+/// unit above. (A small part is folded into its own folder's rest, by the
+/// cut of that folder.)
 fn is_recognised(node: &PlanNode) -> bool {
-    matches!(node.unit, Some(UnitReason::Rule { .. }))
+    matches!(
+        node.unit,
+        Some(UnitReason::Rule { .. } | UnitReason::Part { .. })
+    )
 }
 
 /// Collects the settled nodes of a review node that is being folded into a

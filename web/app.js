@@ -274,6 +274,7 @@ function cardView(card) {
   return h("article", { class: "panel card stack", "aria-labelledby": "card-path" },
     h("div", {},
       h("div", { class: "muted small" }, t("ui-card-position", { index, count: review.queue.length })),
+      card.app ? h("h2", { class: "app" }, card.app) : null,
       h("div", { class: "path", id: "card-path" }, crumbs(card)),
       h("div", { class: "facts" },
         h("span", {}, bytes(card.bytes)),
@@ -281,7 +282,10 @@ function cardView(card) {
         card.oldest ? h("span", {}, t("ui-card-modified", { oldest: month(card.oldest), newest: month(card.newest) })) : null,
         card.unreadable ? h("span", { class: "error" }, plural(card.unreadable, "ui-unreadable-one", "ui-unreadable-other")) : null)),
     scopeView(card),
-    card.reason ? h("p", {}, h("span", { class: "chip" }, card.reason)) : null,
+    // A proposal from the pack: explained, and taken only by the user.
+    card.propose ? h("p", { class: `opinion c-${card.propose}` },
+      h("strong", {}, t("ui-card-propose", { decision: t(`decision-${card.propose}`) })), " ", card.reason)
+      : card.reason ? h("p", {}, h("span", { class: "chip" }, card.reason)) : null,
     opinion,
     h("div", { class: "columns" },
       h("section", {}, h("h3", {}, t("ui-card-kinds")), h("ul", { class: "list" }, kinds)),
@@ -293,9 +297,10 @@ function cardView(card) {
         h("span", { title: s.path }, s.path),
         h("span", {}, `${t(`decision-${s.decision}`)} · ${bytes(s.bytes)}`))))) : null,
     h("div", { class: "actions" },
-      h("button", { class: "d d-migrate", onclick: decide("migrate") }, t("ui-action-migrate"), h("kbd", {}, "M")),
-      h("button", { class: "d d-archive", onclick: decide("archive") }, t("ui-action-archive"), h("kbd", {}, "A")),
-      h("button", { class: "d d-leave", onclick: decide("leave") }, t("ui-action-leave"), h("kbd", {}, "L")),
+      ["migrate", "archive", "leave"].map((d) => h("button", {
+        class: card.propose === d ? `d d-${d} proposed` : `d d-${d}`,
+        onclick: decide(d),
+      }, t(`ui-action-${d}`), h("kbd", {}, card.propose === d ? t("ui-key-enter") : d[0].toUpperCase()))),
       h("span", { class: "spacer" }),
       h("button", { onclick: () => { skipped.add(card.path); scope = null; renderReview(); } }, t("ui-action-later"), h("kbd", {}, "→"))));
 }
@@ -384,6 +389,12 @@ document.addEventListener("keydown", (event) => {
   if (!card) return;
   const key = event.key.toLowerCase();
   const decisions = { m: "migrate", a: "archive", l: "leave" };
+  // Enter takes the proposal, for the card's own folder only.
+  if (event.key === "Enter" && card.propose && !(scope && scope.card === card.path)) {
+    if (target instanceof HTMLButtonElement) return;
+    event.preventDefault();
+    return setDecision(card.path, card.propose);
+  }
   if (decisions[key]) { event.preventDefault(); const at = decisionFor(card); setDecision(at.path, decisions[key], at.below); }
   if (event.key === "ArrowRight") { event.preventDefault(); skipped.add(card.path); scope = null; renderReview(); }
   if (event.key === "Escape" && scope) { event.preventDefault(); scope = null; renderReview(); }

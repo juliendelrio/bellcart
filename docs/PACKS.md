@@ -91,9 +91,37 @@ rules:
       contains: [.SynologyWorkingDirectory]  # the marker the client creates
 ```
 
-The core pack also uses it for the profile's `AppData`
-(`packs/core/rules/units.yaml`). A recognised folder with nothing left to
-review, once the rules and recipes inside it are applied, is no card.
+A recognised folder with nothing left to review, once the rules and recipes
+inside it are applied, is no card.
+
+A `review` rule takes three more fields:
+
+| Field | Effect |
+| --- | --- |
+| `name` | What the folder belongs to, shown as the card's title: an application's name. |
+| `propose` | A decision shown on the card, which the user takes with Enter. It is never applied without the user. |
+| `parts` | Cut the folder one level instead: each sub-folder no other rule knows is one unit, of the kind this translation key names (`reason-<key>`). Sub-folders smaller than `min_unit` share the folder's own card, which shows `reason`. |
+
+`parts` excludes `name` and `propose`: its parts are unknown. The core pack
+cuts `AppData/Local`, `LocalLow` and `Roaming` into one card per application
+(`units.yaml`), and names the applications it knows, with a proposal
+(`apps.yaml`):
+
+```yaml
+rules:
+  - id: app-thunderbird
+    decision: review
+    name: Thunderbird
+    propose: migrate
+    reason: app-mail
+    match:
+      path_glob: "**/AppData/Roaming/Thunderbird"
+```
+
+Propose `leave` only when the data is somewhere else for sure: a cloud
+account, a download, a cache. When an application may keep the only copy
+of something (mail, virtual disks), propose to migrate or archive it. A
+test holds the reasons a `leave` proposal may give.
 
 Pair it with a recipe for the client, whose `before` steps say what to
 check before the user leaves the folder behind.

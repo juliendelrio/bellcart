@@ -1,17 +1,17 @@
 # yaml-language-server: $schema=../../../schemas/rules.schema.json
 #
-# Folders Bellcart recognises but does not decide: each one becomes a
-# single unit to review, with a reason that says what it is, instead of
-# being cut into many cards. Rules still apply inside them.
+# Folders Bellcart recognises but does not decide. Each one is judged
+# whole, or cut one level (`parts`), with a reason that says what it is,
+# instead of being cut by size into cards that mean little. Rules still
+# apply inside them.
 rules:
-  # Application data. Most of it comes back when the applications are
-  # reinstalled, and the recipes pick out what does not (browser profiles,
-  # editor settings, keys). But it can also hold the only copy of real data:
-  # mail stores, game saves, virtual machine disks. So it is not decided:
-  # it is one unit, instead of dozens of cards about application folders.
-  - id: appdata
+  # Application data: one card per application folder, never cut further.
+  # Applications the pack knows (apps.yaml) have their own card with a
+  # proposed decision; the unknown ones are judged by the user, and those
+  # too small for a card of their own share one.
+  - id: appdata-applications
     decision: review
-    reason: application-data
+    reason: other-applications
+    parts: unknown-application
     match:
-      path_glob: "**/AppData"
-      contains: [Local, LocalLow, Roaming]
+      path_glob: "**/AppData/{Local,LocalLow,Roaming}"

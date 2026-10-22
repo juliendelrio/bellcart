@@ -1,0 +1,275 @@
+# yaml-language-server: $schema=../../../schemas/rules.schema.json
+#
+# Applications Bellcart knows in AppData. Each gets its own card, with its
+# name and a proposed decision the user takes with one key: nothing here is
+# decided without the user. Propose `leave` only when the data is somewhere
+# else for sure (a cloud account, a download, a cache); when an application
+# may keep the only copy of something (mail, virtual disks), propose to
+# migrate or archive it. Rules for caches inside still apply (caches.yaml).
+rules:
+  - id: app-slack
+    decision: review
+    name: Slack
+    propose: leave
+    reason: app-cloud-account
+    match:
+      path_glob: "**/AppData/Roaming/Slack"
+
+  - id: app-slack-program
+    decision: review
+    name: Slack
+    propose: leave
+    reason: installed-program
+    match:
+      path_glob: "**/AppData/Local/slack"
+
+  - id: app-discord
+    decision: review
+    name: Discord
+    propose: leave
+    reason: app-cloud-account
+    match:
+      path_glob: "**/AppData/Roaming/discord"
+
+  - id: app-discord-program
+    decision: review
+    name: Discord
+    propose: leave
+    reason: installed-program
+    match:
+      path_glob: "**/AppData/Local/Discord"
+
+  - id: app-spotify
+    decision: review
+    name: Spotify
+    propose: leave
+    reason: app-cloud-account
+    match:
+      path_glob: "**/AppData/{Local,Roaming}/Spotify"
+
+  - id: app-teams
+    decision: review
+    name: Microsoft Teams
+    propose: leave
+    reason: app-cloud-account
+    match:
+      path_glob: "**/AppData/{Local,Roaming}/Microsoft/Teams"
+
+  - id: app-zoom
+    decision: review
+    name: Zoom
+    propose: leave
+    reason: app-cloud-account
+    match:
+      path_glob: "**/AppData/Roaming/Zoom"
+
+  - id: app-onedrive-client
+    decision: review
+    name: OneDrive
+    propose: leave
+    reason: installed-program
+    match:
+      path_glob: "**/AppData/Local/Microsoft/OneDrive"
+
+  - id: app-synology-drive-client
+    decision: review
+    name: Synology Drive Client
+    propose: leave
+    reason: app-sync-client
+    match:
+      path_glob: "**/AppData/Local/SynologyDrive"
+
+  - id: app-playwright
+    decision: review
+    name: Playwright
+    propose: leave
+    reason: app-downloaded-tools
+    match:
+      path_glob: "**/AppData/Local/ms-playwright"
+
+  - id: app-package-cache
+    decision: review
+    name: Windows Installer
+    propose: leave
+    reason: app-downloaded-tools
+    match:
+      path_glob: "**/AppData/Local/Package Cache"
+
+  - id: app-nvidia-cache
+    decision: review
+    name: NVIDIA
+    propose: leave
+    reason: application-cache
+    match:
+      path_glob: "**/AppData/{Local,LocalLow}/NVIDIA"
+
+  - id: app-direct3d-cache
+    decision: review
+    name: Direct3D
+    propose: leave
+    reason: application-cache
+    match:
+      path_glob: "**/AppData/Local/D3DSCache"
+
+  - id: app-edge
+    decision: review
+    name: Microsoft Edge
+    propose: archive
+    reason: app-browser-profile
+    match:
+      path_glob: "**/AppData/Local/Microsoft/Edge"
+
+  # The recipes take bookmarks and settings; what is left is mostly site
+  # data, which may still hold something unsynced.
+  - id: app-chrome
+    decision: review
+    name: Google Chrome
+    propose: archive
+    reason: app-browser-profile
+    match:
+      path_glob: "**/AppData/Local/Google/Chrome"
+
+  # The recipe takes the settings; what is left is the editor's state.
+  - id: app-vscode
+    decision: review
+    name: Visual Studio Code
+    propose: archive
+    reason: app-editor-state
+    match:
+      path_glob: "**/AppData/Roaming/Code"
+
+  - id: app-thunderbird
+    decision: review
+    name: Thunderbird
+    propose: migrate
+    reason: app-mail
+    match:
+      path_glob: "**/AppData/Roaming/Thunderbird"
+
+  - id: app-notepad-plus-plus
+    decision: review
+    name: Notepad++
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/Notepad++"
+
+  - id: app-vlc
+    decision: review
+    name: VLC
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/vlc"
+
+  - id: app-gimp
+    decision: review
+    name: GIMP
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/GIMP"
+
+  - id: app-inkscape
+    decision: review
+    name: Inkscape
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/inkscape"
+
+  - id: app-libreoffice
+    decision: review
+    name: LibreOffice
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/LibreOffice"
+
+  - id: app-total-commander
+    decision: review
+    name: Total Commander
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/GHISLER"
+
+  - id: app-tortoisegit
+    decision: review
+    name: TortoiseGit
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/TortoiseGit"
+
+  - id: app-filezilla
+    decision: review
+    name: FileZilla
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/FileZilla"
+
+  - id: app-keepass
+    decision: review
+    name: KeePass
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/KeePass"
+
+  - id: app-obs
+    decision: review
+    name: OBS Studio
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/obs-studio"
+
+  - id: app-audacity
+    decision: review
+    name: Audacity
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/audacity"
+
+  - id: app-powertoys
+    decision: review
+    name: PowerToys
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Local/Microsoft/PowerToys"
+
+  - id: app-docker-settings
+    decision: review
+    name: Docker Desktop
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: "**/AppData/Roaming/{Docker,Docker Desktop}"
+
+  - id: app-docker-disks
+    decision: review
+    name: Docker Desktop
+    propose: archive
+    reason: app-virtual-disks
+    match:
+      path_glob: "**/AppData/Local/Docker"
+
+  - id: app-wsl
+    decision: review
+    name: WSL
+    propose: archive
+    reason: app-virtual-disks
+    match:
+      path_glob: "**/AppData/Local/wsl"
+
+  - id: app-wsl-ubuntu
+    decision: review
+    name: Ubuntu (WSL)
+    propose: archive
+    reason: app-virtual-disks
+    match:
+      path_glob: "**/AppData/Local/Packages/CanonicalGroupLimited.*"

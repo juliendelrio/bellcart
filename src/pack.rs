@@ -65,6 +65,20 @@ pub struct Rule {
     pub decision: Decision,
     /// Translation key. `locales/*/bellcart.ftl` must define `reason-<key>`.
     pub reason: String,
+    /// What the folder belongs to, shown on its card: an application's
+    /// name. Only with `decision: review`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<Name>,
+    /// With `decision: review`: the decision proposed on the card, which
+    /// the user takes with one key. Never applied without the user.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub propose: Option<Decision>,
+    /// With `decision: review`: cut the folder one level instead of making
+    /// it one unit. Each sub-folder no other rule knows is one unit, of the
+    /// kind this translation key names (`reason-<key>`); the small ones
+    /// share the folder's rest, whose card shows `reason`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parts: Option<String>,
     #[serde(rename = "match")]
     pub matcher: Matcher,
 }
@@ -462,6 +476,22 @@ impl RuleSet {
                 rule: rule.id.clone(),
                 message,
             };
+            let review = rule.decision == Decision::Review;
+            if !review && (rule.name.is_some() || rule.propose.is_some() || rule.parts.is_some()) {
+                return Err(fail(
+                    "`name`, `propose` and `parts` go with `decision: review` only".to_owned(),
+                ));
+            }
+            if rule.propose == Some(Decision::Review) {
+                return Err(fail(
+                    "`propose` must be a decision, not `review`".to_owned(),
+                ));
+            }
+            if rule.parts.is_some() && (rule.propose.is_some() || rule.name.is_some()) {
+                return Err(fail(
+                    "a rule with `parts` proposes nothing: its parts are unknown".to_owned(),
+                ));
+            }
             let m = &rule.matcher;
             if m.name_in.is_empty() && m.path_glob.is_none() {
                 return Err(fail(
@@ -571,6 +601,25 @@ mod tests {
             "{id: x, decision: leave, reason: r, match: {contains: [a]}}",
         )]);
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn only_a_review_rule_may_propose_or_cut_into_parts() {
+        for yaml in [
+            "{id: x, decision: leave, propose: leave, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: leave, name: A, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: migrate, parts: p, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, propose: review, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, parts: p, propose: leave, reason: r, match: {name_in: [a]}}",
+        ] {
+            assert!(RuleSet::compile(&[rule(yaml)]).is_err(), "{yaml}");
+        }
+        for yaml in [
+            "{id: x, decision: review, name: A, propose: leave, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, parts: p, reason: r, match: {name_in: [a]}}",
+        ] {
+            assert!(RuleSet::compile(&[rule(yaml)]).is_ok(), "{yaml}");
+        }
     }
 
     #[test]

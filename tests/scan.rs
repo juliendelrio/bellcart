@@ -1257,6 +1257,7 @@ fn is_synology_unit(node: &PlanNode) -> bool {
             == Some(UnitReason::Rule {
                 rule: "synology-drive-folder".to_owned(),
                 key: "synced-synology-drive".to_owned(),
+                propose: None,
             })
 }
 
@@ -1365,61 +1366,190 @@ fn samples_are_kept_only_for_the_units_of_the_plan() {
     assert_eq!(sampled, units_sorted);
 }
 
-fn appdata_unit(plan: &Plan, path: &str) -> bool {
-    let node = node(plan, path);
-    node.decision == Decision::Review
-        && node.unit
-            == Some(UnitReason::Rule {
-                rule: "appdata".to_owned(),
-                key: "application-data".to_owned(),
-            })
+fn unit_of(plan: &Plan, path: &str) -> UnitReason {
+    node(plan, path)
+        .unit
+        .clone()
+        .unwrap_or_else(|| panic!("`{path}` is no unit"))
+}
+
+fn unknown_application() -> UnitReason {
+    UnitReason::Part {
+        rule: "appdata-applications".to_owned(),
+        key: "unknown-application".to_owned(),
+    }
+}
+
+fn other_applications() -> UnitReason {
+    UnitReason::Rule {
+        rule: "appdata-applications".to_owned(),
+        key: "other-applications".to_owned(),
+        propose: None,
+    }
+}
+
+fn proposed(plan: &Plan, path: &str) -> Option<Decision> {
+    match unit_of(plan, path) {
+        UnitReason::Rule { propose, .. } => propose,
+        _ => None,
+    }
 }
 
 #[test]
-fn application_data_is_one_unit_instead_of_one_card_per_application() {
+fn each_application_folder_in_appdata_is_one_card_however_large() {
     let plan = cut(&MemTree::new()
-        .file("AppData/Local/Docker/disk.vhdx", 5_000)
-        .file("AppData/Local/Slack/data.db", 2_000)
-        .file("AppData/Roaming/Thunderbird/Profiles/inbox", 3_000)
+        .file("AppData/Local/BigApp/models/a.bin", 5_000)
+        .file("AppData/Local/BigApp/data/b.db", 5_000)
+        .file("AppData/Roaming/Editor/c.json", 2_000));
+
+    assert_eq!(
+        unit_of(&plan, "AppData/Local/BigApp"),
+        unknown_application()
+    );
+    assert_eq!(
+        unit_of(&plan, "AppData/Roaming/Editor"),
+        unknown_application()
+    );
+    assert!(!has_node(&plan, "AppData/Local/BigApp/models"));
+}
+
+#[test]
+fn small_unknown_applications_share_one_card_per_appdata_folder() {
+    let plan = cut(&MemTree::new()
+        .file("AppData/Local/BigApp/a.bin", 5_000)
+        .file("AppData/Local/tiny-one/x.json", 10)
+        .file("AppData/Local/tiny-two/y.json", 20));
+
+    assert_eq!(unit_of(&plan, "AppData/Local"), other_applications());
+    assert_eq!(node(&plan, "AppData/Local").stats.bytes, 30);
+    assert!(!has_node(&plan, "AppData/Local/tiny-one"));
+}
+
+#[test]
+fn a_small_appdata_folder_keeps_its_own_card_instead_of_joining_the_profile() {
+    let plan = cut(&MemTree::new()
+        .file("AppData/LocalLow/3f9a/save.dat", 10)
         .file("Documents/cv.docx", 600));
 
-    assert!(appdata_unit(&plan, "AppData"));
-    assert_eq!(node(&plan, "AppData").stats.bytes, 10_000);
-    assert!(!has_node(&plan, "AppData/Local/Docker"));
+    assert_eq!(unit_of(&plan, "AppData/LocalLow"), other_applications());
+    assert_eq!(plan.tree.stats.bytes, 600);
 }
 
 #[test]
-fn a_folder_named_appdata_without_application_folders_is_cut_as_usual() {
+fn a_known_application_has_its_own_card_with_a_proposal_even_when_small() {
     let plan = cut(&MemTree::new()
-        .file("AppData/report-2024.pdf", 5_000)
-        .file("AppData/photos/a.jpg", 5_000));
+        .file("AppData/Roaming/Notepad++/config.xml", 5)
+        .file("AppData/Roaming/Slack/storage/s.db", 50)
+        .file("AppData/Local/Docker/wsl/disk.vhdx", 5_000));
 
-    assert!(!has_node(&plan, "AppData") || !appdata_unit(&plan, "AppData"));
+    assert_eq!(
+        proposed(&plan, "AppData/Roaming/Notepad++"),
+        Some(Decision::Migrate)
+    );
+    assert_eq!(
+        proposed(&plan, "AppData/Roaming/Slack"),
+        Some(Decision::Leave)
+    );
+    assert_eq!(
+        proposed(&plan, "AppData/Local/Docker"),
+        Some(Decision::Archive)
+    );
 }
 
 #[test]
-fn caches_and_recipes_still_settle_their_folders_inside_application_data() {
+fn a_proposal_is_never_a_decision() {
+    let plan = cut(&MemTree::new()
+        .file("AppData/Roaming/Slack/storage/s.db", 50)
+        .file("AppData/Local/Docker/wsl/disk.vhdx", 5_000));
+
+    for path in ["AppData/Roaming/Slack", "AppData/Local/Docker"] {
+        assert_eq!(node(&plan, path).decision, Decision::Review);
+        assert_eq!(node(&plan, path).source, Source::Default);
+    }
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 0);
+}
+
+#[test]
+fn a_known_application_inside_a_vendor_folder_has_its_own_card() {
+    let plan = cut(&MemTree::new()
+        .file(
+            "AppData/Local/Google/Chrome/User Data/Default/IndexedDB/x",
+            3_000,
+        )
+        .file("AppData/Local/Google/Updater/u.log", 2_000));
+
+    assert_eq!(
+        proposed(&plan, "AppData/Local/Google/Chrome"),
+        Some(Decision::Archive)
+    );
+    assert_eq!(
+        unit_of(&plan, "AppData/Local/Google"),
+        unknown_application()
+    );
+    assert_eq!(node(&plan, "AppData/Local/Google").stats.bytes, 2_000);
+}
+
+#[test]
+fn an_application_folder_outside_appdata_is_not_taken_for_one() {
+    let plan = cut(&MemTree::new()
+        .file("Documents/Slack/exports/a.json", 5_000)
+        .file("Documents/Slack/exports/b.json", 5_000));
+
+    assert!(!has_node(&plan, "Documents/Slack") || proposed(&plan, "Documents/Slack").is_none());
+    assert!(
+        plan.nodes()
+            .iter()
+            .all(|n| n.unit != Some(unknown_application()))
+    );
+}
+
+#[test]
+fn caches_and_recipes_still_settle_their_folders_inside_an_application() {
     let tree = MemTree::new()
         .file("AppData/Local/Temp/a.tmp", 4_000)
         .file("AppData/Roaming/Code/User/settings.json", 2)
-        .file("AppData/Local/Docker/disk.vhdx", 5_000);
+        .file("AppData/Roaming/Code/Cache/c", 3_000)
+        .file("AppData/Roaming/Code/History/h", 100);
     let plan = with_core_recipes(&tree);
 
-    assert!(appdata_unit(&plan, "AppData"));
     assert_eq!(node(&plan, "AppData/Local/Temp").decision, Decision::Leave);
+    assert_eq!(
+        node(&plan, "AppData/Roaming/Code/Cache").decision,
+        Decision::Leave
+    );
     assert_eq!(
         recipe_of(node(&plan, "AppData/Roaming/Code/User/settings.json")),
         "vscode"
     );
-    assert_eq!(node(&plan, "AppData").stats.bytes, 5_000);
+    assert_eq!(node(&plan, "AppData/Roaming/Code").stats.bytes, 100);
 }
 
 #[test]
-fn application_data_holding_only_settled_folders_is_no_card() {
+fn appdata_holding_only_settled_folders_is_no_card() {
     let plan = cut(&MemTree::new()
         .file("AppData/Local/Temp/a.tmp", 4_000)
         .file("Documents/cv.docx", 600));
 
-    assert!(!has_node(&plan, "AppData"));
+    assert!(
+        !plan
+            .nodes()
+            .iter()
+            .any(|n| n.path.starts_with("AppData") && n.unit.is_some())
+    );
     assert_eq!(node(&plan, "AppData/Local/Temp").decision, Decision::Leave);
+}
+
+#[test]
+fn a_unit_does_not_list_a_sub_folder_whose_content_all_has_its_own_card() {
+    let tree = MemTree::new()
+        .file("AppData/Roaming/Slack/s.db", 50)
+        .file("Documents/cv.docx", 600);
+    let scan = scan(&tree, Path::new(""), &common::core_rules(), &small_budget()).unwrap();
+
+    let folders: Vec<&str> = scan.samples[""]
+        .folders
+        .iter()
+        .map(|f| f.name.as_str())
+        .collect();
+    assert_eq!(folders, ["Documents"]);
 }

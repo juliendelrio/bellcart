@@ -611,7 +611,7 @@ fn review_model(scan: &Scan, library: &Library, text: &Localizer) -> Value {
             && matches!(node.source, Source::Default | Source::Arbiter { .. });
         if waiting {
             let weight = if opinion.is_some() { 1 } else { 2 };
-            let card = card(node, by_path.get(&node.path), opinion, text);
+            let card = card(node, by_path.get(&node.path), opinion, library, text);
             queue.push((u128::from(node.stats.bytes) * weight, card));
         } else if let Some(why) = crate::render::why(node, plan, &library.recipes, text) {
             settled.push(json!({
@@ -647,9 +647,23 @@ fn card(
     node: &PlanNode,
     signature: Option<&Signature>,
     opinion: Option<Decision>,
+    library: &Library,
     text: &Localizer,
 ) -> Value {
     let stats = &node.stats;
+    // What a rule recognised the folder as, and what it proposes.
+    let (app, propose) = match &node.unit {
+        Some(bellcart::plan::UnitReason::Rule { rule, propose, .. }) => (
+            library
+                .rules
+                .iter()
+                .find(|r| &r.id == rule)
+                .and_then(|r| r.name.as_ref())
+                .map(|n| n.get(text.lang()).to_owned()),
+            *propose,
+        ),
+        _ => (None, None),
+    };
     let mut extensions: Vec<(&String, &u64)> = stats.extensions.iter().collect();
     extensions.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
     let extensions: Vec<Value> = extensions
@@ -695,6 +709,8 @@ fn card(
         "file_count": file_count,
         "settled": settled,
         "opinion": opinion.map(Decision::as_str),
+        "app": app,
+        "propose": propose.map(Decision::as_str),
     })
 }
 
