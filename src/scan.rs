@@ -318,8 +318,14 @@ impl Walker<'_> {
                     key: rule.reason.clone(),
                 });
                 let found = unit.is_some();
-                let walked = self.walk(&child_abs, name, child_rel, depth + 1, child_entries, unit);
-                if found {
+                let mut walked =
+                    self.walk(&child_abs, name, child_rel, depth + 1, child_entries, unit);
+                // Recognised, but everything in it is settled: no card.
+                let empty = walked.review.files == 0 && walked.review.unreadable == 0;
+                if found && empty {
+                    walked.node.unit = None;
+                }
+                if found && !empty {
                     Item::Recognised(walked)
                 } else {
                     Item::Review(walked)

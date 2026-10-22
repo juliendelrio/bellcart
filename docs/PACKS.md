@@ -91,6 +91,10 @@ rules:
       contains: [.SynologyWorkingDirectory]  # the marker the client creates
 ```
 
+The core pack also uses it for the profile's `AppData`
+(`packs/core/rules/units.yaml`). A recognised folder with nothing left to
+review, once the rules and recipes inside it are applied, is no card.
+
 Pair it with a recipe for the client, whose `before` steps say what to
 check before the user leaves the folder behind.
 
