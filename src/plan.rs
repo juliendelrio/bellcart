@@ -205,6 +205,13 @@ pub enum UnitReason {
     /// What is left directly in a folder that was cut: its own files and
     /// its sub-folders too small to stand alone.
     Rest,
+    /// A `review` rule recognised the folder (a synced folder, say): it is
+    /// judged whole, whatever its size, and never folded into another unit.
+    Rule {
+        rule: String,
+        /// Translation key of the reason, as in `Source::Rule`.
+        key: String,
+    },
 }
 
 /// How far the review mass is cut. Sizes are in bytes, depth counts
@@ -263,7 +270,8 @@ pub struct Totals {
 /// single file; the plan lists the `applications` found.
 /// 4: a review unit may be decided by an arbiter (`Source::Arbiter`).
 /// 5: any node may be decided by the user (`Source::User`).
-pub const PLAN_VERSION: u32 = 5;
+/// 6: a unit may be one because a rule recognised it (`UnitReason::Rule`).
+pub const PLAN_VERSION: u32 = 6;
 
 impl Plan {
     pub fn new(root: String, tree: PlanNode, split: Option<SplitBudget>) -> Self {

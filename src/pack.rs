@@ -58,7 +58,10 @@ pub struct RuleFile {
 pub struct Rule {
     /// Unique within the pack, lowercase, dash-separated.
     pub id: String,
-    /// `review` is not allowed here: it is the absence of a decision.
+    /// `review` settles nothing: it makes the folder one unit to review,
+    /// whatever its size, with this reason. Rules still apply inside it.
+    /// Use it for folders Bellcart recognises but must not decide, such as
+    /// a synced folder.
     pub decision: Decision,
     /// Translation key. `locales/*/bellcart.ftl` must define `reason-<key>`.
     pub reason: String,
@@ -459,11 +462,6 @@ impl RuleSet {
                 rule: rule.id.clone(),
                 message,
             };
-            if rule.decision == Decision::Review {
-                return Err(fail(
-                    "`review` is not a decision a rule can take".to_owned(),
-                ));
-            }
             let m = &rule.matcher;
             if m.name_in.is_empty() && m.path_glob.is_none() {
                 return Err(fail(
@@ -558,11 +556,13 @@ mod tests {
     }
 
     #[test]
-    fn a_rule_cannot_decide_review() {
-        let err = RuleSet::compile(&[rule(
-            "{id: x, decision: review, reason: r, match: {name_in: [a]}}",
-        )]);
-        assert!(err.is_err());
+    fn a_review_rule_recognises_a_folder_by_what_it_contains() {
+        let set = RuleSet::compile(&[rule(
+            "{id: x, decision: review, reason: r, match: {path_glob: '**', contains: [.marker]}}",
+        )])
+        .unwrap();
+        assert!(set.find("a/b", "b", &[".marker"]).is_some());
+        assert!(set.find("a/b", "b", &["marker"]).is_none());
     }
 
     #[test]

@@ -1245,3 +1245,122 @@ fn a_decision_from_a_folder_with_nothing_to_decide_changes_nothing() {
     );
     assert_eq!(plan, before);
 }
+
+/// A Synology Drive sync folder: the client puts its marker at the root.
+fn synced(tree: MemTree, root: &str) -> MemTree {
+    tree.dir(&format!("{root}/.SynologyWorkingDirectory"))
+}
+
+fn is_synology_unit(node: &PlanNode) -> bool {
+    node.decision == Decision::Review
+        && node.unit
+            == Some(UnitReason::Rule {
+                rule: "synology-drive-folder".to_owned(),
+                key: "synced-synology-drive".to_owned(),
+            })
+}
+
+#[test]
+fn a_synology_drive_folder_is_one_unit_however_large() {
+    let tree = synced(
+        MemTree::new()
+            .file("SynologyDrive/clients/a.pdf", 5_000)
+            .file("SynologyDrive/photos/b.jpg", 5_000),
+        "SynologyDrive",
+    );
+    let plan = cut(&tree);
+
+    assert!(is_synology_unit(node(&plan, "SynologyDrive")));
+    assert_eq!(node(&plan, "SynologyDrive").stats.bytes, 10_000);
+    assert!(!has_node(&plan, "SynologyDrive/clients"));
+}
+
+#[test]
+fn a_folder_named_like_synology_drive_without_its_marker_is_cut_as_usual() {
+    let plan = cut(&MemTree::new()
+        .file("SynologyDrive/clients/a.pdf", 5_000)
+        .file("SynologyDrive/photos/b.jpg", 5_000)
+        .dir("SynologyDrive/SynologyWorkingDirectory"));
+
+    assert!(!has_node(&plan, "SynologyDrive"));
+    assert!(has_node(&plan, "SynologyDrive/clients"));
+}
+
+#[test]
+fn a_synced_folder_is_recognised_wherever_the_user_put_it() {
+    let tree = synced(MemTree::new().file("Work/NAS/a.pdf", 5_000), "Work/NAS");
+    assert!(is_synology_unit(node(&cut(&tree), "Work/NAS")));
+}
+
+#[test]
+fn a_small_synced_folder_keeps_its_own_unit_inside_a_small_profile() {
+    let tree = synced(
+        MemTree::new()
+            .file("Documents/cv.docx", 200)
+            .file("SynologyDrive/a.pdf", 300),
+        "SynologyDrive",
+    );
+    let plan = plan(&tree);
+
+    assert!(is_synology_unit(node(&plan, "SynologyDrive")));
+    assert_eq!(plan.tree.unit, Some(UnitReason::Small));
+    assert_eq!(plan.tree.stats.bytes, 200);
+    assert_eq!(plan.totals[&Decision::Review].bytes, 500);
+}
+
+#[test]
+fn a_synced_folder_inside_a_folder_folded_into_a_rest_keeps_its_own_unit() {
+    // `Work/tiny` is below `min_unit` and joins the rest of `Work`; the
+    // synced folder inside it must not disappear with it.
+    let tree = synced(
+        MemTree::new()
+            .file("Work/big/a.zip", 2_000)
+            .file("Work/notes.txt", 200)
+            .file("Work/tiny/sync/a.pdf", 50),
+        "Work/tiny/sync",
+    );
+    let scan = scan(&tree, Path::new(""), &common::core_rules(), &small_budget()).unwrap();
+
+    assert!(is_synology_unit(node(&scan.plan, "Work/tiny/sync")));
+    assert!(scan.samples.contains_key("Work/tiny/sync"));
+    assert!(!scan.samples.contains_key("Work/tiny"));
+    let total: u64 = scan.plan.totals.values().map(|t| t.bytes).sum();
+    assert_eq!(total, 2_250);
+}
+
+#[test]
+fn rules_still_apply_inside_a_synced_folder() {
+    let tree = synced(
+        MemTree::new()
+            .file("SynologyDrive/dev/app/main.rs", 100)
+            .file("SynologyDrive/dev/app/node_modules/x.js", 5_000),
+        "SynologyDrive",
+    );
+    let plan = cut(&tree);
+
+    assert_eq!(node(&plan, "SynologyDrive").stats.bytes, 100);
+    let deps = node(&plan, "SynologyDrive/dev/app/node_modules");
+    assert_eq!(deps.decision, Decision::Leave);
+}
+
+#[test]
+fn samples_are_kept_only_for_the_units_of_the_plan() {
+    let scan = scan(
+        &profile(),
+        Path::new(""),
+        &common::core_rules(),
+        &small_budget(),
+    )
+    .unwrap();
+    let units: Vec<&str> = scan
+        .plan
+        .nodes()
+        .into_iter()
+        .filter(|n| n.unit.is_some())
+        .map(|n| n.path.as_str())
+        .collect();
+    let sampled: Vec<&str> = scan.samples.keys().map(String::as_str).collect();
+    let mut units_sorted = units.clone();
+    units_sorted.sort_unstable();
+    assert_eq!(sampled, units_sorted);
+}

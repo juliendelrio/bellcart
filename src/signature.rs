@@ -433,6 +433,8 @@ fn describe(unit: &UnitReason) -> String {
         UnitReason::Rest => {
             "files directly in a folder that was cut, and its small sub-folders".to_owned()
         }
+        // The key is pack data, never a name from the disk.
+        UnitReason::Rule { key, .. } => format!("recognised by a rule: {key}"),
     }
 }
 

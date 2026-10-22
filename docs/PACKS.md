@@ -71,6 +71,29 @@ folder with this name or path hold a person's own files?
 - If you cannot make it unambiguous, do not write the rule. Undecided
   folders go to review, which is safe.
 
+### Recognising a folder without deciding it: `review`
+
+`decision: review` settles nothing. The folder becomes **one unit to
+review**, whatever its size, with the rule's reason on its card, instead of
+being cut into its sub-folders. Rules still apply inside it, and it is
+never folded into a larger unit. Use it for folders Bellcart recognises but
+must leave to the user, such as a folder a sync client keeps in step with a
+server: most of it is also stored there, but not files waiting to upload
+or left out by the sync rules.
+
+```yaml
+rules:
+  - id: synology-drive-folder
+    decision: review
+    reason: synced-synology-drive
+    match:
+      path_glob: "**"                        # wherever the user put it
+      contains: [.SynologyWorkingDirectory]  # the marker the client creates
+```
+
+Pair it with a recipe for the client, whose `before` steps say what to
+check before the user leaves the folder behind.
+
 ## Recipes
 
 One file per application, named after its `id`.

@@ -417,6 +417,28 @@
           "required": [
             "reason"
           ]
+        },
+        {
+          "description": "A `review` rule recognised the folder (a synced folder, say): it is\njudged whole, whatever its size, and never folded into another unit.",
+          "type": "object",
+          "properties": {
+            "key": {
+              "description": "Translation key of the reason, as in `Source::Rule`.",
+              "type": "string"
+            },
+            "reason": {
+              "type": "string",
+              "const": "rule"
+            },
+            "rule": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "reason",
+            "rule",
+            "key"
+          ]
         }
       ]
     }
