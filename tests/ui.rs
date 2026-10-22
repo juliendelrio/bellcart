@@ -407,7 +407,7 @@ fn the_export_is_refused_inside_the_profile() {
         body["error"]
             .as_str()
             .unwrap()
-            .contains("inside the scanned folder")
+            .contains("inside the analysed profile")
     );
     assert!(!inside.exists());
 }

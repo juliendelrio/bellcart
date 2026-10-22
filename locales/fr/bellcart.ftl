@@ -184,6 +184,7 @@ ui-arbiter-progress = L'arbitre a répondu pour { $done } sur { $total }
 ui-arbiter-failed = L'arbitre s'est arrêté : { $error }
 ui-export-title = Exporter le plan et le carnet
 ui-export-help = Choisissez un dossier hors du profil analysé, par exemple sur une clé USB. Bellcart y écrit le plan (plan.json), le carnet de migration (notebook.html et notebook.md) et vos décisions.
+ui-export-inside = Ce dossier est dans le profil analysé ({ $profile }) : Bellcart n'y écrit jamais. Choisissez un dossier en dehors, par exemple sur une clé USB.
 ui-export-label = Dossier d'export
 ui-export-go = Écrire les fichiers
 ui-export-done = Fichiers écrits

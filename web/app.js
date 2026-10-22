@@ -27,7 +27,8 @@ function t(key, args) {
 function plural(count, one, other, args) {
   // French puts 0 in the singular: 0 dossier.
   const single = count === 1 || (session.lang === "fr" && count === 0);
-  return t(single ? one : other, { ...args, count });
+  // Shown with the language's digit grouping: 214 886, not 214886.
+  return t(single ? one : other, { ...args, count: Number(count).toLocaleString(session.lang) });
 }
 
 function h(tag, attrs, ...children) {
@@ -195,6 +196,18 @@ function carts() {
     cart("review", t("ui-to-decide"), bytes(queueBytes), plural(review.queue.length, "ui-folder-one", "ui-folder-other")));
 }
 
+// A short reason reads as a tag; a sentence reads as a sentence.
+function reasonView(reason) {
+  return reason.length <= 60
+    ? h("p", {}, h("span", { class: "chip" }, reason))
+    : h("p", { class: "reason" }, reason);
+}
+
+// A path inside the card's folder, shown from that folder.
+function inside(path, folder) {
+  return folder !== "" && path.startsWith(`${folder}/`) ? path.slice(folder.length + 1) : path;
+}
+
 function nextCard() {
   return review.queue.find((c) => !skipped.has(c.path)) || review.queue[0];
 }
@@ -271,11 +284,12 @@ function cardView(card) {
     opinion = h("p", { class: "opinion" }, t("ui-card-opinion", { decision: t(`decision-${card.opinion}`) }));
   }
   const decide = (decision) => () => { const at = decisionFor(card); setDecision(at.path, decision, at.below); };
-  return h("article", { class: "panel card stack", "aria-labelledby": "card-path" },
+  return h("article", { class: "panel card stack", "aria-labelledby": "card-path", tabindex: "-1" },
     h("div", {},
       h("div", { class: "muted small" }, t("ui-card-position", { index, count: review.queue.length })),
       card.app ? h("h2", { class: "app" }, card.app) : null,
-      h("div", { class: "path", id: "card-path" }, crumbs(card)),
+      // The card's title: the application, or else the folder itself.
+      h(card.app ? "div" : "h2", { class: "path", id: "card-path" }, crumbs(card)),
       h("div", { class: "facts" },
         h("span", {}, bytes(card.bytes)),
         h("span", {}, plural(card.files, "ui-file-one", "ui-file-other")),
@@ -285,7 +299,7 @@ function cardView(card) {
     // A proposal from the pack: explained, and taken only by the user.
     card.propose ? h("p", { class: `opinion c-${card.propose}` },
       h("strong", {}, t("ui-card-propose", { decision: t(`decision-${card.propose}`) })), " ", card.reason)
-      : card.reason ? h("p", {}, h("span", { class: "chip" }, card.reason)) : null,
+      : card.reason ? reasonView(card.reason) : null,
     opinion,
     h("div", { class: "columns" },
       h("section", {}, h("h3", {}, t("ui-card-kinds")), h("ul", { class: "list" }, kinds)),
@@ -294,7 +308,7 @@ function cardView(card) {
     card.settled.length ? h("section", {},
       h("h3", { class: "muted small" }, t("ui-card-settled")),
       h("ul", { class: "list" }, card.settled.map((s) => h("li", {},
-        h("span", { title: s.path }, s.path),
+        h("span", { title: s.path }, inside(s.path, card.path)),
         h("span", {}, `${t(`decision-${s.decision}`)} · ${bytes(s.bytes)}`))))) : null,
     h("div", { class: "actions" },
       ["migrate", "archive", "leave"].map((d) => h("button", {
@@ -325,7 +339,7 @@ function settledView() {
   },
     h("summary", {}, t("ui-settled-title", { count: review.settled.length })),
     h("p", { class: "muted small" }, t("ui-settled-help")),
-    h("div", { style: null }, h("table", {},
+    h("div", { class: "table-wrap" }, h("table", {},
       h("thead", {}, h("tr", {}, h("th", {}, t("ui-col-decision")), h("th", {}, t("ui-col-folder")), h("th", {}, t("ui-col-size")), h("th", {}, t("ui-col-why")), h("th", {}, t("ui-col-change")))),
       h("tbody", {}, rows))));
 }
@@ -359,6 +373,8 @@ function renderReview() {
 }
 
 async function setDecision(path, decision, below) {
+  // A change made in the settled list keeps the reader there.
+  const fromList = Boolean(document.activeElement?.closest("details.settled"));
   try {
     const savedTo = review.saved_to;
     review = await api("POST", "/api/decide", { path, decision, below: below === true });
@@ -376,6 +392,8 @@ async function setDecision(path, decision, below) {
       ? plural(review.changed, "ui-decided-below-one", "ui-decided-below-other", named)
       : t("ui-decided", named));
     renderReview();
+    // Keep the keyboard on the card that comes next, not on the page.
+    if (!fromList) document.querySelector("article.card")?.focus({ preventScroll: true });
   } catch (error) {
     toast(t("ui-error", { error: error.message }));
   }

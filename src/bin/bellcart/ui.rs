@@ -451,8 +451,14 @@ impl App {
         let (Some(scan), Some(profile)) = (&session.scan, &session.profile) else {
             return error(409, "nothing scanned yet");
         };
-        if let Err(e) = crate::outside(profile, &folder.join("plan.json")) {
-            return error(400, format!("{e:#}"));
+        if crate::outside(profile, &folder.join("plan.json")).is_err() {
+            return error(
+                400,
+                text.with(
+                    "ui-export-inside",
+                    &[("profile", profile.display().to_string().into())],
+                ),
+            );
         }
         let written = write_exports(&folder, scan, &session.log, &self.library, text);
         match written {

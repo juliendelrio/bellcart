@@ -319,14 +319,15 @@ fn long_numeric_suffixes_are_not_extensions() {
         &MemTree::new()
             .file("claude.exe.old.12.33452", 10)
             .file("backup.7z.001", 20)
-            .file("report.2024", 40),
+            .file("report.2024", 40)
+            .file("docker.log.657", 5),
     );
 
     let extensions = &plan.tree.stats.extensions;
     // Split archives number their parts with three digits.
     assert_eq!(extensions["001"], 20);
-    // Longer runs of digits are counters, process numbers or years.
-    assert_eq!(extensions[""], 50);
+    // Other runs of digits are counters, process numbers or years.
+    assert_eq!(extensions[""], 55);
     assert_eq!(extensions.len(), 2);
 }
 

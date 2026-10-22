@@ -141,7 +141,10 @@ pub fn human_bytes(bytes: u64) -> String {
 pub(crate) fn extension_of(name: &str) -> String {
     match name.rsplit_once('.') {
         Some((stem, ext)) if !stem.is_empty() => {
-            if ext.len() > 3 && ext.bytes().all(|b| b.is_ascii_digit()) {
+            // Digits are counters, process numbers or years (`.log.657`),
+            // except the parts of a split archive: `.001`, `.002`...
+            let digits = ext.bytes().all(|b| b.is_ascii_digit());
+            if digits && !(ext.len() == 3 && ext.starts_with('0')) {
                 String::new()
             } else {
                 ext.to_lowercase()
