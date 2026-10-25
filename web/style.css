@@ -224,6 +224,8 @@ kbd {
 .list.tall li span.two-lines { display: flex; flex-direction: column; min-width: 0; white-space: normal; }
 .list.tall li span.two-lines > span:last-child { white-space: normal; }
 section.panel + section.panel, section.panel + p { margin-top: 16px; }
+.list.programs li { align-items: center; }
+.list.programs li span:first-child { white-space: normal; }
 .list .path { font-family: ui-monospace, Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Settled decisions */

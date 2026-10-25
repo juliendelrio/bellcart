@@ -22,7 +22,7 @@ use bellcart::arbiter::Arbiter;
 use bellcart::decision_log::{self, Entry};
 use bellcart::openai_chat::OpenAiChat;
 use bellcart::pack::{Library, QuestionSet, RuleSet};
-use bellcart::plan::{Decision, PlanNode, Source, SplitBudget};
+use bellcart::plan::{Decision, PlanNode, Reinstall, Source, SplitBudget};
 use bellcart::recipe::{Recipes, Variables};
 use bellcart::scan::{Progress, Scan, scan_with};
 use bellcart::signature::{Privacy, Signature, signatures};
@@ -32,7 +32,7 @@ use serde_json::{Value, json};
 use tiny_http::{Header, Method, Request, Response, Server};
 
 use crate::i18n::Localizer;
-use crate::saved::{self, Choice, Saved};
+use crate::saved::{self, Choice, ProgramChoice, Saved};
 
 const INDEX: &str = include_str!("../../../web/index.html");
 const SCRIPT: &str = include_str!("../../../web/app.js");
@@ -222,6 +222,7 @@ impl App {
                 (_, Method::Get, "/api/progress") => self.progress(),
                 (_, Method::Get, "/api/review") => self.review(text),
                 (_, Method::Post, "/api/decide") => self.decide(&input, text),
+                (_, Method::Post, "/api/reinstall") => self.reinstall(&input, text),
                 (_, Method::Post, "/api/export") => self.export(&input, text),
                 (_, Method::Get, "/api/arbiter") => self.arbiter_preview(),
                 (_, Method::Post, "/api/arbiter") => self.start_arbiter(),
@@ -242,11 +243,11 @@ impl App {
         let profile = session.profile.as_ref().unwrap_or(&self.default_profile);
         let resumable = saved::location(profile, &default_export(profile))
             .and_then(|file| Saved::load(&file, profile).map(|s| (file, s)))
-            .filter(|(_, s)| !s.decisions.is_empty())
+            .filter(|(_, s)| !s.decisions.is_empty() || !s.programs.is_empty())
             .map(|(file, s)| {
                 json!({
                     "profile": s.profile,
-                    "count": s.decisions.len(),
+                    "count": s.decisions.len() + s.programs.len(),
                     "file": file.display().to_string(),
                 })
             });
@@ -296,6 +297,10 @@ impl App {
             .as_ref()
             .map(|(_, s)| s.decisions.clone())
             .unwrap_or_default();
+        let replay_programs: Vec<ProgramChoice> = saved
+            .as_ref()
+            .map(|(_, s)| s.programs.clone())
+            .unwrap_or_default();
         {
             let mut session = self.session();
             if session.phase == Phase::Scanning {
@@ -343,6 +348,10 @@ impl App {
                                 path,
                                 decision: choice.decision,
                             }));
+                    }
+                    for choice in &replay_programs {
+                        let changed = scan.plan.set_reinstall(&choice.path, choice.reinstall);
+                        resumed += usize::from(changed);
                     }
                     session.resumed = resumed;
                     session.scan = Some(scan);
@@ -438,6 +447,35 @@ impl App {
         };
         let mut model = review_model(scan, &self.library, text);
         model["changed"] = json!(count);
+        model["save_error"] = json!(save_error);
+        (200, model)
+    }
+
+    /// Records whether to install a program again. It changes no folder
+    /// decision, so the decision log is not involved.
+    fn reinstall(&self, input: &Value, text: &Localizer) -> Reply {
+        let path = input.get("path").and_then(Value::as_str);
+        let reinstall = input
+            .get("reinstall")
+            .and_then(|r| serde_json::from_value::<Reinstall>(r.clone()).ok());
+        let (Some(path), Some(reinstall)) = (path, reinstall) else {
+            return error(400, "a path and a choice are needed");
+        };
+        let mut session = self.session();
+        let Some(scan) = session.scan.as_mut() else {
+            return error(409, "nothing scanned yet");
+        };
+        if !scan.plan.set_reinstall(path, reinstall) {
+            return error(404, "no such program in the plan");
+        }
+        let save_error = session.saved.as_mut().and_then(|(file, saved)| {
+            saved.set_program(path, reinstall);
+            saved.write(file).err().map(|e| format!("{e:#}"))
+        });
+        let Some(scan) = &session.scan else {
+            return error(409, "nothing scanned yet");
+        };
+        let mut model = review_model(scan, &self.library, text);
         model["save_error"] = json!(save_error);
         (200, model)
     }
@@ -637,6 +675,11 @@ fn review_model(scan: &Scan, library: &Library, text: &Localizer) -> Value {
         .iter()
         .map(|a| crate::render::application_name(&a.recipe, plan, &library.recipes, text))
         .collect();
+    let programs: Vec<Value> = plan
+        .programs
+        .iter()
+        .map(|p| json!({ "path": p.path, "name": p.name, "reinstall": p.reinstall }))
+        .collect();
     let unreadable: u64 = plan.nodes().iter().map(|n| n.stats.unreadable).sum();
     json!({
         "root": plan.root,
@@ -644,6 +687,7 @@ fn review_model(scan: &Scan, library: &Library, text: &Localizer) -> Value {
         "queue": queue.into_iter().map(|(_, card)| card).collect::<Vec<_>>(),
         "settled": settled,
         "applications": applications,
+        "programs": programs,
         "unreadable": unreadable,
     })
 }
@@ -755,7 +799,7 @@ fn write_exports(
         .with_context(|| format!("cannot write {}", plan_file.display()))?;
     files.push(plan_file.display().to_string());
 
-    let book = bellcart::notebook::notebook(&scan.plan.applications, &library.recipes);
+    let book = bellcart::notebook::notebook(&scan.plan, &library.recipes);
     for (name, format) in [
         ("notebook.html", crate::notebook::Format::Html),
         ("notebook.md", crate::notebook::Format::Markdown),

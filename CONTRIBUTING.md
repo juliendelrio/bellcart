@@ -36,6 +36,11 @@ cargo test
 All three must pass. The engine must keep building on Linux and macOS even
 though the product targets Windows.
 
+On Windows, Rust needs the Visual Studio Build Tools (the C++ workload
+and a Windows SDK). Run Cargo from PowerShell or a Developer prompt: in
+Git Bash, the `link` of coreutils comes before the Microsoft linker in
+the `PATH`, and linking fails with `link: extra operand`.
+
 Start with the [specification](docs/SPEC-V1.md) and the
 [decision log](docs/DECISIONS.md). For anything larger than a fix, open an
 issue first so we agree on the approach.

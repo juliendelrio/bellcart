@@ -507,3 +507,60 @@ fn the_arbiter_shows_its_request_then_decides_on_a_click() {
     assert_eq!(decided["by"], "arbiter");
     assert_eq!(decided["decision"], "archive");
 }
+
+#[test]
+fn programs_to_install_again_are_chosen_saved_and_resumed() {
+    let (profile, export) = profile("ui-programs");
+    std::fs::create_dir_all(profile.join("AppData/Local/Programs/Python")).unwrap();
+    std::fs::write(
+        profile.join("AppData/Local/Programs/Python/python.exe"),
+        "x",
+    )
+    .unwrap();
+    let path = "AppData/Local/Programs/Python";
+    {
+        let ui = Ui::start(&profile, &[]);
+        let review = ui.scan(&profile);
+        assert_eq!(
+            review["programs"],
+            json!([{ "path": path, "name": "Python", "reinstall": "undecided" }])
+        );
+        let totals = review["totals"].clone();
+        let (status, review) = ui.post(
+            "/api/reinstall",
+            json!({ "path": path, "reinstall": "yes" }),
+        );
+        assert_eq!(status, 200, "{review}");
+        assert_eq!(review["programs"][0]["reinstall"], "yes");
+        // The choice moves no folder from one cart to another.
+        assert_eq!(review["totals"], totals);
+        assert_eq!(saved_session(&profile)["programs"][0]["reinstall"], "yes");
+
+        let (status, _) = ui.post(
+            "/api/reinstall",
+            json!({ "path": "Nope", "reinstall": "yes" }),
+        );
+        assert_eq!(status, 404);
+        let (status, _) = ui.post(
+            "/api/reinstall",
+            json!({ "path": path, "reinstall": "maybe" }),
+        );
+        assert_eq!(status, 400);
+
+        let (status, done) = ui.post("/api/export", json!({ "folder": export }));
+        assert_eq!(status, 200, "{done}");
+        let plan: Plan =
+            serde_json::from_slice(&std::fs::read(export.join("plan.json")).unwrap()).unwrap();
+        assert_eq!(plan.programs[0].reinstall, bellcart::plan::Reinstall::Yes);
+        let notebook = std::fs::read_to_string(export.join("notebook.md")).unwrap();
+        assert!(notebook.contains("Install Python again"), "{notebook}");
+    }
+
+    let ui = Ui::start(&profile, &[]);
+    assert_eq!(ui.get("/api/session")["saved"]["count"], 1);
+    let (status, _) = ui.post("/api/scan", json!({ "profile": profile, "resume": true }));
+    assert_eq!(status, 200);
+    let review = ui.wait_review();
+    assert_eq!(review["resumed"], 1);
+    assert_eq!(review["programs"][0]["reinstall"], "yes");
+}

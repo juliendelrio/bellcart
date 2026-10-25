@@ -233,7 +233,7 @@ fn run() -> Result<()> {
                     .with_context(|| format!("cannot write {}", out.display()))?;
             }
             if let Some(file) = notebook {
-                let book = bellcart::notebook::notebook(&scan.plan.applications, &library.recipes);
+                let book = bellcart::notebook::notebook(&scan.plan, &library.recipes);
                 let content = notebook::render(
                     &book,
                     &scan.plan.root,

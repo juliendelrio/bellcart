@@ -9,7 +9,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use bellcart::plan::{Decision, Plan};
+use bellcart::plan::{Decision, Plan, Reinstall};
 use serde::{Deserialize, Serialize};
 
 pub const FILE: &str = "bellcart-session.json";
@@ -22,6 +22,16 @@ pub struct Saved {
     pub profile: String,
     /// In the order they were made: a later one may change an earlier one.
     pub decisions: Vec<Choice>,
+    /// Whether to install each program again, by program path. Missing in
+    /// files saved before programs were listed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub programs: Vec<ProgramChoice>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProgramChoice {
+    pub path: String,
+    pub reinstall: Reinstall,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,6 +49,7 @@ impl Saved {
             format: FORMAT,
             profile: profile.display().to_string(),
             decisions: Vec::new(),
+            programs: Vec::new(),
         }
     }
 
@@ -48,6 +59,15 @@ impl Saved {
         let text = std::fs::read_to_string(file).ok()?;
         let saved: Saved = serde_json::from_str(&text).ok()?;
         (saved.format == FORMAT && same_folder(Path::new(&saved.profile), profile)).then_some(saved)
+    }
+
+    /// Records a program choice, replacing an earlier one for the same path.
+    pub fn set_program(&mut self, path: &str, reinstall: Reinstall) {
+        self.programs.retain(|p| p.path != path);
+        self.programs.push(ProgramChoice {
+            path: path.to_owned(),
+            reinstall,
+        });
     }
 
     pub fn write(&self, file: &Path) -> Result<()> {
