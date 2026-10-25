@@ -81,3 +81,40 @@ rules:
     reason: package-cache
     match:
       path_glob: "**/.cache/huggingface/hub"
+
+  # The Go module cache: modules are downloaded again from go.mod files.
+  # `cache` is where the go command keeps the downloads.
+  - id: go-module-cache
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/go/pkg/mod"
+      contains: [cache]
+
+  - id: yarn-cache
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/AppData/Local/Yarn/Cache"
+
+  - id: bun-cache
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/.bun/install/cache"
+
+  # Gradle versions the wrapper downloads; `gradle-wrapper.properties` in
+  # each project says which one to fetch again.
+  - id: gradle-wrapper-dists
+    decision: leave
+    reason: regenerable-dependencies
+    match:
+      path_glob: "**/.gradle/wrapper/dists"
+
+  # Indexes and caches of JetBrains IDEs, rebuilt when a project opens.
+  # Settings are in AppData/Roaming/JetBrains, not here.
+  - id: jetbrains-caches
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/AppData/Local/JetBrains/*/caches"

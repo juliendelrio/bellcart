@@ -15,3 +15,13 @@ rules:
     parts: unknown-application
     match:
       path_glob: "**/AppData/{Local,LocalLow,Roaming}"
+
+  # Folders that hold many applications of their own: Microsoft's, and the
+  # data of Microsoft Store applications. Cut the same way, so a large one
+  # has its own card and the small ones share the folder's.
+  - id: appdata-shared-folders
+    decision: review
+    reason: other-applications
+    parts: unknown-application
+    match:
+      path_glob: "**/AppData/Local/{Microsoft,Packages}"

@@ -812,6 +812,78 @@ fn wsl_and_docker_disk_images_stay_to_review() {
     assert_eq!(plan.totals[&Decision::Review].bytes, 27_000);
 }
 
+// Rules added after a second pass on real Windows 11 profiles.
+
+#[test]
+fn file_explorer_thumbnail_caches_are_left() {
+    left_by_rule_but_not_look_alike(
+        "AppData/Local/Microsoft/Windows/Explorer",
+        "thumbcache_256.db",
+        "explorer-thumbnail-cache",
+        "Documents/Explorer/notes.txt",
+    );
+}
+
+#[test]
+fn python_tool_caches_are_left_only_with_their_cache_tag() {
+    for cache in [".pytest_cache", ".mypy_cache", ".ruff_cache"] {
+        let folder = format!("dev/app/{cache}");
+        let plan = plan(
+            &MemTree::new()
+                .file(&format!("{folder}/CACHEDIR.TAG"), 9_000)
+                .file(&format!("Documents/{cache}/notes.txt"), 40),
+        );
+        assert_eq!(rule_of(node(&plan, &folder)), "python-tool-caches");
+        assert_eq!(plan.totals[&Decision::Review].bytes, 40, "{cache}");
+    }
+}
+
+#[test]
+fn the_go_module_cache_is_left_but_not_a_folder_with_the_same_path() {
+    left_by_rule_but_not_look_alike(
+        "go/pkg/mod",
+        "cache/download/x.zip",
+        "go-module-cache",
+        "Documents/go/pkg/mod/my-module/main.go",
+    );
+}
+
+#[test]
+fn yarn_and_bun_caches_are_left() {
+    left_by_rule_but_not_look_alike(
+        "AppData/Local/Yarn/Cache",
+        "v6/npm-a.tgz",
+        "yarn-cache",
+        "Documents/Yarn/Cache/pattern.pdf",
+    );
+    left_by_rule_but_not_look_alike(
+        ".bun/install/cache",
+        "a.tgz",
+        "bun-cache",
+        "Documents/install/cache/a.txt",
+    );
+}
+
+#[test]
+fn gradle_versions_downloaded_by_the_wrapper_are_left() {
+    left_by_rule_but_not_look_alike(
+        ".gradle/wrapper/dists",
+        "gradle-8.10-bin/gradle.zip",
+        "gradle-wrapper-dists",
+        "Documents/wrapper/dists/plan.pdf",
+    );
+}
+
+#[test]
+fn jetbrains_caches_are_left_but_not_its_settings() {
+    left_by_rule_but_not_look_alike(
+        "AppData/Local/JetBrains/IdeaIC2026.2/caches",
+        "content.dat",
+        "jetbrains-caches",
+        "AppData/Roaming/JetBrains/IdeaIC2026.2/options/editor.xml",
+    );
+}
+
 // Recipes: applications found on the profile, and the paths their `copy`
 // and `skip` steps settle.
 
@@ -1501,6 +1573,100 @@ fn an_application_folder_outside_appdata_is_not_taken_for_one() {
         plan.nodes()
             .iter()
             .all(|n| n.unit != Some(unknown_application()))
+    );
+}
+
+fn shared_folder_part() -> UnitReason {
+    UnitReason::Part {
+        rule: "appdata-shared-folders".to_owned(),
+        key: "unknown-application".to_owned(),
+    }
+}
+
+#[test]
+fn microsofts_folder_in_appdata_is_cut_into_one_card_per_application() {
+    let plan = cut(&MemTree::new()
+        .file("AppData/Local/Microsoft/Windows/Fonts/my-font.ttf", 5_000)
+        .file(
+            "AppData/Local/Microsoft/Edge/User Data/Default/IndexedDB/x",
+            3_000,
+        )
+        .file("AppData/Local/Microsoft/Tiny/a.json", 10)
+        .file("AppData/Local/Microsoft/Small/b.json", 20));
+
+    assert_eq!(
+        unit_of(&plan, "AppData/Local/Microsoft/Windows"),
+        shared_folder_part()
+    );
+    assert_eq!(
+        proposed(&plan, "AppData/Local/Microsoft/Edge"),
+        Some(Decision::Archive)
+    );
+    assert_eq!(
+        unit_of(&plan, "AppData/Local/Microsoft"),
+        UnitReason::Rule {
+            rule: "appdata-shared-folders".to_owned(),
+            key: "other-applications".to_owned(),
+            propose: None,
+        }
+    );
+    assert_eq!(node(&plan, "AppData/Local/Microsoft").stats.bytes, 30);
+}
+
+#[test]
+fn store_application_data_is_cut_into_one_card_per_package() {
+    let plan = cut(&MemTree::new()
+        .file(
+            "AppData/Local/Packages/5319275A.WhatsApp_cv1g1/LocalState/m.db",
+            5_000,
+        )
+        .file(
+            "AppData/Local/Packages/SpotifyAB.Spotify_zpdn/LocalState/c",
+            4_000,
+        ));
+
+    for package in ["5319275A.WhatsApp_cv1g1", "SpotifyAB.Spotify_zpdn"] {
+        assert_eq!(
+            unit_of(&plan, &format!("AppData/Local/Packages/{package}")),
+            shared_folder_part()
+        );
+    }
+}
+
+#[test]
+fn installers_and_components_microsoft_and_windows_bring_back_are_proposed_to_leave() {
+    let plan = cut(&MemTree::new()
+        .file("AppData/Local/Microsoft/WinGet/Packages/tool/tool.exe", 50)
+        .file(
+            "AppData/Local/Microsoft/TeamsMeetingAdd-in/1.0/addin.dll",
+            50,
+        )
+        .file(
+            "AppData/Local/Microsoft/TeamsMeetingAddinMsis/setup.msi",
+            50,
+        )
+        .file("AppData/Local/JxBrowser/7.21/chromium.dll", 50)
+        .file(
+            "AppData/Local/Packages/MicrosoftWindows.Client.CBS_cw5n1h2txyewy/LocalState/s",
+            50,
+        )
+        .file(
+            "AppData/Local/Packages/MicrosoftWindows.Photos_8wek/LocalState/p",
+            5_000,
+        ));
+
+    for path in [
+        "AppData/Local/Microsoft/WinGet",
+        "AppData/Local/Microsoft/TeamsMeetingAdd-in",
+        "AppData/Local/Microsoft/TeamsMeetingAddinMsis",
+        "AppData/Local/JxBrowser",
+        "AppData/Local/Packages/MicrosoftWindows.Client.CBS_cw5n1h2txyewy",
+    ] {
+        assert_eq!(proposed(&plan, path), Some(Decision::Leave), "{path}");
+    }
+    assert_eq!(
+        proposed(&plan, "AppData/Local/Packages/MicrosoftWindows.Photos_8wek"),
+        None
     );
 }
 
