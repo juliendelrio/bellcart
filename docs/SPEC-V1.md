@@ -200,8 +200,9 @@ The engine is a library. Two front ends use it:
   outdated one.
 
 The interface is a five-step assistant: choose, analyse, review, check,
-export. The check step is a read-only summary of the plan before anything
-is written (D38).
+export. The check step is a summary of the plan before anything is
+written (D38). It is also where the user says which programs found
+installed to install again (D39); that choice changes no folder decision.
 The review screen is the product:
 
 - three carts with running totals in GB;

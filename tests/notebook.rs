@@ -25,7 +25,7 @@ fn notebook_for(tree: &MemTree) -> Notebook {
         &Progress::default(),
     )
     .expect("the scan succeeds");
-    notebook(&scan.plan.applications, &pack.recipes)
+    notebook(&scan.plan, &pack.recipes)
 }
 
 fn names(chapters: &[Chapter]) -> Vec<&str> {
@@ -107,4 +107,41 @@ fn leaving_the_google_drive_cache_comes_with_a_check_before_leaving() {
     assert!(book.after[0].tasks.contains(&Task::Install {
         winget: "Google.GoogleDrive".to_owned()
     }));
+}
+
+#[test]
+fn programs_not_decided_are_to_decide_before_leaving() {
+    let book = notebook_for(
+        &MemTree::new()
+            .file("AppData/Local/Programs/GIMP 3/gimp.exe", 1)
+            .file("AppData/Local/slack/slack.exe", 1),
+    );
+    assert_eq!(book.undecided, ["GIMP 3", "Slack"]);
+    assert!(book.reinstall.is_empty());
+    assert!(!book.is_empty());
+}
+
+#[test]
+fn only_the_programs_the_user_wants_are_to_install_again() {
+    use bellcart::plan::Reinstall;
+    let tree = MemTree::new()
+        .file("AppData/Local/Programs/GIMP 3/gimp.exe", 1)
+        .file("AppData/Local/Programs/Meld/meld.exe", 1)
+        .file("AppData/Local/Programs/Zettlr/zettlr.exe", 1);
+    let pack = common::core_pack();
+    let mut plan = scan_with(
+        &tree,
+        Path::new(""),
+        &common::core_rules(),
+        &Recipes::default(),
+        &SplitBudget::default(),
+        &Progress::default(),
+    )
+    .unwrap()
+    .plan;
+    plan.set_reinstall("AppData/Local/Programs/GIMP 3", Reinstall::Yes);
+    plan.set_reinstall("AppData/Local/Programs/Meld", Reinstall::No);
+    let book = notebook(&plan, &pack.recipes);
+    assert_eq!(book.reinstall, ["GIMP 3"]);
+    assert_eq!(book.undecided, ["Zettlr"]);
 }

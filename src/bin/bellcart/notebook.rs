@@ -2,7 +2,7 @@
 
 use std::fmt::Write as _;
 
-use bellcart::notebook::{Chapter, Notebook, Task};
+use bellcart::notebook::{Notebook, Task};
 use fluent_bundle::FluentValue;
 
 use crate::i18n::Localizer;
@@ -36,32 +36,79 @@ struct Line {
 
 pub fn render(notebook: &Notebook, root: &str, text: &Localizer, format: Format) -> String {
     let title = text.with("notebook-title", &[("root", root.into())]);
-    let mut sections = Vec::new();
-    for (key, chapters) in [
-        ("notebook-before", &notebook.before),
-        ("notebook-after", &notebook.after),
+    // Each section holds blocks: one per application, then the programs.
+    let mut sections: Vec<(String, Vec<Block>)> = Vec::new();
+    for (key, chapters, programs, block_key, line_key) in [
+        (
+            "notebook-before",
+            &notebook.before,
+            &notebook.undecided,
+            "notebook-programs-undecided",
+            "notebook-program-decide",
+        ),
+        (
+            "notebook-after",
+            &notebook.after,
+            &notebook.reinstall,
+            "notebook-programs-reinstall",
+            "notebook-program-install",
+        ),
     ] {
-        if !chapters.is_empty() {
-            sections.push((text.get(key), chapters));
+        let mut blocks: Vec<Block> = chapters
+            .iter()
+            .map(|chapter| Block {
+                title: chapter.name.get(text.lang()).to_owned(),
+                lines: chapter.tasks.iter().map(|task| line(task, text)).collect(),
+            })
+            .collect();
+        if !programs.is_empty() {
+            blocks.push(Block {
+                title: text.get(block_key),
+                lines: programs
+                    .iter()
+                    .map(|name| Line {
+                        sentence: text.with(line_key, &[("name", name.as_str().into())]),
+                        code: None,
+                    })
+                    .collect(),
+            });
+        }
+        if !blocks.is_empty() {
+            sections.push((text.get(key), blocks));
         }
     }
-    let lines = |chapter: &Chapter| -> Vec<Line> {
-        chapter.tasks.iter().map(|task| line(task, text)).collect()
-    };
 
     match format {
         Format::Markdown => {
-            let mut out = format!("# {}\n\n", markdown(&title));
+            let mut out = format!(
+                "# {}
+
+",
+                markdown(&title)
+            );
             if notebook.is_empty() {
                 let _ = writeln!(out, "{}", markdown(&text.get("notebook-empty")));
                 return out;
             }
             let _ = writeln!(out, "{}", markdown(&text.get("notebook-intro")));
-            for (heading, chapters) in sections {
-                let _ = write!(out, "\n## {}\n", markdown(&heading));
-                for chapter in chapters {
-                    let _ = write!(out, "\n### {}\n\n", markdown(chapter.name.get(text.lang())));
-                    for line in lines(chapter) {
+            for (heading, blocks) in sections {
+                let _ = write!(
+                    out,
+                    "
+## {}
+",
+                    markdown(&heading)
+                );
+                for block in blocks {
+                    let _ = write!(
+                        out,
+                        "
+### {}
+
+",
+                        markdown(&block.title)
+                    );
+                    for line in block.lines {
                         let code = line.code.map(|c| format!("`{c}`")).unwrap_or_default();
                         let _ = writeln!(
                             out,
@@ -77,9 +124,17 @@ pub fn render(notebook: &Notebook, root: &str, text: &Localizer, format: Format)
             let mut out = String::new();
             let _ = write!(
                 out,
-                "<!doctype html>\n<html lang=\"{}\">\n<head>\n<meta charset=\"utf-8\">\n\
-                 <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
-                 <title>{}</title>\n<style>{STYLE}</style>\n</head>\n<body>\n<h1>{}</h1>\n",
+                "<!doctype html>
+<html lang=\"{}\">
+<head>
+<meta charset=\"utf-8\">
+                 <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+                 <title>{}</title>
+<style>{STYLE}</style>
+</head>
+<body>
+<h1>{}</h1>
+",
                 text.lang(),
                 html(&title),
                 html(&title)
@@ -89,15 +144,16 @@ pub fn render(notebook: &Notebook, root: &str, text: &Localizer, format: Format)
             } else {
                 let _ = writeln!(out, "<p>{}</p>", html(&text.get("notebook-intro")));
             }
-            for (heading, chapters) in sections {
+            for (heading, blocks) in sections {
                 let _ = writeln!(out, "<h2>{}</h2>", html(&heading));
-                for chapter in chapters {
+                for block in blocks {
                     let _ = writeln!(
                         out,
-                        "<h3>{}</h3>\n<ul>",
-                        html(chapter.name.get(text.lang()))
+                        "<h3>{}</h3>
+<ul>",
+                        html(&block.title)
                     );
-                    for line in lines(chapter) {
+                    for line in block.lines {
                         let code = line
                             .code
                             .map(|c| format!("<code>{}</code>", html(&c)))
@@ -111,10 +167,20 @@ pub fn render(notebook: &Notebook, root: &str, text: &Localizer, format: Format)
                     let _ = writeln!(out, "</ul>");
                 }
             }
-            out.push_str("</body>\n</html>\n");
+            out.push_str(
+                "</body>
+</html>
+",
+            );
             out
         }
     }
+}
+
+/// A titled checklist: an application's tasks, or the programs.
+struct Block {
+    title: String,
+    lines: Vec<Line>,
 }
 
 const STYLE: &str = "body{font-family:system-ui,sans-serif;max-width:46rem;margin:2rem auto;\

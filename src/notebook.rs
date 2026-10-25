@@ -1,12 +1,13 @@
 //! The migration notebook: the human half of the output. What to do by
 //! hand before leaving the old PC and on arrival on the new one, taken from
-//! the recipes of the applications found.
+//! the recipes of the applications found, and the programs to install
+//! again.
 //!
 //! The engine only gathers the tasks. Their wording, the language and the
 //! format (Markdown, HTML) belong to the front ends.
 
 use crate::pack::{Name, Recipe, Step, Text};
-use crate::plan::Application;
+use crate::plan::{Plan, Reinstall};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Notebook {
@@ -14,6 +15,11 @@ pub struct Notebook {
     pub before: Vec<Chapter>,
     /// On arrival on the new PC.
     pub after: Vec<Chapter>,
+    /// Programs found installed that the user has not decided about yet:
+    /// to settle before leaving the old PC. By name, in plan order.
+    pub undecided: Vec<String>,
+    /// Programs the user wants on the new PC, to install again there.
+    pub reinstall: Vec<String>,
 }
 
 /// The tasks of one application, in the order of its recipe.
@@ -46,15 +52,25 @@ pub enum Task {
 
 impl Notebook {
     pub fn is_empty(&self) -> bool {
-        self.before.is_empty() && self.after.is_empty()
+        self.before.is_empty()
+            && self.after.is_empty()
+            && self.undecided.is_empty()
+            && self.reinstall.is_empty()
     }
 }
 
-/// The notebook for the `applications` found, in their order, from the
-/// pack's `recipes`.
-pub fn notebook(applications: &[Application], recipes: &[Recipe]) -> Notebook {
+/// The notebook for a plan: the tasks of the applications found, in their
+/// order, from the pack's `recipes`, and the programs to install again.
+pub fn notebook(plan: &Plan, recipes: &[Recipe]) -> Notebook {
     let mut out = Notebook::default();
-    for application in applications {
+    for program in &plan.programs {
+        match program.reinstall {
+            Reinstall::Undecided => out.undecided.push(program.name.clone()),
+            Reinstall::Yes => out.reinstall.push(program.name.clone()),
+            Reinstall::No => {}
+        }
+    }
+    for application in &plan.applications {
         let Some(recipe) = recipes.iter().find(|r| r.id == application.recipe) else {
             continue;
         };

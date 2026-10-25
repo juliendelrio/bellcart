@@ -545,10 +545,14 @@ function attentionView() {
   if (leftInPersonal.length) {
     points.push(attention("info", plural(leftInPersonal.length, "ui-summary-left-personal-one", "ui-summary-left-personal-other", { size: sum(leftInPersonal) }), leftInPersonal));
   }
+  const undecidedPrograms = (review.programs || []).filter((p) => p.reinstall === "undecided");
+  if (undecidedPrograms.length) {
+    points.push(attention("info", plural(undecidedPrograms.length, "ui-summary-programs-undecided-one", "ui-summary-programs-undecided-other"), []));
+  }
   if (review.unreadable) {
     points.push(attention("warn", plural(review.unreadable, "ui-summary-unreadable-one", "ui-summary-unreadable-other"), []));
   }
-  return h("section", { class: "panel stack", "aria-labelledby": "attention-title" },
+  return h("section", { id: "attention", class: "panel stack", "aria-labelledby": "attention-title" },
     h("h2", { id: "attention-title" }, t("ui-summary-attention")),
     points.length ? h("ul", { class: "points" }, points) : h("p", { class: "ok" }, t("ui-summary-all-clear")));
 }
@@ -572,6 +576,36 @@ function largestView() {
     h("div", { class: "columns" }, ["migrate", "archive", "leave"].map(column)));
 }
 
+// Programs found installed: whether each one is wanted on the new PC.
+// The choice changes no folder decision, so only the points are redrawn.
+function programsView() {
+  const programs = review.programs || [];
+  if (!programs.length) return null;
+  const choices = ["yes", "no", "undecided"];
+  return h("section", { class: "panel stack", "aria-labelledby": "programs-title" },
+    h("h2", { id: "programs-title" }, t("ui-summary-programs")),
+    h("p", { class: "muted small" }, t("ui-summary-programs-help")),
+    h("ul", { class: "list programs" }, programs.map((p) => h("li", {},
+      h("span", { title: p.path }, p.name),
+      h("select", {
+        "aria-label": t("ui-reinstall-for", { name: p.name }),
+        "data-path": p.path,
+        onchange: (e) => setReinstall(p.path, e.target.value),
+      }, choices.map((c) => h("option", { value: c, selected: c === p.reinstall }, t(`ui-reinstall-${c}`))))))));
+}
+
+async function setReinstall(path, reinstall) {
+  try {
+    const savedTo = review.saved_to;
+    review = await api("POST", "/api/reinstall", { path, reinstall });
+    review.saved_to = savedTo;
+    if (review.save_error) toast(t("ui-save-failed", { error: review.save_error }));
+    document.getElementById("attention")?.replaceWith(attentionView());
+  } catch (error) {
+    toast(t("ui-error", { error: error.message }));
+  }
+}
+
 function summaryStep() {
   step = "summary";
   scope = null;
@@ -583,6 +617,7 @@ function summaryStep() {
     splitView(),
     attentionView(),
     largestView(),
+    programsView(),
     review.applications.length ? h("p", { class: "small" }, t("ui-summary-applications", { names: review.applications.join(", ") })) : null,
     h("div", { class: "row" },
       h("button", { class: "primary", type: "button", onclick: exportStep }, t("ui-summary-confirm")),
