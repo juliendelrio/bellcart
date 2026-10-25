@@ -408,3 +408,16 @@ Functional Source License, which turns each version into Apache-2.0 after
 two years, was the other candidate; the n8n model was preferred for its
 simpler, lasting split between free and paid uses. Not legal advice: a
 lawyer should read the texts before the first commercial agreement.
+
+**D36. Folders that hold many applications are cut like AppData, and
+Windows components may be proposed to leave.**
+`AppData/Local/Microsoft` and `AppData/Local/Packages` (Microsoft Store
+application data) hold many applications each. Judged as one unknown
+application, they made a card nobody could decide. They are now cut into
+parts like AppData: a large application has its own card, small ones
+share the folder's card. Known parts come with a proposal: WinGet and the
+Teams meeting add-in are reinstalled, and the Windows shell's data
+(`MicrosoftWindows.Client.CBS_*`) is rebuilt by Windows, so
+`system-managed` joins the reasons allowed to propose leave. On the
+developer profile this adds five cards, each now named, and moves no byte
+between carts.

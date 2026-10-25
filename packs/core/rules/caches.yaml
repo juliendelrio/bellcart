@@ -107,3 +107,19 @@ rules:
     reason: cloud-sync-cache
     match:
       path_glob: "**/AppData/Local/Google/DriveFS"
+
+  # Thumbnail and icon caches of File Explorer.
+  - id: explorer-thumbnail-cache
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/AppData/Local/Microsoft/Windows/Explorer"
+
+  # Caches of Python tools. Each writes a CACHEDIR.TAG, which a folder of
+  # the same name made by hand would not have.
+  - id: python-tool-caches
+    decision: leave
+    reason: application-cache
+    match:
+      name_in: [.pytest_cache, .mypy_cache, .ruff_cache]
+      contains: [CACHEDIR.TAG]

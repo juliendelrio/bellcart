@@ -273,3 +273,40 @@ rules:
     reason: app-virtual-disks
     match:
       path_glob: "**/AppData/Local/Packages/CanonicalGroupLimited.*"
+
+  # Packages winget installed without an installer, and its logs: the list
+  # saved by the winget recipe installs them again.
+  - id: app-winget
+    decision: review
+    name: WinGet
+    propose: leave
+    reason: installed-program
+    match:
+      path_glob: "**/AppData/Local/Microsoft/WinGet"
+
+  - id: app-teams-meeting-add-in
+    decision: review
+    name: Teams meeting add-in
+    propose: leave
+    reason: installed-program
+    match:
+      path_glob: "**/AppData/Local/Microsoft/{TeamsMeetingAdd-in,TeamsMeetingAddinMsis}"
+
+  # The Chromium engine Java applications unpack on first start.
+  - id: app-jxbrowser
+    decision: review
+    name: JxBrowser
+    propose: leave
+    reason: app-downloaded-tools
+    match:
+      path_glob: "**/AppData/Local/JxBrowser"
+
+  # The data of the Windows shell (search, notifications, input): Windows
+  # creates it again on the new PC.
+  - id: app-windows-shell
+    decision: review
+    name: Windows shell
+    propose: leave
+    reason: system-managed
+    match:
+      path_glob: "**/AppData/Local/Packages/MicrosoftWindows.Client.CBS_*"
