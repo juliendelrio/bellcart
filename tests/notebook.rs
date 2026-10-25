@@ -75,6 +75,18 @@ fn skip_steps_are_not_tasks() {
 }
 
 #[test]
+fn extensions_saved_before_leaving_are_installed_again_on_arrival() {
+    let book = notebook_for(&MemTree::new().file("AppData/Roaming/Code/User/settings.json", 1));
+    let arrival = &book.after[0];
+    assert_eq!(arrival.recipe, "vscode");
+    assert!(arrival.tasks.iter().any(|t| matches!(
+        t,
+        Task::Manual(text) if text.en.contains("code --install-extension")
+            && text.en.contains("vscode-extensions.txt")
+    )));
+}
+
+#[test]
 fn an_application_without_steps_on_one_side_has_no_chapter_there() {
     // The winget recipe only exports before, and only explains after.
     let book = notebook_for(&MemTree::new().link("AppData/Local/Microsoft/WindowsApps/winget.exe"));
