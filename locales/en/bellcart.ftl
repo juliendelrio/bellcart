@@ -7,6 +7,10 @@ decision-review = To review
 
 plan-title = Plan for { $root }
 plan-settled = Settled by rules and recipes
+plan-settled-empty = { $count ->
+    [one] and 1 empty folder, not listed
+   *[other] and { $count } empty folders, not listed
+}
 plan-nothing-settled = No rule matched anything here.
 plan-unreadable = { $count ->
     [one] { $count } folder could not be read.

@@ -63,6 +63,10 @@ pub fn plan(plan: &Plan, recipes: &[Recipe], text: &Localizer) -> String {
         let _ = writeln!(out, "{}", text.get("plan-nothing-settled"));
     } else {
         let _ = writeln!(out, "{}", text.get("plan-settled"));
+        // Empty folders a rule settled are right, but a line each is noise.
+        let (empty, settled): (Vec<&PlanNode>, Vec<&PlanNode>) = settled
+            .into_iter()
+            .partition(|n| n.stats.bytes == 0 && n.stats.files == 0);
         for node in settled {
             let Some(why) = why(node, plan, recipes, text) else {
                 continue;
@@ -73,6 +77,13 @@ pub fn plan(plan: &Plan, recipes: &[Recipe], text: &Localizer) -> String {
                 "  {:>10}  {label:<width$}  {}  ({why})",
                 human_bytes(node.stats.bytes),
                 node.path,
+            );
+        }
+        if !empty.is_empty() {
+            let _ = writeln!(
+                out,
+                "  {}",
+                text.with("plan-settled-empty", &[("count", empty.len().into())])
             );
         }
     }
