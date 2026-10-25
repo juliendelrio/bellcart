@@ -421,3 +421,18 @@ Teams meeting add-in are reinstalled, and the Windows shell's data
 `system-managed` joins the reasons allowed to propose leave. On the
 developer profile this adds five cards, each now named, and moves no byte
 between carts.
+
+**D37. Dot folders at the profile root are judged whole, one card per
+tool, and small ones join the profile's card.**
+`.cache`, `.cargo`, `.local`, `.vscode` and the like are tool data, as
+AppData is, but were cut by size into cards that meant little. A new rule
+field, `fold_small`, makes a folder one unit judged whole, like a part,
+which joins the card above when it is under `min_unit`: a dozen tiny dot
+folders would otherwise make a dozen cards. Only the root is concerned
+(`path_glob: ".*"`); a `.git` inside a project is cut as before. Rules
+inside still apply, and the rules for keys come first, so `.ssh` stays
+migrated. Known dot folders get a card with a proposal: `.vscode`
+(extensions, brought back by the list the recipe saves), `.cargo/bin` and
+`.local/bin` (installed tools), `.cache` (by convention, caches) to leave;
+`.docker` and `.rustup` settings to migrate. The plan format is unchanged:
+these units are parts.

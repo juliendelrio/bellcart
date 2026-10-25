@@ -122,6 +122,7 @@ fn a_rule_that_proposes_to_leave_says_where_the_data_is() {
         "app-downloaded-tools",
         "application-cache",
         "system-managed",
+        "app-extensions",
     ];
     for rule in &common::core_pack().rules {
         if rule.propose == Some(bellcart::plan::Decision::Leave) {

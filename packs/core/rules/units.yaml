@@ -25,3 +25,14 @@ rules:
     parts: unknown-application
     match:
       path_glob: "**/AppData/Local/{Microsoft,Packages}"
+
+  # Dot folders at the root of the profile: settings and data of
+  # command-line tools and editors, like AppData. Each is judged whole;
+  # one too small for a card of its own joins the profile's card. Known
+  # ones (apps.yaml) and keys (credentials.yaml) are matched first.
+  - id: root-dot-folders
+    decision: review
+    reason: tool-folder
+    fold_small: true
+    match:
+      path_glob: ".*"

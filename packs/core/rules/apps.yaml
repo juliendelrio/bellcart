@@ -310,3 +310,61 @@ rules:
     reason: system-managed
     match:
       path_glob: "**/AppData/Local/Packages/MicrosoftWindows.Client.CBS_*"
+
+  # Dot folders at the profile root.
+
+  # Extensions from the marketplace come back from the list the VS Code
+  # recipe saves before leaving.
+  - id: app-vscode-extensions
+    decision: review
+    name: Visual Studio Code extensions
+    propose: leave
+    reason: app-extensions
+    match:
+      path_glob: ".vscode"
+
+  # Tools installed with `cargo install`. The registry and git caches next
+  # to it are left by dev.yaml; the settings stay on the Cargo card.
+  - id: app-cargo-tools
+    decision: review
+    name: Cargo tools
+    propose: leave
+    reason: installed-program
+    match:
+      path_glob: ".cargo/bin"
+
+  - id: app-local-bin
+    decision: review
+    name: Command-line tools
+    propose: leave
+    reason: installed-program
+    match:
+      path_glob: ".local/bin"
+
+  # By convention, what a tool keeps in ~/.cache it can download or build
+  # again.
+  - id: app-dot-cache
+    decision: review
+    name: Tool caches
+    propose: leave
+    reason: application-cache
+    match:
+      path_glob: ".cache"
+
+  # Settings, contexts and registry logins of the Docker command line.
+  - id: app-docker-cli
+    decision: review
+    name: Docker CLI
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: ".docker"
+
+  # The toolchains are left by dev.yaml; what remains is rustup's settings.
+  - id: app-rustup
+    decision: review
+    name: rustup
+    propose: migrate
+    reason: app-settings
+    match:
+      path_glob: ".rustup"

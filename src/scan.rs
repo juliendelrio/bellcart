@@ -371,6 +371,14 @@ impl Walker<'_> {
                             Item::Recognised(walked)
                         }
                     }
+                    // Judged whole like a part, and folded above when small,
+                    // such as a tool's dot folder at the profile root.
+                    Some(rule) if rule.fold_small => {
+                        Item::Review(walk(Mode::Unit(UnitReason::Part {
+                            rule: rule.id.clone(),
+                            key: rule.reason.clone(),
+                        })))
+                    }
                     Some(rule) => {
                         let mut walked = walk(Mode::Unit(UnitReason::Rule {
                             rule: rule.id.clone(),
