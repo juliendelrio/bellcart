@@ -94,7 +94,9 @@ To review, folder by folder
   by hand before leaving the old PC and on arrival, for each application
   found. A name ending in `.html` gives a page with checkboxes, any other
   gives Markdown. Bellcart refuses to write any file inside the folder it
-  scans.
+  scans. For a whole drive, prefer a USB drive; if none is at hand, its
+  own folder at the drive root (`C:\bellcart-export`) is the one
+  exception, and the plan migrates it.
 - `bellcart export <profile> --to <folder>` runs the exports the recipes
   ask for (the winget list of applications, VS Code extensions, registry
   keys). Each command is shown in full and runs only if you answer yes.

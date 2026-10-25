@@ -8,6 +8,16 @@
 # What no rule here knows stays to review: a folder a person created at
 # the drive root (C:\dev, C:\Photos) is personal until proven otherwise.
 rules:
+  # The one folder Bellcart creates on a drive it scans (its plan, notebook
+  # and saved decisions), when no other drive was at hand. They are needed
+  # on the new PC.
+  - id: drive-bellcart-export
+    scope: drive
+    decision: migrate
+    reason: bellcart-export
+    match:
+      path_glob: "bellcart-export"
+
   - id: drive-windows
     scope: drive
     decision: leave

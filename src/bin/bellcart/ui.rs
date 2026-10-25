@@ -403,6 +403,13 @@ impl App {
         let mut model = review_model(scan, &self.library, text);
         model["resumed"] = json!(session.resumed);
         model["saved_to"] = json!(session.saved.as_ref().map(|(f, _)| f.display().to_string()));
+        if let Some(profile) = &session.profile {
+            // On a drive scan with no other drive at hand, the proposal is
+            // Bellcart's own folder on the scanned drive.
+            let export = default_export(profile);
+            model["export_local"] = json!(export.starts_with(profile));
+            model["export"] = json!(export.display().to_string());
+        }
         (200, model)
     }
 
@@ -497,11 +504,20 @@ impl App {
             return error(409, "nothing scanned yet");
         };
         if crate::outside(profile, &folder.join("plan.json")).is_err() {
+            let own = profile.join(crate::OWN_FOLDER);
+            let key = if profile.parent().is_none() {
+                "ui-export-inside-drive"
+            } else {
+                "ui-export-inside"
+            };
             return error(
                 400,
                 text.with(
-                    "ui-export-inside",
-                    &[("profile", profile.display().to_string().into())],
+                    key,
+                    &[
+                        ("profile", profile.display().to_string().into()),
+                        ("own", own.display().to_string().into()),
+                    ],
                 ),
             );
         }
@@ -831,12 +847,13 @@ fn write_exports(
     Ok(files)
 }
 
-/// A folder outside the profile to propose for the exports: next to where
-/// Bellcart was started when that is outside the profile, else at the root
-/// of the profile's drive.
+/// A folder to propose for the exports: next to where Bellcart was started
+/// when that is outside the scanned folder (a USB drive it runs from), else
+/// at the root of the drive. On a drive scan, that is Bellcart's own folder
+/// on the scanned drive, the one place there it may write.
 fn default_export(profile: &Path) -> PathBuf {
     let here = std::env::current_dir().unwrap_or_default();
-    let probe = here.join("bellcart-export");
+    let probe = here.join(crate::OWN_FOLDER);
     if crate::outside(profile, &probe).is_ok() {
         return probe;
     }
@@ -844,7 +861,7 @@ fn default_export(profile: &Path) -> PathBuf {
         .ancestors()
         .last()
         .map_or_else(|| PathBuf::from("/"), Path::to_path_buf);
-    root.join("bellcart-export")
+    root.join(crate::OWN_FOLDER)
 }
 
 /// Adds headers. They are fixed strings in this file, so each one builds;
