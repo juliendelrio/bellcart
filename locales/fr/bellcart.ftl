@@ -5,6 +5,10 @@ decision-review = À examiner
 
 plan-title = Plan pour { $root }
 plan-settled = Décidé par les règles et les recettes
+plan-settled-empty = { $count ->
+    [one] et { $count } dossier vide, non listé
+   *[other] et { $count } dossiers vides, non listés
+}
 plan-nothing-settled = Aucune règle ne s'applique ici.
 plan-unreadable = { $count ->
     [one] { $count } dossier illisible.

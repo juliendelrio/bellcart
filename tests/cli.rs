@@ -123,6 +123,24 @@ fn profile_and_outputs(name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
 }
 
 #[test]
+fn empty_folders_settled_by_a_rule_are_counted_not_listed() {
+    let base = fresh_dir("empty-settled");
+    std::fs::create_dir_all(base.join("AppData/Local/Temp")).unwrap();
+    std::fs::create_dir_all(base.join("AppData/Local/CrashDumps")).unwrap();
+    std::fs::create_dir_all(base.join("dev/node_modules/x")).unwrap();
+    std::fs::write(base.join("dev/node_modules/x/index.js"), "1").unwrap();
+    let output = bellcart(&["--lang", "en", "scan", base.to_str().unwrap()]);
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("dev/node_modules"), "{stdout}");
+    assert!(!stdout.contains("AppData/Local/Temp"), "{stdout}");
+    assert!(
+        stdout.contains("and 2 empty folders, not listed"),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn scan_writes_a_markdown_notebook_in_the_chosen_language() {
     let (profile, outputs) = profile_and_outputs("notebook-md");
     let file = outputs.join("carnet.md");
