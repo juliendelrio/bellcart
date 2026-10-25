@@ -85,8 +85,25 @@ pub struct Rule {
     /// card. Not with `name`, `propose` or `parts`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub fold_small: bool,
+    /// The folder shows an installed program, which goes on the plan's
+    /// list of programs to install again (`Plan::programs`). Any decision.
+    /// Not with `fold_small`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub program: Option<ProgramAt>,
     #[serde(rename = "match")]
     pub matcher: Matcher,
+}
+
+/// Where a rule finds installed programs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum ProgramAt {
+    /// The folder itself is one program, named by the rule's `name` or by
+    /// the folder name.
+    Folder,
+    /// Each sub-folder is one program, named by its folder name, such as
+    /// in `AppData/Local/Programs`.
+    Each,
 }
 
 /// Conditions on a folder. All the conditions given must hold.
@@ -503,6 +520,12 @@ impl RuleSet {
                         .to_owned(),
                 ));
             }
+            if rule.fold_small && rule.program.is_some() {
+                return Err(fail(
+                    "a rule with `fold_small` is a kind of folder: it names no `program`"
+                        .to_owned(),
+                ));
+            }
             if rule.propose == Some(Decision::Review) {
                 return Err(fail(
                     "`propose` must be a decision, not `review`".to_owned(),
@@ -635,10 +658,13 @@ mod tests {
             "{id: x, decision: leave, fold_small: true, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, fold_small: true, name: A, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, fold_small: true, parts: p, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, fold_small: true, program: folder, reason: r, match: {name_in: [a]}}",
         ] {
             assert!(RuleSet::compile(&[rule(yaml)]).is_err(), "{yaml}");
         }
         for yaml in [
+            "{id: x, decision: leave, program: each, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, name: A, program: folder, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, name: A, propose: leave, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, parts: p, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, fold_small: true, reason: r, match: {name_in: [a]}}",

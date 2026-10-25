@@ -71,6 +71,33 @@ pub struct Application {
     pub name: String,
 }
 
+/// A program a rule found installed, to install again on the new PC.
+/// Its files are not migrated: the installer brings them back.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Program {
+    /// Its folder, relative to the scan root.
+    pub path: String,
+    /// The rule's name for it, in English, or its folder name.
+    pub name: String,
+    /// The rule that found it.
+    pub rule: String,
+    #[serde(default)]
+    pub reinstall: Reinstall,
+}
+
+/// Whether the user wants a program on the new PC.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Reinstall {
+    /// The user has not said yet.
+    #[default]
+    Undecided,
+    /// Install it again on the new PC.
+    Yes,
+    /// Not needed on the new PC.
+    No,
+}
+
 /// Size figures for the files a node covers.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Stats {
@@ -269,6 +296,10 @@ pub struct Plan {
     /// Applications found on the profile, by recipe id.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub applications: Vec<Application>,
+    /// Programs found installed, by path: the list of what to install
+    /// again, with the user's choice for each.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub programs: Vec<Program>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -286,7 +317,9 @@ pub struct Totals {
 /// 6: a unit may be one because a rule recognised it (`UnitReason::Rule`,
 /// with the decision it proposes) or cut its parent one level
 /// (`UnitReason::Part`).
-pub const PLAN_VERSION: u32 = 6;
+/// 7: the plan lists the `programs` found installed, and whether to
+/// install each again.
+pub const PLAN_VERSION: u32 = 7;
 
 impl Plan {
     pub fn new(root: String, tree: PlanNode, split: Option<SplitBudget>) -> Self {
@@ -302,6 +335,20 @@ impl Plan {
             tree,
             split,
             applications: Vec::new(),
+            programs: Vec::new(),
+        }
+    }
+
+    /// Records whether the user wants the program at `path` on the new PC.
+    /// Returns `false` when the plan lists no program there. It changes no
+    /// folder decision: the program's files stay where the plan put them.
+    pub fn set_reinstall(&mut self, path: &str, reinstall: Reinstall) -> bool {
+        match self.programs.iter_mut().find(|p| p.path == path) {
+            Some(program) => {
+                program.reinstall = reinstall;
+                true
+            }
+            None => false,
         }
     }
 

@@ -80,6 +80,21 @@
         }
       ]
     },
+    "ProgramAt": {
+      "description": "Where a rule finds installed programs.",
+      "oneOf": [
+        {
+          "description": "The folder itself is one program, named by the rule's `name` or by\nthe folder name.",
+          "type": "string",
+          "const": "folder"
+        },
+        {
+          "description": "Each sub-folder is one program, named by its folder name, such as\nin `AppData/Local/Programs`.",
+          "type": "string",
+          "const": "each"
+        }
+      ]
+    },
     "Rule": {
       "description": "Settles a folder and everything under it.",
       "type": "object",
@@ -115,6 +130,17 @@
           "type": [
             "string",
             "null"
+          ]
+        },
+        "program": {
+          "description": "The folder shows an installed program, which goes on the plan's\nlist of programs to install again (`Plan::programs`). Any decision.\nNot with `fold_small`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProgramAt"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "propose": {

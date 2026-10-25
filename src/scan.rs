@@ -21,12 +21,13 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use rayon::prelude::*;
 
-use crate::pack::RuleSet;
-use crate::plan::{Decision, Plan, PlanNode, Source, SplitBudget, Stats, UnitReason};
+use crate::pack::{ProgramAt, Rule, RuleSet};
+use crate::plan::{Decision, Plan, PlanNode, Program, Source, SplitBudget, Stats, UnitReason};
 use crate::recipe::{Planned, Recipes, keeps_more};
 use crate::signature::{Named, Sample};
 use crate::tree::{Entry, Kind, Tree};
@@ -84,6 +85,7 @@ pub fn scan_with(
         recipes,
         budget,
         progress,
+        programs: Mutex::default(),
     };
     let walked = walker.walk(root, String::new(), String::new(), 0, entries, Mode::Cut);
     // Folding a folder into a larger unit leaves its samples behind: keep
@@ -101,6 +103,14 @@ pub fn scan_with(
         Some(budget.clone()),
     );
     plan.applications = recipes.applications().to_vec();
+    // Sub-folders are walked in parallel: sort for a plan that does not
+    // depend on the number of threads.
+    let mut programs = walker
+        .programs
+        .into_inner()
+        .unwrap_or_else(|e| e.into_inner());
+    programs.sort_by(|a, b| a.path.cmp(&b.path));
+    plan.programs = programs;
     Ok(Scan { plan, samples })
 }
 
@@ -159,6 +169,8 @@ struct Walker<'a> {
     recipes: &'a Recipes,
     budget: &'a SplitBudget,
     progress: &'a Progress,
+    /// Programs the rules found installed, in no order.
+    programs: Mutex<Vec<Program>>,
 }
 
 /// A review folder once walked: its node, already cut, the figures of
@@ -313,8 +325,12 @@ impl Walker<'_> {
         let child_entries = self.list(&child_abs)?;
         let names: Vec<&str> = child_entries.iter().map(|e| e.name.as_str()).collect();
 
+        let found = self.rules.find(&child_rel, &name, &names);
+        if let Some(rule) = found {
+            self.note_programs(rule, &child_rel, &name, &child_entries);
+        }
         // A `review` rule settles nothing: it makes the folder one unit.
-        let (rule, recognised) = match self.rules.find(&child_rel, &name, &names) {
+        let (rule, recognised) = match found {
             Some(rule) if rule.decision == Decision::Review => (None, Some(rule)),
             other => (other, None),
         };
@@ -400,6 +416,35 @@ impl Walker<'_> {
                 }
             }
         })
+    }
+
+    /// Lists the programs `rule` finds in the folder at `rel`.
+    fn note_programs(&self, rule: &Rule, rel: &str, name: &str, entries: &[Entry]) {
+        let program = |path: String, name: String| Program {
+            path,
+            name,
+            rule: rule.id.clone(),
+            reinstall: Default::default(),
+        };
+        let found: Vec<Program> = match rule.program {
+            None => return,
+            Some(ProgramAt::Folder) => {
+                let named = rule.name.as_ref().map(|n| n.en().to_owned());
+                vec![program(
+                    rel.to_owned(),
+                    named.unwrap_or_else(|| name.to_owned()),
+                )]
+            }
+            Some(ProgramAt::Each) => entries
+                .iter()
+                .filter(|e| matches!(e.kind, Kind::Dir))
+                .map(|e| program(join(rel, &e.name), e.name.clone()))
+                .collect(),
+        };
+        // A poisoned lock only means another thread panicked: the list it
+        // holds is still whole.
+        let mut programs = self.programs.lock().unwrap_or_else(|e| e.into_inner());
+        programs.extend(found);
     }
 
     /// The recipe step on `rel` inside a folder settled as `decision`, if

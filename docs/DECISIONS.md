@@ -449,3 +449,16 @@ disk), and folders that could not be read. Each line leads back to its
 card or to its row in the settled list. The step reads the review model
 the page already has: it adds no API and no decision logic.
 
+**D39. Installed programs are a list in the plan, apart from the folders.**
+A program found installed (a folder in `AppData/Local/Programs`, a known
+program folder such as Slack's) is something to install again, not
+something to copy: its files come back with the installer. Folder
+decisions cannot say "install this again", and the reinstall question
+would otherwise be spread over many nodes. Plan version 7 adds
+`programs`: one entry per program, with its folder, its name, the rule
+that found it, and the user's choice (`undecided`, `yes`, `no`). Rules
+mark such folders with `program: folder` or `program: each`; the engine
+does not infer programs from a reason key, since reasons are only
+translation keys. Setting the choice never changes a folder decision.
+The same list will take the program folders of a drive scan (#75).
+

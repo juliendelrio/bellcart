@@ -20,6 +20,7 @@ rules:
     name: Slack
     propose: leave
     reason: installed-program
+    program: folder
     match:
       path_glob: "**/AppData/Local/slack"
 
@@ -36,6 +37,7 @@ rules:
     name: Discord
     propose: leave
     reason: installed-program
+    program: folder
     match:
       path_glob: "**/AppData/Local/Discord"
 
@@ -330,6 +332,7 @@ rules:
     name: Cargo tools
     propose: leave
     reason: installed-program
+    program: folder
     match:
       path_glob: ".cargo/bin"
 
@@ -338,6 +341,7 @@ rules:
     name: Command-line tools
     propose: leave
     reason: installed-program
+    program: folder
     match:
       path_glob: ".local/bin"
 

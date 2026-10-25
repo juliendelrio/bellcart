@@ -1795,3 +1795,99 @@ fn a_unit_does_not_list_a_sub_folder_whose_content_all_has_its_own_card() {
         .collect();
     assert_eq!(folders, ["Documents"]);
 }
+
+// Programs to install again: the folders that show a program is installed.
+
+#[test]
+fn each_folder_in_the_per_user_programs_folder_is_a_program_to_install_again() {
+    let plan = plan(
+        &MemTree::new()
+            .file("AppData/Local/Programs/Microsoft VS Code/Code.exe", 900)
+            .file("AppData/Local/Programs/Python/Python312/python.exe", 300)
+            .file("AppData/Local/Programs/readme.txt", 1),
+    );
+    let programs: Vec<(&str, &str, &str)> = plan
+        .programs
+        .iter()
+        .map(|p| (p.path.as_str(), p.name.as_str(), p.rule.as_str()))
+        .collect();
+    assert_eq!(
+        programs,
+        [
+            (
+                "AppData/Local/Programs/Microsoft VS Code",
+                "Microsoft VS Code",
+                "user-installed-programs"
+            ),
+            (
+                "AppData/Local/Programs/Python",
+                "Python",
+                "user-installed-programs"
+            ),
+        ]
+    );
+    // Listing them changes no decision: the folder is still left.
+    assert_eq!(
+        node(&plan, "AppData/Local/Programs").decision,
+        Decision::Leave
+    );
+    assert!(
+        plan.programs
+            .iter()
+            .all(|p| p.reinstall == bellcart::plan::Reinstall::Undecided)
+    );
+}
+
+#[test]
+fn a_known_program_folder_is_listed_under_its_name_and_keeps_its_card() {
+    let plan = plan(&MemTree::new().file("AppData/Local/slack/slack.exe", 900));
+    assert_eq!(plan.programs.len(), 1);
+    assert_eq!(plan.programs[0].path, "AppData/Local/slack");
+    assert_eq!(plan.programs[0].name, "Slack");
+    let card = node(&plan, "AppData/Local/slack");
+    assert_eq!(card.decision, Decision::Review);
+}
+
+#[test]
+fn a_folder_named_programs_elsewhere_lists_no_program() {
+    let plan = plan(&MemTree::new().file("Documents/Programs/Old tool/tool.exe", 900));
+    assert!(plan.programs.is_empty());
+    assert_eq!(node(&plan, "").decision, Decision::Review);
+}
+
+#[test]
+fn the_program_list_does_not_depend_on_the_number_of_threads() {
+    let tree = MemTree::new()
+        .file("AppData/Local/Programs/b/b.exe", 10)
+        .file("AppData/Local/Programs/a/a.exe", 10)
+        .file("AppData/Local/Discord/Discord.exe", 10)
+        .file("AppData/Local/slack/slack.exe", 10);
+    let one = rayon::ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build()
+        .unwrap()
+        .install(|| plan(&tree));
+    let many = plan(&tree);
+    assert_eq!(one.programs, many.programs);
+    let paths: Vec<&str> = many.programs.iter().map(|p| p.path.as_str()).collect();
+    assert_eq!(
+        paths,
+        [
+            "AppData/Local/Discord",
+            "AppData/Local/Programs/a",
+            "AppData/Local/Programs/b",
+            "AppData/Local/slack"
+        ]
+    );
+}
+
+#[test]
+fn the_user_choice_to_install_a_program_again_is_kept_in_the_plan() {
+    use bellcart::plan::Reinstall;
+    let mut plan = plan(&MemTree::new().file("AppData/Local/Programs/Python/python.exe", 10));
+    let totals = plan.totals.clone();
+    assert!(plan.set_reinstall("AppData/Local/Programs/Python", Reinstall::Yes));
+    assert_eq!(plan.programs[0].reinstall, Reinstall::Yes);
+    assert!(!plan.set_reinstall("AppData/Local/Programs/Nope", Reinstall::No));
+    assert_eq!(plan.totals, totals);
+}
