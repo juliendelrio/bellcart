@@ -77,8 +77,8 @@ Décidé par les règles et les recettes
   choisir le profil, l'analyser, décider dossier par dossier avec trois
   chariots et leurs totaux (cliquez un parent dans le chemin d'un dossier
   pour décider à partir de lui, avec tout son contenu), corriger ce que
-  les règles ont réglé, puis
-  exporter le plan et le carnet. Chaque décision est enregistrée aussitôt,
+  les règles ont réglé, vérifier un récapitulatif de ce qui part où et de
+  ce qui mérite un second regard, puis exporter le plan et le carnet. Chaque décision est enregistrée aussitôt,
   et la session suivante propose de reprendre. Elle ne tourne que sur cette machine.
   Ajoutez `--endpoint` et `--model` pour y proposer aussi un arbitre.
 - `bellcart scan <dossier>` affiche ce résumé ; `--json` affiche le plan

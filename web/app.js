@@ -1,4 +1,4 @@
-// Bellcart review interface: the four steps of the assistant.
+// Bellcart review interface: the five steps of the assistant.
 //
 // Every value from the scan (folder and file names) is personal data and
 // may hold any character. It is only ever put in the page as text, through
@@ -13,6 +13,7 @@ let skipped = new Set();
 let step = "choose";
 let settledOpen = false; // keep the settled list open across redraws
 let scope = null;    // a parent chosen in the card's path: { card, folder }
+let wanted = null;   // a card asked for from the summary, shown first
 
 // ---------------------------------------------------------------- helpers
 
@@ -100,7 +101,7 @@ function failure(error) {
 
 // ---------------------------------------------------------------- steps
 
-const STEPS = ["choose", "analyse", "review", "export"];
+const STEPS = ["choose", "analyse", "review", "summary", "export"];
 
 function renderSteps() {
   const list = document.getElementById("steps");
@@ -209,7 +210,8 @@ function inside(path, folder) {
 }
 
 function nextCard() {
-  return review.queue.find((c) => !skipped.has(c.path)) || review.queue[0];
+  return review.queue.find((c) => c.path === wanted)
+    || review.queue.find((c) => !skipped.has(c.path)) || review.queue[0];
 }
 
 // The folder a decision on this card applies to, and whether it is a parent.
@@ -316,13 +318,14 @@ function cardView(card) {
         onclick: decide(d),
       }, t(`ui-action-${d}`), h("kbd", {}, card.propose === d ? t("ui-key-enter") : d[0].toUpperCase()))),
       h("span", { class: "spacer" }),
-      h("button", { onclick: () => { skipped.add(card.path); scope = null; renderReview(); } }, t("ui-action-later"), h("kbd", {}, "→"))));
+      h("button", { onclick: () => { skipped.add(card.path); scope = null; wanted = null; renderReview(); } }, t("ui-action-later"), h("kbd", {}, "→"))));
 }
 
 function settledView() {
   const rows = review.settled.map((n) => {
     const select = h("select", {
       "aria-label": t("ui-change-for", { path: shown(n.path) }),
+      "data-path": n.path,
       onchange: (e) => setDecision(n.path, e.target.value),
     }, ["migrate", "archive", "leave", "review"].map((d) => h("option", { value: d, selected: d === n.decision }, t(`decision-${d}`))));
     return h("tr", {},
@@ -367,7 +370,7 @@ function renderReview() {
       h("h2", {}, t("ui-queue-empty")),
       h("p", { class: "muted" }, t("ui-queue-empty-help"))),
     h("div", { class: "row", style: null },
-      h("button", { class: card ? null : "primary", onclick: exportStep }, t("ui-go-export"))),
+      h("button", { class: card ? null : "primary", onclick: summaryStep }, t("ui-go-export"))),
     settledView(),
   );
 }
@@ -387,6 +390,7 @@ async function setDecision(path, decision, below) {
     }
     skipped.delete(path);
     scope = null;
+    wanted = null;
     const named = { path: shown(path), decision: t(`decision-${decision}`) };
     toast(below
       ? plural(review.changed, "ui-decided-below-one", "ui-decided-below-other", named)
@@ -414,7 +418,7 @@ document.addEventListener("keydown", (event) => {
     return setDecision(card.path, card.propose);
   }
   if (decisions[key]) { event.preventDefault(); const at = decisionFor(card); setDecision(at.path, decisions[key], at.below); }
-  if (event.key === "ArrowRight") { event.preventDefault(); skipped.add(card.path); scope = null; renderReview(); }
+  if (event.key === "ArrowRight") { event.preventDefault(); skipped.add(card.path); scope = null; wanted = null; renderReview(); }
   if (event.key === "Escape" && scope) { event.preventDefault(); scope = null; renderReview(); }
 });
 
@@ -457,7 +461,137 @@ async function runArbiter() {
   poll();
 }
 
-// 4. Export
+// 4. Summary: what the plan will say, read before anything is written.
+
+// Folders whose content is the user's own, by their name on disk (which
+// Windows does not translate).
+const PERSONAL = ["desktop", "documents", "pictures", "videos", "music"];
+
+function personal(path) {
+  return PERSONAL.includes(path.split("/")[0].toLowerCase());
+}
+
+function backToCard(path) {
+  wanted = path;
+  scope = null;
+  step = "review";
+  renderReview();
+  document.querySelector("article.card")?.focus({ preventScroll: true });
+}
+
+function backToSettled(path) {
+  settledOpen = true;
+  step = "review";
+  renderReview();
+  const select = [...document.querySelectorAll("details.settled select")].find((s) => s.dataset.path === path);
+  select?.scrollIntoView({ block: "center" });
+  select?.focus({ preventScroll: true });
+}
+
+// The carts as one bar, each part as wide as its share of the bytes.
+function splitView() {
+  const parts = ["migrate", "archive", "leave", "review"].map((d) => {
+    const size = d === "review" ? review.queue.reduce((s, c) => s + c.bytes, 0) : (review.totals[d] || { bytes: 0 }).bytes;
+    return { d, size, label: d === "review" ? t("ui-to-decide") : t(`decision-${d}`) };
+  });
+  const total = parts.reduce((s, p) => s + p.size, 0) || 1;
+  const share = (p) => Math.round((p.size * 100) / total);
+  const described = parts.map((p) => t("ui-summary-share", { decision: p.label, size: bytes(p.size), percent: share(p) })).join(", ");
+  return h("section", { class: "panel stack", "aria-labelledby": "split-title" },
+    h("h2", { id: "split-title" }, t("ui-summary-split")),
+    h("div", { class: "split", role: "img", "aria-label": described },
+      parts.filter((p) => p.size > 0).map((p) => {
+        // Set through the DOM: the page's policy refuses style attributes.
+        const part = h("i", { class: `c-${p.d}` });
+        part.style.flexGrow = String(p.size / total);
+        return part;
+      })),
+    h("ul", { class: "legend small" }, parts.map((p) => h("li", { class: `c-${p.d}` },
+      h("span", { class: "swatch", "aria-hidden": "true" }), h("span", {}, p.label),
+      h("strong", {}, bytes(p.size)), h("span", { class: "muted" }, `${share(p)} %`)))));
+}
+
+function rowLabel(row) { return row.app ? `${row.app} · ${shown(row.path)}` : shown(row.path); }
+
+// One point to check: a sentence, then the folders it is about, each with
+// the way back to where it is decided.
+function attention(kind, text, rows) {
+  const first = rows.slice(0, 8);
+  return h("li", { class: `attention ${kind}` },
+    h("p", {}, text),
+    first.length ? h("ul", { class: "list" }, first.map((r) => h("li", {},
+      h("span", { title: r.path }, rowLabel(r)),
+      h("span", {}, bytes(r.bytes), " ", r.go)))) : null,
+    rows.length > first.length ? h("p", { class: "muted small" }, t("ui-more", { count: rows.length - first.length })) : null);
+}
+
+function attentionView() {
+  const sum = (rows) => bytes(rows.reduce((s, r) => s + r.bytes, 0));
+  const decide = (c) => ({ ...c, go: h("button", { class: "link", type: "button", onclick: () => backToCard(c.path) }, t("ui-summary-decide")) });
+  const change = (n) => ({ ...n, go: h("button", { class: "link", type: "button", onclick: () => backToSettled(n.path) }, t("ui-summary-change")) });
+  const chosen = (n) => n.by === "user" || n.by === "arbiter";
+  const points = [];
+  const pending = review.queue.map(decide);
+  if (pending.length) {
+    points.push(attention("warn", plural(pending.length, "ui-summary-undecided-one", "ui-summary-undecided-other", { size: sum(pending) }), pending));
+  }
+  // A wrong leave costs data: what a person or the arbiter chose to leave
+  // comes first, then what rules left inside personal folders.
+  const leftByChoice = review.settled.filter((n) => n.decision === "leave" && chosen(n)).map(change);
+  if (leftByChoice.length) {
+    points.push(attention("warn", plural(leftByChoice.length, "ui-summary-left-by-you-one", "ui-summary-left-by-you-other", { size: sum(leftByChoice) }), leftByChoice));
+  }
+  const leftInPersonal = review.settled.filter((n) => n.decision === "leave" && !chosen(n) && personal(n.path) && n.bytes > 0).map(change);
+  if (leftInPersonal.length) {
+    points.push(attention("info", plural(leftInPersonal.length, "ui-summary-left-personal-one", "ui-summary-left-personal-other", { size: sum(leftInPersonal) }), leftInPersonal));
+  }
+  if (review.unreadable) {
+    points.push(attention("warn", plural(review.unreadable, "ui-summary-unreadable-one", "ui-summary-unreadable-other"), []));
+  }
+  return h("section", { class: "panel stack", "aria-labelledby": "attention-title" },
+    h("h2", { id: "attention-title" }, t("ui-summary-attention")),
+    points.length ? h("ul", { class: "points" }, points) : h("p", { class: "ok" }, t("ui-summary-all-clear")));
+}
+
+// The largest folders of each cart, with why they are there.
+function largestView() {
+  const column = (d) => {
+    const rows = review.settled.filter((n) => n.decision === d && n.bytes > 0).slice(0, 5);
+    return h("section", { class: `cart-top c-${d}` },
+      h("h3", {}, t(`decision-${d}`), " ", h("span", { class: "muted" }, bytes((review.totals[d] || { bytes: 0 }).bytes))),
+      rows.length ? h("ul", { class: "list tall" }, rows.map((n) => h("li", {},
+        h("span", { class: "two-lines" },
+          h("span", { class: "path", title: n.path }, shown(n.path)),
+          h("span", { class: "muted small" }, n.why)),
+        h("span", {}, bytes(n.bytes), " ",
+          h("button", { class: "link", type: "button", onclick: () => backToSettled(n.path) }, t("ui-summary-change"))))))
+        : h("p", { class: "muted small" }, t("ui-summary-cart-empty")));
+  };
+  return h("section", { class: "panel stack", "aria-labelledby": "largest-title" },
+    h("h2", { id: "largest-title" }, t("ui-summary-largest")),
+    h("div", { class: "columns" }, ["migrate", "archive", "leave"].map(column)));
+}
+
+function summaryStep() {
+  step = "summary";
+  scope = null;
+  wanted = null;
+  show(
+    h("h1", {}, t("ui-summary-title")),
+    h("p", { class: "muted" }, t("ui-summary-help")),
+    carts(),
+    splitView(),
+    attentionView(),
+    largestView(),
+    review.applications.length ? h("p", { class: "small" }, t("ui-summary-applications", { names: review.applications.join(", ") })) : null,
+    h("div", { class: "row" },
+      h("button", { class: "primary", type: "button", onclick: exportStep }, t("ui-summary-confirm")),
+      h("button", { type: "button", onclick: () => { step = "review"; renderReview(); } }, t("ui-summary-back"))),
+  );
+  window.scrollTo(0, 0);
+}
+
+// 5. Export
 
 function exportStep(_, result, message) {
   step = "export";
@@ -479,7 +613,7 @@ function exportStep(_, result, message) {
       message ? failure(message) : null,
       h("div", { class: "row" },
         h("button", { class: "primary", type: "submit" }, t("ui-export-go")),
-        h("button", { type: "button", onclick: () => { step = "review"; renderReview(); } }, t("ui-back")))),
+        h("button", { type: "button", onclick: summaryStep }, t("ui-back")))),
     result?.files ? h("section", { class: "panel stack", "aria-live": "polite" },
       h("h2", {}, t("ui-export-done")),
       h("ul", { class: "files" }, result.files.map((f) => h("li", {}, f))),

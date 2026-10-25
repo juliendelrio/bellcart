@@ -199,7 +199,9 @@ The engine is a library. Two front ends use it:
   browser. No WebView dependency, since the machine being left is often an
   outdated one.
 
-The interface is a four-step assistant: choose, analyse, review, export.
+The interface is a five-step assistant: choose, analyse, review, check,
+export. The check step is a read-only summary of the plan before anything
+is written (D38).
 The review screen is the product:
 
 - three carts with running totals in GB;
@@ -273,7 +275,7 @@ It must never be a tree of half a million checkboxes.
 | Export primitives, `bellcart export` | done |
 | `openai-chat` backend, decision log, privacy modes | done |
 | `bellcart label` and `bellcart eval` on a labelled set | done |
-| Web interface: four steps, review screen, export | done |
+| Web interface: five steps, review screen, summary, export | done |
 | Windows crate: known folders, elevation | to build |
 | Signed release pipeline | to build |
 

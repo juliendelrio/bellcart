@@ -139,7 +139,7 @@ enum Command {
         timeout: u64,
     },
     /// Open the review interface in the browser: choose, analyse, review,
-    /// export. It runs on this machine only.
+    /// check, export. It runs on this machine only.
     Ui {
         /// The profile to propose. Defaults to the current user's.
         path: Option<PathBuf>,

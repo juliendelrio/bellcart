@@ -21,6 +21,27 @@ fn locale_keys(lang: &str) -> BTreeSet<String> {
 }
 
 #[test]
+fn every_string_the_review_page_names_is_defined() {
+    // Keys written whole in quotes; keys built at run time, such as
+    // `ui-step-${name}`, are not seen here.
+    let script = std::fs::read_to_string(common::repo_root().join("web/app.js")).unwrap();
+    let keys = locale_keys("en");
+    let used: BTreeSet<&str> = script
+        .split('"')
+        .skip(1)
+        .step_by(2)
+        .filter(|s| s.starts_with("ui-") && s.chars().all(|c| c.is_ascii_lowercase() || c == '-'))
+        .collect();
+    assert!(used.contains("ui-summary-title"));
+    for key in used {
+        assert!(
+            keys.contains(key),
+            "web/app.js uses `{key}`, which English does not define"
+        );
+    }
+}
+
+#[test]
 fn the_core_pack_loads() {
     let pack = common::core_pack();
     assert_eq!(pack.meta.id, "core");
