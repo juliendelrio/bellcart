@@ -79,7 +79,9 @@ To review, folder by folder
   session offers to resume. It runs on this machine only. Add `--endpoint` and
   `--model` to offer an arbiter there too.
 - `bellcart scan <folder>` prints the summary above; `--json` prints the
-  full plan, `--out plan.json` saves it, and `--signatures` prints what
+  full plan, `--out plan.json` saves it (prefer it to `> plan.json`:
+  Windows PowerShell 5.1 re-encodes what it redirects and garbles accented
+  folder names), and `--signatures` prints what
   an arbiter would read about each folder to review (`--privacy redacted`
   masks names under personal folders, as a cloud arbiter would get
   them). Give a drive root (`C:\`) to scan the whole drive: rules settle

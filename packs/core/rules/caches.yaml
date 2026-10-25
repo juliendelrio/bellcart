@@ -32,7 +32,35 @@ rules:
     decision: leave
     reason: package-cache
     match:
-      path_glob: "**/AppData/Local/npm-cache"
+      path_glob: "**/AppData/{Local,Roaming}/npm-cache"
+
+  - id: pnpm-cache
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/AppData/Local/pnpm-cache"
+
+  # NuGet's download caches. The packages a project uses come back on the
+  # next restore; `.nuget/packages` is left in dev.yaml.
+  - id: nuget-http-cache
+    decision: leave
+    reason: package-cache
+    match:
+      path_glob: "**/AppData/Local/NuGet/{Cache,v3-cache,plugins-cache}"
+
+  # Where Squirrel unpacks an installer while it runs (Slack, Teams...).
+  - id: squirrel-temp
+    decision: leave
+    reason: update-download
+    match:
+      path_glob: "**/AppData/Local/SquirrelTemp"
+
+  # The web cache database of Windows (Internet Explorer, WebView).
+  - id: windows-web-cache
+    decision: leave
+    reason: application-cache
+    match:
+      path_glob: "**/AppData/Local/Microsoft/Windows/WebCache"
 
   - id: pip-cache
     decision: leave

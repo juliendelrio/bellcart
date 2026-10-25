@@ -313,6 +313,41 @@ rules:
     match:
       path_glob: "**/AppData/Local/Packages/MicrosoftWindows.Client.CBS_*"
 
+  # The index and caches of Windows Search, built again on the new PC.
+  - id: app-windows-search
+    decision: review
+    name: Windows Search
+    propose: leave
+    reason: system-managed
+    match:
+      path_glob: "**/AppData/Local/Packages/Microsoft.Windows.Search_cw5n1h2txyewy"
+
+  # The activity history of Windows (Timeline) and its device links.
+  - id: app-connected-devices
+    decision: review
+    name: {en: Windows activity history, fr: Historique d'activité de Windows}
+    propose: leave
+    reason: system-managed
+    match:
+      path_glob: "**/AppData/Local/ConnectedDevicesPlatform"
+
+  - id: app-docker-desktop-installer
+    decision: review
+    name: {en: Docker Desktop installer, fr: Installeur de Docker Desktop}
+    propose: leave
+    reason: app-downloaded-tools
+    match:
+      path_glob: "**/AppData/Local/Docker Desktop Installer"
+
+  # The Java runtime's download and deployment cache.
+  - id: app-java-deployment
+    decision: review
+    name: Java
+    propose: leave
+    reason: app-downloaded-tools
+    match:
+      path_glob: "**/AppData/LocalLow/{Oracle,Sun}/Java"
+
   # Dot folders at the profile root.
 
   # Extensions from the marketplace come back from the list the VS Code
