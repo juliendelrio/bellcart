@@ -79,6 +79,12 @@ pub struct Rule {
     /// share the folder's rest, whose card shows `reason`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parts: Option<String>,
+    /// With `decision: review`: the folder is judged whole like a part,
+    /// but one too small for a card of its own joins the card of the
+    /// folder above. Without it, a recognised folder always has its own
+    /// card. Not with `name`, `propose` or `parts`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub fold_small: bool,
     #[serde(rename = "match")]
     pub matcher: Matcher,
 }
@@ -477,9 +483,24 @@ impl RuleSet {
                 message,
             };
             let review = rule.decision == Decision::Review;
-            if !review && (rule.name.is_some() || rule.propose.is_some() || rule.parts.is_some()) {
+            if !review
+                && (rule.name.is_some()
+                    || rule.propose.is_some()
+                    || rule.parts.is_some()
+                    || rule.fold_small)
+            {
                 return Err(fail(
-                    "`name`, `propose` and `parts` go with `decision: review` only".to_owned(),
+                    "`name`, `propose`, `parts` and `fold_small` go with `decision: review` only"
+                        .to_owned(),
+                ));
+            }
+            if rule.fold_small
+                && (rule.name.is_some() || rule.propose.is_some() || rule.parts.is_some())
+            {
+                return Err(fail(
+                    "a rule with `fold_small` is a kind of folder, not a known one: \
+                     no `name`, `propose` or `parts`"
+                        .to_owned(),
                 ));
             }
             if rule.propose == Some(Decision::Review) {
@@ -611,12 +632,16 @@ mod tests {
             "{id: x, decision: migrate, parts: p, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, propose: review, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, parts: p, propose: leave, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: leave, fold_small: true, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, fold_small: true, name: A, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, fold_small: true, parts: p, reason: r, match: {name_in: [a]}}",
         ] {
             assert!(RuleSet::compile(&[rule(yaml)]).is_err(), "{yaml}");
         }
         for yaml in [
             "{id: x, decision: review, name: A, propose: leave, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, parts: p, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, fold_small: true, reason: r, match: {name_in: [a]}}",
         ] {
             assert!(RuleSet::compile(&[rule(yaml)]).is_ok(), "{yaml}");
         }

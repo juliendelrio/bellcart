@@ -88,6 +88,10 @@
           "description": "`review` settles nothing: it makes the folder one unit to review,\nwhatever its size, with this reason. Rules still apply inside it.\nUse it for folders Bellcart recognises but must not decide, such as\na synced folder.",
           "$ref": "#/$defs/Decision"
         },
+        "fold_small": {
+          "description": "With `decision: review`: the folder is judged whole like a part,\nbut one too small for a card of its own joins the card of the\nfolder above. Without it, a recognised folder always has its own\ncard. Not with `name`, `propose` or `parts`.",
+          "type": "boolean"
+        },
         "id": {
           "description": "Unique within the pack, lowercase, dash-separated.",
           "type": "string"

@@ -94,15 +94,18 @@ rules:
 A recognised folder with nothing left to review, once the rules and recipes
 inside it are applied, is no card.
 
-A `review` rule takes three more fields:
+A `review` rule takes four more fields:
 
 | Field | Effect |
 | --- | --- |
 | `name` | What the folder belongs to, shown as the card's title: an application's name. |
 | `propose` | A decision shown on the card, which the user takes with Enter. It is never applied without the user. |
 | `parts` | Cut the folder one level instead: each sub-folder no other rule knows is one unit, of the kind this translation key names (`reason-<key>`). Sub-folders smaller than `min_unit` share the folder's own card, which shows `reason`. |
+| `fold_small` | `true`: the folder is judged whole, like a part, but one smaller than `min_unit` joins the card of the folder above instead of having its own. Without it, a recognised folder always has its own card. |
 
-`parts` excludes `name` and `propose`: its parts are unknown. The core pack
+`parts` excludes `name` and `propose`: its parts are unknown. `fold_small`
+excludes all three: it names a kind of folder, such as the dot folders at
+the profile root (`root-dot-folders`), not a known one. The core pack
 cuts `AppData/Local`, `LocalLow` and `Roaming` into one card per application
 (`units.yaml`), and names the applications it knows, with a proposal
 (`apps.yaml`):

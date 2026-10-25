@@ -1670,6 +1670,81 @@ fn installers_and_components_microsoft_and_windows_bring_back_are_proposed_to_le
     );
 }
 
+fn tool_folder() -> UnitReason {
+    UnitReason::Part {
+        rule: "root-dot-folders".to_owned(),
+        key: "tool-folder".to_owned(),
+    }
+}
+
+#[test]
+fn a_dot_folder_at_the_profile_root_is_one_card_however_large() {
+    let plan = cut(&MemTree::new()
+        .file(".config/editor/a/settings.json", 3_000)
+        .file(".config/shell/b/history", 3_000)
+        .file("Documents/cv.docx", 600));
+
+    assert_eq!(unit_of(&plan, ".config"), tool_folder());
+    assert!(!has_node(&plan, ".config/editor"));
+}
+
+#[test]
+fn a_small_dot_folder_joins_the_profile_card() {
+    let profile = || {
+        MemTree::new()
+            .file("Documents/big/a.pdf", 5_000)
+            .file("notes.txt", 200)
+    };
+    let without = cut(&profile());
+    let plan = cut(&profile().file(".mcp-auth/token.json", 10));
+
+    assert!(!has_node(&plan, ".mcp-auth"));
+    assert_eq!(
+        node(&plan, "").stats.bytes,
+        node(&without, "").stats.bytes + 10
+    );
+}
+
+#[test]
+fn a_dot_folder_deeper_than_the_root_is_cut_as_usual() {
+    let plan = cut(&MemTree::new()
+        .file("dev/app/.git/objects/a/x", 3_000)
+        .file("dev/app/.git/objects/b/y", 3_000));
+
+    assert!(plan.nodes().iter().all(|n| n.unit != Some(tool_folder())));
+}
+
+#[test]
+fn keys_in_a_dot_folder_are_still_migrated() {
+    let plan = cut(&MemTree::new().file(".ssh/id_ed25519", 400));
+
+    assert_eq!(node(&plan, ".ssh").decision, Decision::Migrate);
+}
+
+#[test]
+fn known_dot_folders_come_with_a_proposal_and_their_caches_stay_left() {
+    let plan = cut(&MemTree::new()
+        .file(
+            ".vscode/extensions/rust-lang.rust-analyzer/server.exe",
+            3_000,
+        )
+        .file(".cargo/bin/cargo-about.exe", 3_000)
+        .file(".cargo/registry/cache/index/a.crate", 3_000)
+        .file(".cargo/config.toml", 1)
+        .file(".local/bin/tool.exe", 3_000)
+        .file(".cache/puppeteer/chrome.zip", 3_000)
+        .file(".docker/config.json", 1)
+        .file(".rustup/settings.toml", 1));
+
+    assert_eq!(proposed(&plan, ".vscode"), Some(Decision::Leave));
+    assert_eq!(proposed(&plan, ".cargo/bin"), Some(Decision::Leave));
+    assert_eq!(proposed(&plan, ".local/bin"), Some(Decision::Leave));
+    assert_eq!(proposed(&plan, ".cache"), Some(Decision::Leave));
+    assert_eq!(proposed(&plan, ".docker"), Some(Decision::Migrate));
+    assert_eq!(proposed(&plan, ".rustup"), Some(Decision::Migrate));
+    assert_eq!(node(&plan, ".cargo/registry").decision, Decision::Leave);
+}
+
 #[test]
 fn caches_and_recipes_still_settle_their_folders_inside_an_application() {
     let tree = MemTree::new()
