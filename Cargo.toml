@@ -2,7 +2,7 @@
 name = "bellcart"
 version = "0.0.1"
 edition = "2024"
-license = "Apache-2.0"
+license-file = "LICENSE.md"
 description = "Pack your old PC. Leave the junk behind. A migration assistant that decides what is worth moving."
 repository = "https://github.com/juliendelrio/bellcart"
 readme = "README.md"
@@ -16,7 +16,8 @@ include = [
     "/schemas",
     "/web",
     "/README.md",
-    "/LICENSE",
+    "/LICENSE.md",
+    "/LICENSE_EE.md",
 ]
 
 [dependencies]

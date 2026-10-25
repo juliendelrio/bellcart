@@ -149,4 +149,17 @@ les déplacer, quelques lignes suffisent. Voir le
 
 ## Licence
 
-[Apache-2.0](LICENSE).
+Bellcart est fair-code, sur le modèle de n8n : le code source est lisible
+par tous, et l'outil est gratuit pour un usage personnel, pour un usage
+interne à votre organisation, et pour les techniciens qui s'en servent
+pour migrer les ordinateurs de leurs clients. Vendre ou intégrer Bellcart
+à une offre, le proposer comme service géré, et les futures fonctions
+entreprise demandent un accord commercial, dont une licence revendeur. Ce
+n'est pas de l'open source au sens de l'OSI.
+
+- Moteur, ligne de commande et interface :
+  [Bellcart Sustainable Use License](LICENSE.md).
+- Composants entreprise (fichiers `.ee.`, aucun pour l'instant) :
+  [Bellcart Enterprise License](LICENSE_EE.md).
+- Packs, dont le pack `core` : [Apache-2.0](packs/LICENSE), pour que les
+  règles et les recettes soient librement réutilisables.

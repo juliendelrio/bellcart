@@ -68,5 +68,18 @@ configure, and packs can never carry commands.
 
 ## Licence
 
-By contributing you agree that your contribution is licensed under
-[Apache-2.0](LICENSE), like the rest of the project.
+Code and packs are under different licences (see [LICENSE.md](LICENSE.md)):
+
+- A contribution to a pack, under `packs/`, is licensed under that pack's
+  licence: [Apache-2.0](packs/LICENSE) for the core pack.
+- A contribution to anything else is licensed under the
+  [Bellcart Sustainable Use License](LICENSE.md), or the
+  [Bellcart Enterprise License](LICENSE_EE.md) for enterprise components.
+  You keep the copyright of your contribution, and you also grant the
+  maintainer a perpetual, worldwide, royalty-free licence to use,
+  modify and relicense it, including under the enterprise and other
+  commercial licences. This lets the project change or add licences
+  without asking every contributor again.
+
+If you cannot agree to the second point, contribute to packs: that is
+where most of Bellcart's knowledge lives.

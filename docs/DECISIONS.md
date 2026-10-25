@@ -378,9 +378,33 @@ download, cache), and mail or virtual disks get migrate or archive. Such
 containers and their parts are never folded into a unit above, and a
 folder with nothing left to review is no card.
 
-## Proposed, to confirm
+## 2026-10-25
 
-**P1. Licence: Apache-2.0** for code and for the core pack.
-Permissive, with an explicit patent grant, and compatible with a future
-commercial offer for enterprises. A copyleft licence would be the choice
-if keeping derivatives open mattered more than adoption.
+**D35. Fair-code licensing on the n8n model, in one repository. This
+replaces P1.**
+The code (engine, command line, interface, translations) is under the
+Bellcart Sustainable Use License 1.0, adapted from n8n's Sustainable Use
+License (itself derived from the Elastic License 2.0): free for personal
+and non-commercial use and for use inside one's own organisation, and
+redistribution only free of charge. Technicians may use it to migrate
+their customers' computers for a fee, as n8n allows consulting: the tool is
+in their hands, it is not what they sell. Reselling or bundling Bellcart,
+a managed or fleet offer, and enterprise components need a commercial
+agreement; a reseller licence is one of them. Enterprise components are
+files with `.ee.` in their name or under an `ee` directory, under the
+Bellcart Enterprise License; there are none yet, and enterprise mode (#35)
+is where the paid features will be designed. Packs stay Apache-2.0 so
+rules and recipes flow freely, and each pack declares its own licence.
+Contributors to the code grant the maintainer the right to relicense their
+work, which keeps the dual licensing possible; pack contributions stay
+under the pack's licence. One repository is enough while the enterprise
+code may be readable: `.ee` files are visible but not licensed for
+production use, as at n8n. A separate private repository becomes useful
+only if enterprise code must stay closed, or once licence keys exist.
+Bellcart is not open source in the OSI sense and must not be described so.
+Apache-2.0 alone (P1) was set aside because it allows anyone to resell the
+tool, which leaves no room for the enterprise and reseller offers. The
+Functional Source License, which turns each version into Apache-2.0 after
+two years, was the other candidate; the n8n model was preferred for its
+simpler, lasting split between free and paid uses. Not legal advice: a
+lawyer should read the texts before the first commercial agreement.
