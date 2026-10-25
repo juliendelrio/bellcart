@@ -668,6 +668,33 @@ impl RuleSet {
             .map(|c| &c.rule)
     }
 
+    /// The rule for a folder that could not be listed, as in
+    /// [`RuleSet::find_at`]. The first rule its path and name match must
+    /// not need to see the folder's entries (`contains`): when it does, no
+    /// rule is known, rather than a later one that might be wrong.
+    pub fn find_unlisted(
+        &self,
+        in_profile: Option<&str>,
+        on_drive: &str,
+        name: &str,
+    ) -> Option<&Rule> {
+        let name = name.to_lowercase();
+        self.rules
+            .iter()
+            .filter(|c| !c.rule.files)
+            .find(|c| {
+                let path = match (c.rule.scope, in_profile) {
+                    (Scope::Anywhere, Some(path)) => path,
+                    (_, None) => on_drive,
+                    (Scope::Drive, Some(_)) => return false,
+                };
+                (c.names.is_empty() || c.names.contains(&name))
+                    && c.glob.as_ref().is_none_or(|g| g.is_match(path))
+            })
+            .filter(|c| c.contains.is_empty())
+            .map(|c| &c.rule)
+    }
+
     /// The first rule on `files` matching a file, with its paths as in
     /// [`RuleSet::find_at`].
     pub fn find_file(&self, in_profile: Option<&str>, on_drive: &str, name: &str) -> Option<&Rule> {

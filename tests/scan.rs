@@ -2048,6 +2048,47 @@ fn the_folder_bellcart_writes_on_a_scanned_drive_is_migrated_at_the_root_only() 
 }
 
 #[test]
+fn a_system_folder_that_cannot_be_read_is_still_left_by_its_rule() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("dev/app/main.rs", 10)
+            .unreadable("Recovery")
+            .unreadable("Users/ana/AppData/Local/Temp")
+            // Look-alikes: the same names elsewhere stay unreadable in
+            // the card that holds them.
+            .unreadable("Users/ana/Documents/Recovery")
+            .unreadable("dev/Recovery"),
+    );
+    let recovery = node(&plan, "Recovery");
+    assert_eq!(rule_of(recovery), "drive-system-folders");
+    assert_eq!(recovery.stats.unreadable, 1);
+    assert_eq!(
+        rule_of(node(&plan, "Users/ana/AppData/Local/Temp")),
+        "user-temp"
+    );
+    assert!(!has_node(&plan, "Users/ana/Documents/Recovery"));
+    assert!(!has_node(&plan, "dev/Recovery"));
+    let kept: u64 = plan
+        .nodes()
+        .iter()
+        .filter(|n| n.decision != Decision::Leave)
+        .map(|n| n.stats.unreadable)
+        .sum();
+    assert_eq!(kept, 2);
+}
+
+#[test]
+fn an_unreadable_folder_a_rule_knows_only_by_its_entries_is_not_settled() {
+    // electron-cache needs to see Cache_Data inside the folder.
+    let plan = plan(&MemTree::new().unreadable("AppData/Roaming/Slack/Cache"));
+    assert!(!has_node(&plan, "AppData/Roaming/Slack/Cache"));
+    assert_eq!(
+        plan.nodes().iter().map(|n| n.stats.unreadable).sum::<u64>(),
+        1
+    );
+}
+
+#[test]
 fn a_previous_windows_installation_is_its_own_card_never_left() {
     let plan = drive_plan(&MemTree::new().file("Windows.old/Users/ana/Documents/cv.docx", 100));
     let card = node(&plan, "Windows.old");
