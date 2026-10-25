@@ -2050,3 +2050,86 @@ fn program_data_is_cut_into_application_cards_and_windows_keeps_its_own() {
         Some(UnitReason::Part { .. })
     ));
 }
+
+// Found on a Windows 10 profile.
+
+#[test]
+fn package_installer_and_web_caches_found_on_windows_10_are_left() {
+    let plan = plan(
+        &MemTree::new()
+            .file("AppData/Roaming/npm-cache/_cacache/x", 10)
+            .file("AppData/Local/pnpm-cache/metadata/x", 10)
+            .file("AppData/Local/NuGet/v3-cache/x.dat", 10)
+            .file("AppData/Local/SquirrelTemp/setup.exe", 10)
+            .file(
+                "AppData/Local/Microsoft/Windows/WebCache/WebCacheV01.dat",
+                10,
+            ),
+    );
+    for (path, rule) in [
+        ("AppData/Roaming/npm-cache", "npm-cache"),
+        ("AppData/Local/pnpm-cache", "pnpm-cache"),
+        ("AppData/Local/NuGet/v3-cache", "nuget-http-cache"),
+        ("AppData/Local/SquirrelTemp", "squirrel-temp"),
+        (
+            "AppData/Local/Microsoft/Windows/WebCache",
+            "windows-web-cache",
+        ),
+    ] {
+        assert_eq!(rule_of(node(&plan, path)), rule, "{path}");
+        assert_eq!(node(&plan, path).decision, Decision::Leave, "{path}");
+    }
+}
+
+#[test]
+fn folders_named_like_those_caches_in_documents_stay_to_review() {
+    let plan = plan(
+        &MemTree::new()
+            .file("Documents/npm-cache/notes.txt", 10)
+            .file("Documents/NuGet/Cache/notes.txt", 10)
+            .file("Documents/WebCache/notes.txt", 10)
+            .file("Documents/Package Cache/notes.txt", 10)
+            .file("AppData/Local/NuGet/NuGet.Config", 10),
+    );
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 0);
+}
+
+#[test]
+fn windows_search_activity_history_and_installers_are_proposed_to_leave() {
+    let plan = plan(
+        &MemTree::new()
+            .file(
+                "AppData/Local/Packages/Microsoft.Windows.Search_cw5n1h2txyewy/LocalState/x",
+                10,
+            )
+            .file(
+                "AppData/Local/ConnectedDevicesPlatform/L.user/ActivitiesCache.db",
+                10,
+            )
+            .file("AppData/Local/Docker Desktop Installer/install.exe", 10)
+            .file("AppData/LocalLow/Oracle/Java/jre.msi", 10),
+    );
+    for (path, rule) in [
+        (
+            "AppData/Local/Packages/Microsoft.Windows.Search_cw5n1h2txyewy",
+            "app-windows-search",
+        ),
+        (
+            "AppData/Local/ConnectedDevicesPlatform",
+            "app-connected-devices",
+        ),
+        (
+            "AppData/Local/Docker Desktop Installer",
+            "app-docker-desktop-installer",
+        ),
+        ("AppData/LocalLow/Oracle/Java", "app-java-deployment"),
+    ] {
+        let card = node(&plan, path);
+        assert_eq!(card.decision, Decision::Review, "{path}");
+        assert!(
+            matches!(&card.unit, Some(UnitReason::Rule { rule: r, propose: Some(Decision::Leave), .. }) if r == rule),
+            "{path}: {:?}",
+            card.unit
+        );
+    }
+}

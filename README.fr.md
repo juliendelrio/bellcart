@@ -82,7 +82,9 @@ Décidé par les règles et les recettes
   et la session suivante propose de reprendre. Elle ne tourne que sur cette machine.
   Ajoutez `--endpoint` et `--model` pour y proposer aussi un arbitre.
 - `bellcart scan <dossier>` affiche ce résumé ; `--json` affiche le plan
-  complet, `--out plan.json` l'enregistre, et `--signatures` affiche ce
+  complet, `--out plan.json` l'enregistre (préférez-le à `> plan.json` :
+  Windows PowerShell 5.1 réencode ce qu'il redirige et abîme les noms de
+  dossiers accentués), et `--signatures` affiche ce
   qu'un arbitre lirait sur chaque dossier à examiner (`--privacy redacted`
   masque les noms sous les dossiers personnels, comme un arbitre en ligne
   les recevrait). Donnez la racine d'un disque (`C:\`) pour analyser tout
