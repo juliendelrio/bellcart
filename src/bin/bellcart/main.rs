@@ -229,6 +229,9 @@ fn run() -> Result<()> {
                 &text,
             )?;
             let document = serde_json::to_string_pretty(&scan.plan)?;
+            for file in out.iter().chain(&notebook) {
+                create_own_folder(file)?;
+            }
             if let Some(out) = out {
                 std::fs::write(&out, &document)
                     .with_context(|| format!("cannot write {}", out.display()))?;
@@ -350,8 +353,6 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-/// Refuses a file Bellcart would write inside the tree it scans: the scan
-/// is read-only, its outputs included.
 /// Where the user profile is under a scan `root`, relative to it.
 ///
 /// Empty when `root` is not the root of a drive: the root is then taken to
@@ -371,6 +372,14 @@ pub fn profile_in(root: &Path) -> String {
     }
 }
 
+/// The folder Bellcart may create at the root of a scanned drive for its
+/// own files, when no other drive is at hand.
+pub const OWN_FOLDER: &str = "bellcart-export";
+
+/// Refuses a file Bellcart would write inside the tree it scans: the scan
+/// is read-only, its outputs included. One exception: in a scan of a whole
+/// drive, Bellcart's own folder at the drive root ([`OWN_FOLDER`]), and
+/// files directly in it.
 pub fn outside(given: &Path, file: &Path) -> Result<()> {
     // Canonical forms resolve `..`, links and case. They are only compared,
     // never shown: on Windows they read `\\?\C:\...`.
@@ -387,15 +396,48 @@ pub fn outside(given: &Path, file: &Path) -> Result<()> {
     }
     let folder = std::fs::canonicalize(folder)
         .with_context(|| format!("cannot write {}", file.display()))?;
-    if folder.starts_with(&root) {
+    if folder.starts_with(&root) && !(root.parent().is_none() && own_folder(&root, file)) {
         anyhow::bail!(
             "cannot write {} inside the scanned folder {}: Bellcart never writes there. \
-             Choose another folder.",
+             Choose another folder{}.",
             file.display(),
-            given.display()
+            given.display(),
+            if root.parent().is_none() {
+                format!(", or {}", given.join(OWN_FOLDER).display())
+            } else {
+                String::new()
+            }
         );
     }
     Ok(())
+}
+
+/// Creates Bellcart's own folder for a file to write in it, after the scan
+/// so that the scan does not see it. Only that folder: `file` has passed
+/// [`outside`], and any other missing folder stays an error.
+fn create_own_folder(file: &Path) -> Result<()> {
+    match file.parent() {
+        Some(dir) if dir.file_name() == Some(OWN_FOLDER.as_ref()) && !dir.exists() => {
+            std::fs::create_dir(dir).with_context(|| format!("cannot create {}", dir.display()))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Whether `file` is [`OWN_FOLDER`] under the canonical `root`, or a file
+/// directly in it. Canonical forms resolve links, so a link of that name
+/// that leads elsewhere is not the folder.
+fn own_folder(root: &Path, file: &Path) -> bool {
+    let own = root.join(OWN_FOLDER);
+    let resolved = |path: &Path| match std::fs::canonicalize(path) {
+        Ok(path) => Some(path),
+        Err(_) => Some(
+            std::fs::canonicalize(path.parent()?)
+                .ok()?
+                .join(path.file_name()?),
+        ),
+    };
+    resolved(file).as_ref() == Some(&own) || file.parent().and_then(resolved) == Some(own)
 }
 
 /// The current user's profile folder, from the environment. Only a
@@ -447,5 +489,32 @@ fn collect(dir: &Dir<'_>, out: &mut Vec<(String, String)>) {
     }
     for sub in dir.dirs() {
         collect(sub, out);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_bellcart_s_own_folder_and_files_directly_in_it_are_its_own() {
+        let root = std::env::temp_dir().join("bellcart-own-folder-test");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("Users")).unwrap();
+        let root = std::fs::canonicalize(&root).unwrap();
+        let own = root.join(OWN_FOLDER);
+        // Before the folder exists, and after.
+        assert!(own_folder(&root, &own));
+        assert!(own_folder(&root, &own.join("plan.json")));
+        std::fs::create_dir_all(&own).unwrap();
+        assert!(own_folder(&root, &own.join("plan.json")));
+        assert!(!own_folder(&root, &own.join("deeper/plan.json")));
+        assert!(!own_folder(&root, &root.join("bellcart-export2/plan.json")));
+        assert!(!own_folder(&root, &root.join("Users/plan.json")));
+        assert!(!own_folder(
+            &root,
+            &root.join("Users").join(OWN_FOLDER).join("plan.json")
+        ));
+        assert!(!own_folder(&root, &own.join("../Users/plan.json")));
     }
 }

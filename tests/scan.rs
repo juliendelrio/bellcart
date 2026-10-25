@@ -2032,6 +2032,22 @@ fn the_profile_of_another_account_is_its_own_card_never_folded_into_the_drive() 
 }
 
 #[test]
+fn the_folder_bellcart_writes_on_a_scanned_drive_is_migrated_at_the_root_only() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("bellcart-export/plan.json", 50)
+            .file("Users/ana/Documents/bellcart-export/old-plan.json", 10)
+            .file("dev/bellcart-export/plan.json", 10),
+    );
+    assert_eq!(
+        rule_of(node(&plan, "bellcart-export")),
+        "drive-bellcart-export"
+    );
+    assert_eq!(plan.totals[&Decision::Migrate].bytes, 50);
+    assert_eq!(plan.totals[&Decision::Review].bytes, 20);
+}
+
+#[test]
 fn a_previous_windows_installation_is_its_own_card_never_left() {
     let plan = drive_plan(&MemTree::new().file("Windows.old/Users/ana/Documents/cv.docx", 100));
     let card = node(&plan, "Windows.old");

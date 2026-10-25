@@ -98,7 +98,10 @@ Décidé par les règles et les recettes
   faire à la main avant de quitter l'ancien PC et à l'arrivée, pour chaque
   application trouvée. Un nom finissant par `.html` donne une page avec
   des cases à cocher, tout autre nom donne du Markdown. Bellcart refuse
-  d'écrire un fichier dans le dossier qu'il analyse.
+  d'écrire un fichier dans le dossier qu'il analyse. Pour un disque
+  entier, préférez une clé USB ; à défaut, son propre dossier à la racine
+  du disque (`C:\bellcart-export`) est la seule exception, et le plan le
+  migre.
 - `bellcart export <profil> --to <dossier>` lance les exports demandés
   par les recettes (liste winget des applications, extensions de VS Code,
   clés de registre). Chaque commande est affichée en entier et ne se

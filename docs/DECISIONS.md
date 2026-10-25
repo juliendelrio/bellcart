@@ -490,3 +490,16 @@ else's documents. Each `Users/<name>` outside the scanned profile is now a
 review card of its own, named as another account's profile; `Users/Public`
 gets its own card as well. Cache rules still apply inside them. This is a
 floor, not the treatment of other profiles that #24 will bring.
+
+**D42. A drive scan may export to Bellcart's own folder on that drive.**
+D40 sent the exports of a drive scan to another drive, but a PC often has
+only one, or only a cloud drive (where the plan would be uploaded). The
+maintainer chose: an external medium first, a dedicated local folder when
+there is none. On a scan of a drive root, Bellcart may create
+`bellcart-export` at that root and write its plan, notebook, decisions
+and saved session directly in it; anything else in the scanned tree stays
+refused, and a link of that name leading elsewhere is not the folder. The
+interface proposes it only when Bellcart does not run from another drive,
+and then says that a USB drive is better and a cloud drive is not. A
+`scope: drive` rule migrates the folder, since its files are needed on the
+new PC. Detecting removable and cloud drives needs the Windows crate (M5).

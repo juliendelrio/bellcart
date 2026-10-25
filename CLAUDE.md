@@ -20,7 +20,9 @@ says what comes next.
 ## Rules that must never be broken
 
 1. **Read-only.** Bellcart never writes, moves or deletes anything in the
-   tree it scans. V1 produces a plan and a notebook, nothing else.
+   tree it scans. V1 produces a plan and a notebook, nothing else. The one
+   exception: on a whole-drive scan, its own `bellcart-export` folder at
+   the drive root, for its own files, when no other drive is at hand (D42).
 2. **A wrong `leave` is the worst bug.** It costs someone their data. When
    a rule or a piece of logic could send a personal folder to `leave`, it
    must go to `review` instead. See "Asymmetric prudence" in the spec.

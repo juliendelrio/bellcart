@@ -178,6 +178,7 @@ function analyse() {
 async function startReview() {
   skipped = new Set();
   review = await api("GET", "/api/review");
+  if (review.export) session.export = review.export;
   step = "review";
   renderReview();
   if (review.resumed) toast(plural(review.resumed, "ui-resumed-one", "ui-resumed-other"));
@@ -646,6 +647,7 @@ function exportStep(_, result, message) {
   show(
     h("h1", {}, t("ui-export-title")),
     h("p", { class: "muted" }, t("ui-export-help")),
+    review?.export_local ? h("p", { class: "attention warn" }, t("ui-export-local")) : null,
     h("form", { class: "panel stack", onsubmit: write },
       h("div", {}, h("label", { for: "folder" }, t("ui-export-label")), input),
       message ? failure(message) : null,
