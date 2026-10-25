@@ -25,15 +25,23 @@ rules:
     program: each
     program_except:
       - "Common Files"
+      - "DIFX"
+      - "dotnet"
       - "Hyper-V"
+      - "InstallShield Installation Information"
       - "Internet Explorer"
       - "Microsoft"
       - "Microsoft.NET"
+      - "Microsoft SDKs"
       - "Microsoft Update Health Tools"
       - "ModifiableWindowsApps"
       - "MSBuild"
+      - "PCHealthCheck"
       - "Reference Assemblies"
+      - "RUXIM"
       - "Uninstall Information"
+      - "UNP"
+      - "VulkanRT"
       - "Windows *"
       - "WindowsApps"
       - "WindowsPowerShell"
@@ -42,13 +50,14 @@ rules:
       path_glob: "{Program Files,Program Files (x86)}"
 
   # Folders Windows creates for itself at the drive root: recovery tools,
-  # performance logs, installer leftovers, the upgrade working folders.
+  # performance logs, installer leftovers, the upgrade working folders and
+  # the Windows 10 Update Assistant.
   - id: drive-system-folders
     scope: drive
     decision: leave
     reason: system-managed
     match:
-      path_glob: "{Recovery,PerfLogs,Config.Msi,$WinREAgent,$SysReset,$Windows.~BT,$Windows.~WS,$GetCurrent,OneDriveTemp}"
+      path_glob: "{Recovery,PerfLogs,Config.Msi,$WinREAgent,$SysReset,$Windows.~BT,$Windows.~WS,$GetCurrent,OneDriveTemp,Windows10Upgrade}"
 
   # The page, swap and hibernation files: Windows makes them again.
   - id: drive-system-files
@@ -57,7 +66,7 @@ rules:
     reason: system-managed
     files: true
     match:
-      path_glob: "{pagefile.sys,swapfile.sys,hiberfil.sys,DumpStack.log,DumpStack.log.tmp}"
+      path_glob: "{pagefile.sys,swapfile.sys,hiberfil.sys,DumpStack.log,DumpStack.log.tmp,$WINRE_BACKUP_PARTITION.MARKER}"
 
   # The template every new profile is copied from.
   - id: drive-default-profile
@@ -101,4 +110,4 @@ rules:
     decision: leave
     reason: installer-cache
     match:
-      path_glob: "ProgramData/Package Cache"
+      path_glob: "ProgramData/{Package Cache,Intel Package Cache *}"

@@ -95,9 +95,14 @@ pub fn run(
         .context("the server has no port")?;
     let token = token();
     let url = format!("http://127.0.0.1:{port}/#{token}");
+    let listening = if options.open_browser {
+        "ui-listening"
+    } else {
+        "ui-listening-no-browser"
+    };
     crate::say(&format!(
         "{}\n",
-        text.with("ui-listening", &[("url", url.as_str().into())])
+        text.with(listening, &[("url", url.as_str().into())])
     ))?;
     if options.open_browser {
         open_in_browser(&url);

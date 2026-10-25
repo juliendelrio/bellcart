@@ -2051,6 +2051,44 @@ fn program_data_is_cut_into_application_cards_and_windows_keeps_its_own() {
     ));
 }
 
+#[test]
+fn the_update_assistant_and_intel_installers_found_on_windows_10_are_left_on_the_drive_only() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("Windows10Upgrade/Windows10.esd", 3_000)
+            .file("ProgramData/Intel Package Cache {1CEAC85D}/setup.exe", 400)
+            .file("$WINRE_BACKUP_PARTITION.MARKER", 1)
+            .file("Users/ana/Documents/Windows10Upgrade/notes.txt", 10),
+    );
+    assert_eq!(
+        rule_of(node(&plan, "Windows10Upgrade")),
+        "drive-system-folders"
+    );
+    assert_eq!(
+        rule_of(node(&plan, "ProgramData/Intel Package Cache {1CEAC85D}")),
+        "drive-package-cache"
+    );
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 3_401);
+    assert_eq!(plan.totals[&Decision::Review].bytes, 10);
+}
+
+#[test]
+fn runtimes_and_installer_folders_in_program_files_are_not_programs() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("Program Files/dotnet/dotnet.exe", 10)
+            .file(
+                "Program Files (x86)/InstallShield Installation Information/x.ini",
+                10,
+            )
+            .file("Program Files (x86)/Microsoft SDKs/x.dll", 10)
+            .file("Program Files/RUXIM/r.exe", 10)
+            .file("Program Files/Notepad++/notepad++.exe", 10),
+    );
+    let names: Vec<&str> = plan.programs.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(names, ["Notepad++"]);
+}
+
 // Found on a Windows 10 profile.
 
 #[test]
