@@ -1891,3 +1891,162 @@ fn the_user_choice_to_install_a_program_again_is_kept_in_the_plan() {
     assert!(!plan.set_reinstall("AppData/Local/Programs/Nope", Reinstall::No));
     assert_eq!(plan.totals, totals);
 }
+
+// A whole drive: the profile is one folder in it, and drive rules settle
+// what Windows and installers keep outside it.
+
+fn drive_plan(tree: &MemTree) -> Plan {
+    let pack = common::core_pack();
+    let found = Recipes::detect(
+        tree,
+        Path::new(""),
+        &pack.recipes,
+        &Variables::profile_at("Users/ana"),
+    );
+    bellcart::scan::scan_drive(
+        tree,
+        Path::new(""),
+        "Users/ana",
+        &common::core_rules(),
+        &found,
+        &SplitBudget::default(),
+        &Progress::default(),
+    )
+    .expect("the scan succeeds")
+    .plan
+}
+
+#[test]
+fn windows_and_program_files_are_left_outside_the_profile_only() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("Windows/System32/kernel32.dll", 900)
+            .file("Program Files/7-Zip/7z.exe", 500)
+            .file("Users/ana/Documents/Windows/notes.txt", 10)
+            .file("Users/ana/Documents/Program Files/plan.txt", 10),
+    );
+    assert_eq!(plan.profile.as_deref(), Some("Users/ana"));
+    assert_eq!(rule_of(node(&plan, "Windows")), "drive-windows");
+    assert_eq!(rule_of(node(&plan, "Program Files")), "drive-program-files");
+    // Folders with the same names inside the profile are the person's.
+    assert!(!has_node(&plan, "Users/ana/Documents/Windows"));
+    assert_eq!(plan.totals[&Decision::Review].bytes, 20);
+}
+
+#[test]
+fn drive_rules_never_apply_when_the_profile_is_the_root() {
+    let plan = plan(&MemTree::new().file("Windows/notes.txt", 10));
+    assert!(!has_node(&plan, "Windows"));
+    assert_eq!(plan.totals[&Decision::Review].bytes, 10);
+    assert_eq!(plan.profile, None);
+}
+
+#[test]
+fn profile_rules_see_paths_from_the_profile_in_a_drive() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("Users/ana/AppData/Local/Temp/a.tmp", 300)
+            .file("Users/ana/.cache/pip/x", 200)
+            .file("Users/ana/Documents/cv.docx", 100),
+    );
+    assert_eq!(
+        rule_of(node(&plan, "Users/ana/AppData/Local/Temp")),
+        "user-temp"
+    );
+    assert!(matches!(
+        &node(&plan, "Users/ana/.cache").unit,
+        Some(UnitReason::Rule { rule, .. }) if rule == "app-dot-cache"
+    ));
+}
+
+#[test]
+fn a_folder_no_rule_knows_at_the_drive_root_is_reviewed_and_its_builds_are_left() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("dev/app/src/main.rs", 150)
+            .file("dev/app/node_modules/x.js", 5_000)
+            .file("Photos/2024/a.jpg", 2_000),
+    );
+    assert_eq!(rule_of(node(&plan, "dev/app/node_modules")), "node-modules");
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 5_000);
+    assert_eq!(plan.totals[&Decision::Review].bytes, 2_150);
+}
+
+#[test]
+fn programs_in_program_files_are_listed_once_without_windows_components() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("Program Files/7-Zip/7z.exe", 10)
+            .file("Program Files/Google/Chrome/chrome.exe", 10)
+            .file("Program Files (x86)/Google/Update/u.exe", 10)
+            .file("Program Files/Windows Defender/m.exe", 10)
+            .file("Program Files/Common Files/x.dll", 10)
+            .file("Program Files (x86)/Mozilla Maintenance Service/m.exe", 10),
+    );
+    let names: Vec<&str> = plan.programs.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(names, ["Google", "7-Zip"]);
+}
+
+#[test]
+fn the_page_file_is_left_at_the_drive_root_only() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("pagefile.sys", 8_000)
+            .file("hiberfil.sys", 4_000)
+            .file("Users/ana/Documents/pagefile.sys", 10)
+            .file("backup/pagefile.sys", 10),
+    );
+    assert_eq!(rule_of(node(&plan, "pagefile.sys")), "drive-system-files");
+    assert_eq!(rule_of(node(&plan, "hiberfil.sys")), "drive-system-files");
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 12_000);
+    assert_eq!(plan.totals[&Decision::Review].bytes, 20);
+}
+
+#[test]
+fn a_previous_windows_installation_is_its_own_card_never_left() {
+    let plan = drive_plan(&MemTree::new().file("Windows.old/Users/ana/Documents/cv.docx", 100));
+    let card = node(&plan, "Windows.old");
+    assert_eq!(card.decision, Decision::Review);
+    assert!(matches!(
+        &card.unit,
+        Some(UnitReason::Rule { rule, propose: None, .. }) if rule == "drive-previous-windows"
+    ));
+}
+
+#[test]
+fn recipes_find_applications_in_the_profile_of_a_drive() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("Users/ana/.gitconfig", 10)
+            .file(".gitconfig", 10),
+    );
+    assert_eq!(plan.applications.len(), 1);
+    assert_eq!(
+        node(&plan, "Users/ana/.gitconfig").decision,
+        Decision::Migrate
+    );
+    assert!(!has_node(&plan, ".gitconfig"));
+}
+
+#[test]
+fn program_data_is_cut_into_application_cards_and_windows_keeps_its_own() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("ProgramData/Microsoft/Search/index.edb", 900)
+            .file("ProgramData/Package Cache/{guid}/setup.msi", 700)
+            // Large enough for a card of its own.
+            .file("ProgramData/Vendor/faxes/fax1.tif", 300 << 20),
+    );
+    assert_eq!(
+        rule_of(node(&plan, "ProgramData/Microsoft")),
+        "drive-program-data-system"
+    );
+    assert_eq!(
+        rule_of(node(&plan, "ProgramData/Package Cache")),
+        "drive-package-cache"
+    );
+    assert!(matches!(
+        node(&plan, "ProgramData/Vendor").unit,
+        Some(UnitReason::Part { .. })
+    ));
+}

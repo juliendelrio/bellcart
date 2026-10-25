@@ -36,6 +36,23 @@ impl Variables {
         Self { map }
     }
 
+    /// [`Variables::profile`] for a profile at `prefix` under the scan
+    /// root, such as `Users/ana` in a scan of a whole drive.
+    pub fn profile_at(prefix: &str) -> Self {
+        let mut vars = Self::profile();
+        let prefix = prefix.trim_matches('/');
+        if !prefix.is_empty() {
+            for path in vars.map.values_mut() {
+                *path = if path.is_empty() {
+                    prefix.to_owned()
+                } else {
+                    format!("{prefix}/{path}")
+                };
+            }
+        }
+        vars
+    }
+
     /// Turns `%APPDATA%\Code\User` into `AppData/Roaming/Code/User`.
     ///
     /// `None` when the path does not start with a known variable, or climbs
@@ -226,6 +243,18 @@ mod tests {
             Some(".gitconfig")
         );
         assert_eq!(vars.expand("%USERPROFILE%").as_deref(), Some(""));
+    }
+
+    #[test]
+    fn variables_of_a_profile_inside_a_drive_start_with_its_path() {
+        let vars = Variables::profile_at("Users/ana");
+        assert_eq!(
+            vars.expand(r"%APPDATA%\Code\User").as_deref(),
+            Some("Users/ana/AppData/Roaming/Code/User")
+        );
+        assert_eq!(vars.expand("%USERPROFILE%").as_deref(), Some("Users/ana"));
+        assert_eq!(vars.expand(r"%USERPROFILE%\..\bob"), None);
+        assert_eq!(Variables::profile_at(""), Variables::profile());
     }
 
     #[test]

@@ -9,7 +9,7 @@ use anyhow::{Result, anyhow};
 use bellcart::pack::{Recipe, RuleSet};
 use bellcart::plan::{SplitBudget, human_bytes};
 use bellcart::recipe::{Recipes, Variables};
-use bellcart::scan::{Progress, Scan, scan_with};
+use bellcart::scan::{Progress, Scan, scan_drive};
 use bellcart::tree::OsTree;
 
 use crate::i18n::Localizer;
@@ -49,8 +49,10 @@ pub fn scan(
     thread::scope(|scope| {
         let worker = scope.spawn(|| {
             pool.install(|| {
-                let found = Recipes::detect(&OsTree, path, recipes, &Variables::profile());
-                scan_with(&OsTree, path, rules, &found, budget, &progress)
+                let profile = crate::profile_in(path);
+                let vars = Variables::profile_at(&profile);
+                let found = Recipes::detect(&OsTree, path, recipes, &vars);
+                scan_drive(&OsTree, path, &profile, rules, &found, budget, &progress)
             })
         });
         let mut drawn = 0;

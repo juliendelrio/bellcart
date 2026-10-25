@@ -66,6 +66,8 @@ reason-app-virtual-disks = Disks of virtual machines or containers: they may hol
 reason-crash-reports = Crash reports, only of use to the application's developers
 reason-installed-program = Installed program, to install again on the new PC
 reason-update-download = Update already downloaded, fetched again when needed
+reason-previous-windows = Left by an earlier Windows installation, with the profiles it had: it may hold the only copy of old files
+reason-installer-cache = Installers kept so that programs can repair or remove themselves: the new PC gets its own
 
 # Why a folder to review is judged as one unit.
 unit-small = small enough to judge as a whole

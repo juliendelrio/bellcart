@@ -22,7 +22,8 @@ In V1:
 - Windows 10 and Windows 11, as a single portable executable.
 - Works without administrator rights on the current user's profile, and
   offers to relaunch elevated for more (other profiles, locked files).
-- Scans a folder tree chosen by the user.
+- Scans a folder tree chosen by the user: a profile, or a whole drive
+  with the profile located in it (D40).
 - Sorts folders into migrate, archive, leave, or review.
 - Detects known applications and lists what to do about them, before
   leaving the old PC and on arrival on the new one.
