@@ -462,3 +462,22 @@ does not infer programs from a reason key, since reasons are only
 translation keys. Setting the choice never changes a folder decision.
 The same list will take the program folders of a drive scan (#75).
 
+**D40. A whole drive can be scanned; the profile stays the reference.**
+Data a person keeps outside the profile (`C:\dev`, a folder at the drive
+root) was never in the plan, which is worse than a wrong `leave`: nobody
+is asked about it. A scan of a drive root now locates the profile of the
+account running Bellcart (`Users/<name>`) and records it in the plan
+(version 8). Rules see paths relative to the profile inside it, so the
+existing rules and recipes keep their meaning; outside it they see paths
+relative to the drive, so rules written for any depth (`**/node_modules`)
+also settle projects at the drive root. New `scope: drive` rules name what
+Windows and installers keep outside the profile (`Windows`, `Program
+Files`, `ProgramData`, the page file, through rules on `files`) and never
+apply inside the profile or in a profile scan. `Program Files` produces no
+cards: its programs join the reinstall list (D39), Windows components
+excepted. Anything else at the drive root stays to review. Other profiles
+are cards like any folder until elevation (#24) gives them their own
+treatment, and the profile is found by account name until the Windows
+crate resolves it by identifier (#22). Bellcart still never writes in the
+tree it scans: exports of a drive scan go to another drive.
+

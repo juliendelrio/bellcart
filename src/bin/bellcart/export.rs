@@ -15,7 +15,13 @@ use crate::i18n::Localizer;
 
 pub fn run(profile: &Path, folder: &Path, library: &Library, text: &Localizer) -> Result<()> {
     crate::outside(profile, folder)?;
-    let found = Recipes::detect(&OsTree, profile, &library.recipes, &Variables::profile());
+    let inside = crate::profile_in(profile);
+    let found = Recipes::detect(
+        &OsTree,
+        profile,
+        &library.recipes,
+        &Variables::profile_at(&inside),
+    );
     let wanted = exports(found.applications(), &library.recipes);
     if wanted.is_empty() {
         say(&format!("{}\n", text.get("export-none")))?;

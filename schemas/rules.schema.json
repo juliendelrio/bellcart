@@ -103,6 +103,10 @@
           "description": "`review` settles nothing: it makes the folder one unit to review,\nwhatever its size, with this reason. Rules still apply inside it.\nUse it for folders Bellcart recognises but must not decide, such as\na synced folder.",
           "$ref": "#/$defs/Decision"
         },
+        "files": {
+          "description": "`true`: the rule settles files, not folders, such as the page file\nat the root of a drive. Not with `decision: review` nor `contains`.",
+          "type": "boolean"
+        },
         "fold_small": {
           "description": "With `decision: review`: the folder is judged whole like a part,\nbut one too small for a card of its own joins the card of the\nfolder above. Without it, a recognised folder always has its own\ncard. Not with `name`, `propose` or `parts`.",
           "type": "boolean"
@@ -143,6 +147,13 @@
             }
           ]
         },
+        "program_except": {
+          "description": "With `program: each`: sub-folders that are not programs of their\nown, by name, `*` allowed (`Windows *`, `Common Files`): components\nof Windows, or folders an installer shares.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "propose": {
           "description": "With `decision: review`: the decision proposed on the card, which\nthe user takes with one key. Never applied without the user.",
           "anyOf": [
@@ -157,6 +168,10 @@
         "reason": {
           "description": "Translation key. `locales/*/bellcart.ftl` must define `reason-<key>`.",
           "type": "string"
+        },
+        "scope": {
+          "description": "Which folders the rule applies to. By default, any folder, its\n`path_glob` taken relative to the profile inside the profile.",
+          "$ref": "#/$defs/Scope"
         }
       },
       "additionalProperties": false,
@@ -165,6 +180,21 @@
         "decision",
         "reason",
         "match"
+      ]
+    },
+    "Scope": {
+      "description": "Which folders a rule applies to.",
+      "oneOf": [
+        {
+          "description": "Any folder. Inside the user profile, `path_glob` is relative to the\nprofile, so `AppData/Local` means the profile's; outside it, in a\nscan of a whole drive, relative to the scan root. A rule written\nfor any depth (`**/node_modules`) thus applies to projects outside\nthe profile too.",
+          "type": "string",
+          "const": "anywhere"
+        },
+        {
+          "description": "Only folders of a drive outside the user profile (`Windows`,\n`Program Files`), `path_glob` relative to the scan root. Such a rule\nnever applies when the scan root is the profile.",
+          "type": "string",
+          "const": "drive"
+        }
       ]
     },
     "Text": {

@@ -11,6 +11,13 @@
         "$ref": "#/$defs/Application"
       }
     },
+    "profile": {
+      "description": "Where the user profile is under the root, when the root is a whole\ndrive (`Users/ana`). Absent when the root is the profile.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "programs": {
       "description": "Programs found installed, by path: the list of what to install\nagain, with the user's choice for each.",
       "type": "array",

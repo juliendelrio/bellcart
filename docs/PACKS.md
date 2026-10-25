@@ -47,15 +47,43 @@ rules:
 | `match` field | Holds when |
 | --- | --- |
 | `name_in` | the folder name is one of these |
-| `path_glob` | the path relative to the scan root matches |
+| `path_glob` | the path relative to the profile matches (see below) |
 | `contains` | the folder directly contains an entry with one of these names |
 
 All the fields given must hold. Matching is case-insensitive. A rule needs
 `name_in` or `path_glob`; `contains` alone is refused.
 
 In `path_glob`, `/` separates folders, `*` stays inside one folder name,
-`**` crosses folders, `{a,b}` is an alternative. Start patterns with `**/`
-so they match whether the user scans one profile or a whole drive.
+`**` crosses folders, `{a,b}` is an alternative.
+
+The user scans a profile or a whole drive. Inside the profile, paths are
+relative to the profile, so `.vscode` or `AppData/Local` mean the
+profile's in both cases. Outside it, in a drive scan, they are relative
+to the drive root: start patterns with `**/` (`**/node_modules`) for a
+rule that also holds for projects kept outside the profile, such as in
+`C:\dev`.
+
+### Rules for a whole drive: `scope: drive`
+
+A rule with `scope: drive` applies only outside the profile in a drive
+scan, with paths relative to the drive root, and never when the scan root
+is the profile. That is what makes `Windows` or `Program Files` safe to
+name: a folder called so in Documents is not touched. The core pack keeps
+them in `drive.yaml`.
+
+```yaml
+rules:
+  - id: drive-windows
+    scope: drive
+    decision: leave
+    reason: system-managed
+    match:
+      path_glob: "Windows"
+```
+
+With `files: true`, a rule settles files instead of folders, by
+`name_in` or `path_glob`: the page and hibernation files at the drive
+root, for instance. It cannot be a `review` rule nor use `contains`.
 
 `reason` is a translation key: `locales/en/bellcart.ftl` and every other
 language must define `reason-<key>`. Reuse an existing reason when one fits.
@@ -131,6 +159,12 @@ or reviewed as the rule says, since the installer brings them back.
 | --- | --- |
 | `folder` | The folder itself is one program, named by the rule's `name`, or by the folder name. |
 | `each` | Each sub-folder is one program, named by its folder name. |
+
+With `program: each`, `program_except` lists sub-folders that are not
+programs of their own, by name, `*` allowed: components of Windows in
+`Program Files` (`Windows *`), or a folder installers share (`Common
+Files`). The same name found twice by one rule, in `Program Files` and
+`Program Files (x86)`, is listed once.
 
 ```yaml
 rules:

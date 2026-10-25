@@ -45,7 +45,8 @@ struct Cli {
 enum Command {
     /// Scan a folder and print its migration plan. Nothing is modified.
     Scan {
-        /// The folder to scan, typically a user profile.
+        /// The folder to scan: a user profile, or a drive root such as
+        /// `C:\` to scan the whole drive around your profile.
         path: PathBuf,
         /// Print the plan as JSON instead of a summary.
         #[arg(long)]
@@ -351,6 +352,25 @@ fn run() -> Result<()> {
 
 /// Refuses a file Bellcart would write inside the tree it scans: the scan
 /// is read-only, its outputs included.
+/// Where the user profile is under a scan `root`, relative to it.
+///
+/// Empty when `root` is not the root of a drive: the root is then taken to
+/// be the profile, as before drive scans. On a drive root, `Users/<name>`
+/// for the account Bellcart runs as, when that folder is there; empty
+/// otherwise, such as on a data drive.
+pub fn profile_in(root: &Path) -> String {
+    if root.parent().is_some() {
+        return String::new();
+    }
+    let user = std::env::var_os("USERNAME").or_else(|| std::env::var_os("USER"));
+    match user {
+        Some(user) if root.join("Users").join(&user).is_dir() => {
+            format!("Users/{}", user.to_string_lossy())
+        }
+        _ => String::new(),
+    }
+}
+
 pub fn outside(given: &Path, file: &Path) -> Result<()> {
     // Canonical forms resolve `..`, links and case. They are only compared,
     // never shown: on Windows they read `\\?\C:\...`.

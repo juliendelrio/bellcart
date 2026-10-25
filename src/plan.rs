@@ -288,6 +288,10 @@ pub struct Plan {
     pub version: u32,
     /// The scanned root, as given by the user.
     pub root: String,
+    /// Where the user profile is under the root, when the root is a whole
+    /// drive (`Users/ana`). Absent when the root is the profile.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub profile: Option<String>,
     pub totals: BTreeMap<Decision, Totals>,
     pub tree: PlanNode,
     /// The budget the review mass was cut with, so a cut can be reproduced.
@@ -319,7 +323,8 @@ pub struct Totals {
 /// (`UnitReason::Part`).
 /// 7: the plan lists the `programs` found installed, and whether to
 /// install each again.
-pub const PLAN_VERSION: u32 = 7;
+/// 8: a plan of a whole drive says where the user `profile` is.
+pub const PLAN_VERSION: u32 = 8;
 
 impl Plan {
     pub fn new(root: String, tree: PlanNode, split: Option<SplitBudget>) -> Self {
@@ -331,6 +336,7 @@ impl Plan {
         Self {
             version: PLAN_VERSION,
             root,
+            profile: None,
             totals,
             tree,
             split,

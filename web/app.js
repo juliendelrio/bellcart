@@ -468,7 +468,10 @@ async function runArbiter() {
 const PERSONAL = ["desktop", "documents", "pictures", "videos", "music"];
 
 function personal(path) {
-  return PERSONAL.includes(path.split("/")[0].toLowerCase());
+  // In a scan of a whole drive, the personal folders are in the profile.
+  const inside = review.profile ? path.slice(review.profile.length + 1) : path;
+  if (review.profile && !path.toLowerCase().startsWith(`${review.profile.toLowerCase()}/`)) return false;
+  return PERSONAL.includes(inside.split("/")[0].toLowerCase());
 }
 
 function backToCard(path) {
@@ -579,7 +582,7 @@ function largestView() {
 // Programs found installed: whether each one is wanted on the new PC.
 // The choice changes no folder decision, so only the points are redrawn.
 function programsView() {
-  const programs = review.programs || [];
+  const programs = [...(review.programs || [])].sort((a, b) => a.name.localeCompare(b.name, session.lang, { sensitivity: "base" }));
   if (!programs.length) return null;
   const choices = ["yes", "no", "undecided"];
   return h("section", { class: "panel stack", "aria-labelledby": "programs-title" },

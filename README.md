@@ -82,7 +82,10 @@ To review, folder by folder
   full plan, `--out plan.json` saves it, and `--signatures` prints what
   an arbiter would read about each folder to review (`--privacy redacted`
   masks names under personal folders, as a cloud arbiter would get
-  them). The scan lists
+  them). Give a drive root (`C:\`) to scan the whole drive: rules settle
+  Windows and the installed programs, which join the list of programs to
+  install again, and your profile is judged as in a profile scan, so
+  folders kept outside it (`C:\dev`) are in the plan too. The scan lists
   several folders at once; `--jobs 1` lists one at a time, which can be
   faster on a spinning hard disk.
 - `--notebook notebook.html` writes the migration notebook: what to do

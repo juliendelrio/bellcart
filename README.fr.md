@@ -85,7 +85,11 @@ Décidé par les règles et les recettes
   complet, `--out plan.json` l'enregistre, et `--signatures` affiche ce
   qu'un arbitre lirait sur chaque dossier à examiner (`--privacy redacted`
   masque les noms sous les dossiers personnels, comme un arbitre en ligne
-  les recevrait). L'analyse lit
+  les recevrait). Donnez la racine d'un disque (`C:\`) pour analyser tout
+  le disque : des règles règlent Windows et les programmes installés, qui
+  rejoignent la liste des programmes à réinstaller, et votre profil est
+  jugé comme dans une analyse du profil, si bien que les dossiers gardés
+  ailleurs (`C:\dev`) sont aussi dans le plan. L'analyse lit
   plusieurs dossiers à la fois ; `--jobs 1` les lit un par un, ce qui
   peut être plus rapide sur un disque dur à plateaux.
 - `--notebook carnet.html` écrit le carnet de migration : ce qu'il faut

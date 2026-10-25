@@ -74,6 +74,24 @@ pub fn scan_with(
     budget: &SplitBudget,
     progress: &Progress,
 ) -> Result<Scan> {
+    scan_drive(tree, root, "", rules, recipes, budget, progress)
+}
+
+/// [`scan_with`] on a root that holds the user profile at `profile`
+/// (`Users/ana`, relative to `root`), such as a whole drive. Profile rules
+/// apply inside the profile, relative to it; drive rules apply outside it.
+/// `recipes` must be detected with [`crate::recipe::Variables::profile_at`]
+/// the same profile. An empty `profile` means the root is the profile.
+pub fn scan_drive(
+    tree: &dyn Tree,
+    root: &Path,
+    profile: &str,
+    rules: &RuleSet,
+    recipes: &Recipes,
+    budget: &SplitBudget,
+    progress: &Progress,
+) -> Result<Scan> {
+    let profile = profile.trim_matches('/');
     let entries = tree.read_dir(root).map_err(|source| Error::Io {
         path: root.to_path_buf(),
         source,
@@ -85,6 +103,7 @@ pub fn scan_with(
         recipes,
         budget,
         progress,
+        profile,
         programs: Mutex::default(),
     };
     let walked = walker.walk(root, String::new(), String::new(), 0, entries, Mode::Cut);
@@ -102,6 +121,7 @@ pub fn scan_with(
         walked.node,
         Some(budget.clone()),
     );
+    plan.profile = (!profile.is_empty()).then(|| profile.to_owned());
     plan.applications = recipes.applications().to_vec();
     // Sub-folders are walked in parallel: sort for a plan that does not
     // depend on the number of threads.
@@ -110,6 +130,10 @@ pub fn scan_with(
         .into_inner()
         .unwrap_or_else(|e| e.into_inner());
     programs.sort_by(|a, b| a.path.cmp(&b.path));
+    // The same program in `Program Files` and `Program Files (x86)` is
+    // listed once, at its first folder.
+    let mut seen = BTreeSet::new();
+    programs.retain(|p| seen.insert((p.rule.clone(), p.name.to_lowercase())));
     plan.programs = programs;
     Ok(Scan { plan, samples })
 }
@@ -169,6 +193,8 @@ struct Walker<'a> {
     recipes: &'a Recipes,
     budget: &'a SplitBudget,
     progress: &'a Progress,
+    /// The user profile, relative to the root: `""` when it is the root.
+    profile: &'a str,
     /// Programs the rules found installed, in no order.
     programs: Mutex<Vec<Program>>,
 }
@@ -232,6 +258,25 @@ impl Walker<'_> {
                     if let Some(planned) = self.recipes.at(&file_rel) {
                         let node = file_node(file_rel, &entry.name, size, modified, planned);
                         self.progress.add_files(&node.stats);
+                        pending.push(Pending::Settled(Box::new(node)));
+                        continue;
+                    }
+                    let in_profile = within(&file_rel, self.profile);
+                    if let Some(rule) = self.rules.find_file(in_profile, &file_rel, &entry.name) {
+                        let mut stats = Stats::default();
+                        stats.add_file(&entry.name, size, modified);
+                        self.progress.add_files(&stats);
+                        let node = PlanNode {
+                            path: file_rel,
+                            decision: rule.decision,
+                            source: Source::Rule {
+                                rule: rule.id.clone(),
+                                reason: rule.reason.clone(),
+                            },
+                            stats,
+                            overrides: Vec::new(),
+                            unit: None,
+                        };
                         pending.push(Pending::Settled(Box::new(node)));
                         continue;
                     }
@@ -325,7 +370,8 @@ impl Walker<'_> {
         let child_entries = self.list(&child_abs)?;
         let names: Vec<&str> = child_entries.iter().map(|e| e.name.as_str()).collect();
 
-        let found = self.rules.find(&child_rel, &name, &names);
+        let in_profile = within(&child_rel, self.profile);
+        let found = self.rules.find_at(in_profile, &child_rel, &name, &names);
         if let Some(rule) = found {
             self.note_programs(rule, &child_rel, &name, &child_entries);
         }
@@ -437,7 +483,7 @@ impl Walker<'_> {
             }
             Some(ProgramAt::Each) => entries
                 .iter()
-                .filter(|e| matches!(e.kind, Kind::Dir))
+                .filter(|e| matches!(e.kind, Kind::Dir) && self.rules.is_program(rule, &e.name))
                 .map(|e| program(join(rel, &e.name), e.name.clone()))
                 .collect(),
         };
@@ -754,5 +800,23 @@ fn join(rel: &str, name: &str) -> String {
         name.to_owned()
     } else {
         format!("{rel}/{name}")
+    }
+}
+
+/// `path` relative to `folder` when it lies inside it, `None` otherwise.
+/// Every path lies inside the empty folder, the root.
+fn within<'a>(path: &'a str, folder: &str) -> Option<&'a str> {
+    if folder.is_empty() {
+        return Some(path);
+    }
+    let rest = path.get(folder.len()..)?;
+    let head = path.get(..folder.len())?;
+    if !head.eq_ignore_ascii_case(folder) {
+        return None;
+    }
+    match rest.strip_prefix('/') {
+        Some(rest) => Some(rest),
+        None if rest.is_empty() => Some(""),
+        None => None,
     }
 }

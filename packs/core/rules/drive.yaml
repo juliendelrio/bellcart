@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=../../../schemas/rules.schema.json
+#
+# A whole drive, outside the user profile. These rules apply only when the
+# scan root is a drive and Bellcart knows where the profile is in it
+# (`scope: drive`); their paths are relative to the drive root, so
+# `Windows` means C:\Windows and never a folder named so in Documents.
+#
+# What no rule here knows stays to review: a folder a person created at
+# the drive root (C:\dev, C:\Photos) is personal until proven otherwise.
+rules:
+  - id: drive-windows
+    scope: drive
+    decision: leave
+    reason: system-managed
+    match:
+      path_glob: "Windows"
+
+  # Programs are installed again, not copied: each folder goes on the list
+  # of programs to install again. Components of Windows and folders an
+  # installer shares are not programs of their own.
+  - id: drive-program-files
+    scope: drive
+    decision: leave
+    reason: installed-program
+    program: each
+    program_except:
+      - "Common Files"
+      - "Hyper-V"
+      - "Internet Explorer"
+      - "Microsoft"
+      - "Microsoft.NET"
+      - "Microsoft Update Health Tools"
+      - "ModifiableWindowsApps"
+      - "MSBuild"
+      - "Reference Assemblies"
+      - "Uninstall Information"
+      - "Windows *"
+      - "WindowsApps"
+      - "WindowsPowerShell"
+      - "* Maintenance Service"
+    match:
+      path_glob: "{Program Files,Program Files (x86)}"
+
+  # Folders Windows creates for itself at the drive root: recovery tools,
+  # performance logs, installer leftovers, the upgrade working folders.
+  - id: drive-system-folders
+    scope: drive
+    decision: leave
+    reason: system-managed
+    match:
+      path_glob: "{Recovery,PerfLogs,Config.Msi,$WinREAgent,$SysReset,$Windows.~BT,$Windows.~WS,$GetCurrent,OneDriveTemp}"
+
+  # The page, swap and hibernation files: Windows makes them again.
+  - id: drive-system-files
+    scope: drive
+    decision: leave
+    reason: system-managed
+    files: true
+    match:
+      path_glob: "{pagefile.sys,swapfile.sys,hiberfil.sys,DumpStack.log,DumpStack.log.tmp}"
+
+  # The template every new profile is copied from.
+  - id: drive-default-profile
+    scope: drive
+    decision: leave
+    reason: system-managed
+    match:
+      path_glob: "Users/Default"
+
+  # A previous Windows keeps the old profiles in Windows.old/Users: it may
+  # hold the only copy of someone's files. Its own card, never left.
+  - id: drive-previous-windows
+    scope: drive
+    decision: review
+    name: {en: Previous Windows installation, fr: Installation précédente de Windows}
+    reason: previous-windows
+    match:
+      path_glob: "Windows.old"
+
+  # Data shared by the applications of every account: one card per
+  # application, as in AppData. Rules for what Windows and installers keep
+  # there settle those parts.
+  - id: drive-program-data
+    scope: drive
+    decision: review
+    reason: other-applications
+    parts: unknown-application
+    match:
+      path_glob: "ProgramData"
+
+  - id: drive-program-data-system
+    scope: drive
+    decision: leave
+    reason: system-managed
+    match:
+      path_glob: "ProgramData/{Microsoft,Packages,SoftwareDistribution,USOPrivate,USOShared,regid.*}"
+
+  # Installers kept so that programs can repair or remove themselves.
+  - id: drive-package-cache
+    scope: drive
+    decision: leave
+    reason: installer-cache
+    match:
+      path_glob: "ProgramData/Package Cache"

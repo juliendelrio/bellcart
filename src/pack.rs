@@ -90,8 +90,44 @@ pub struct Rule {
     /// Not with `fold_small`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub program: Option<ProgramAt>,
+    /// With `program: each`: sub-folders that are not programs of their
+    /// own, by name, `*` allowed (`Windows *`, `Common Files`): components
+    /// of Windows, or folders an installer shares.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub program_except: Vec<String>,
+    /// `true`: the rule settles files, not folders, such as the page file
+    /// at the root of a drive. Not with `decision: review` nor `contains`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub files: bool,
+    /// Which folders the rule applies to. By default, any folder, its
+    /// `path_glob` taken relative to the profile inside the profile.
+    #[serde(default, skip_serializing_if = "Scope::is_anywhere")]
+    pub scope: Scope,
     #[serde(rename = "match")]
     pub matcher: Matcher,
+}
+
+/// Which folders a rule applies to.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Scope {
+    /// Any folder. Inside the user profile, `path_glob` is relative to the
+    /// profile, so `AppData/Local` means the profile's; outside it, in a
+    /// scan of a whole drive, relative to the scan root. A rule written
+    /// for any depth (`**/node_modules`) thus applies to projects outside
+    /// the profile too.
+    #[default]
+    Anywhere,
+    /// Only folders of a drive outside the user profile (`Windows`,
+    /// `Program Files`), `path_glob` relative to the scan root. Such a rule
+    /// never applies when the scan root is the profile.
+    Drive,
+}
+
+impl Scope {
+    fn is_anywhere(&self) -> bool {
+        *self == Scope::Anywhere
+    }
 }
 
 /// Where a rule finds installed programs.
@@ -489,6 +525,7 @@ struct Compiled {
     names: Vec<String>,
     glob: Option<GlobMatcher>,
     contains: Vec<String>,
+    except: Vec<GlobMatcher>,
 }
 
 impl RuleSet {
@@ -536,6 +573,18 @@ impl RuleSet {
                     "a rule with `parts` proposes nothing: its parts are unknown".to_owned(),
                 ));
             }
+            if !rule.program_except.is_empty() && rule.program != Some(ProgramAt::Each) {
+                return Err(fail(
+                    "`program_except` goes with `program: each` only".to_owned(),
+                ));
+            }
+            if rule.files && (review || !rule.matcher.contains.is_empty() || rule.program.is_some())
+            {
+                return Err(fail(
+                    "a rule on `files` settles them: no `decision: review`, `contains` or `program`"
+                        .to_owned(),
+                ));
+            }
             let m = &rule.matcher;
             if m.name_in.is_empty() && m.path_glob.is_none() {
                 return Err(fail(
@@ -554,11 +603,24 @@ impl RuleSet {
                 ),
                 None => None,
             };
+            let except = rule
+                .program_except
+                .iter()
+                .map(|pattern| {
+                    GlobBuilder::new(pattern)
+                        .case_insensitive(true)
+                        .literal_separator(true)
+                        .build()
+                        .map(|g| g.compile_matcher())
+                        .map_err(|e| fail(e.to_string()))
+                })
+                .collect::<Result<Vec<_>>>()?;
             compiled.push(Compiled {
                 rule: rule.clone(),
                 names: m.name_in.iter().map(|n| n.to_lowercase()).collect(),
                 glob,
                 contains: m.contains.iter().map(|n| n.to_lowercase()).collect(),
+                except,
             });
         }
         Ok(Self { rules: compiled })
@@ -573,18 +635,65 @@ impl RuleSet {
     /// `rel_path` is relative to the scan root with `/` separators,
     /// `children` are the names of the folder's direct entries.
     pub fn find(&self, rel_path: &str, name: &str, children: &[&str]) -> Option<&Rule> {
+        self.find_at(Some(rel_path), rel_path, name, children)
+    }
+
+    /// The first rule matching a folder of a drive scan: `in_profile` is
+    /// its path relative to the profile, `None` outside the profile, and
+    /// `on_drive` its path relative to the scan root. See [`Scope`].
+    pub fn find_at(
+        &self,
+        in_profile: Option<&str>,
+        on_drive: &str,
+        name: &str,
+        children: &[&str],
+    ) -> Option<&Rule> {
         let name = name.to_lowercase();
         self.rules
             .iter()
+            .filter(|c| !c.rule.files)
             .find(|c| {
+                let path = match (c.rule.scope, in_profile) {
+                    (Scope::Anywhere, Some(path)) => path,
+                    (_, None) => on_drive,
+                    (Scope::Drive, Some(_)) => return false,
+                };
                 (c.names.is_empty() || c.names.contains(&name))
-                    && c.glob.as_ref().is_none_or(|g| g.is_match(rel_path))
+                    && c.glob.as_ref().is_none_or(|g| g.is_match(path))
                     && (c.contains.is_empty()
                         || children
                             .iter()
                             .any(|child| c.contains.contains(&child.to_lowercase())))
             })
             .map(|c| &c.rule)
+    }
+
+    /// The first rule on `files` matching a file, with its paths as in
+    /// [`RuleSet::find_at`].
+    pub fn find_file(&self, in_profile: Option<&str>, on_drive: &str, name: &str) -> Option<&Rule> {
+        let name = name.to_lowercase();
+        self.rules
+            .iter()
+            .filter(|c| c.rule.files)
+            .find(|c| {
+                let path = match (c.rule.scope, in_profile) {
+                    (Scope::Anywhere, Some(path)) => path,
+                    (_, None) => on_drive,
+                    (Scope::Drive, Some(_)) => return false,
+                };
+                (c.names.is_empty() || c.names.contains(&name))
+                    && c.glob.as_ref().is_none_or(|g| g.is_match(path))
+            })
+            .map(|c| &c.rule)
+    }
+
+    /// Whether the sub-folder `name` of a folder `rule` matched is a
+    /// program of its own, under the rule's `program_except`.
+    pub fn is_program(&self, rule: &Rule, name: &str) -> bool {
+        self.rules
+            .iter()
+            .find(|c| std::ptr::eq(&c.rule, rule))
+            .is_none_or(|c| !c.except.iter().any(|g| g.is_match(name)))
     }
 }
 
@@ -659,11 +768,16 @@ mod tests {
             "{id: x, decision: review, fold_small: true, name: A, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, fold_small: true, parts: p, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, fold_small: true, program: folder, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: leave, program: folder, program_except: [a], reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, files: true, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: leave, files: true, reason: r, match: {name_in: [a], contains: [b]}}",
         ] {
             assert!(RuleSet::compile(&[rule(yaml)]).is_err(), "{yaml}");
         }
         for yaml in [
             "{id: x, decision: leave, program: each, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: leave, program: each, program_except: ['Windows *'], reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: leave, files: true, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, name: A, program: folder, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, name: A, propose: leave, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, parts: p, reason: r, match: {name_in: [a]}}",
@@ -671,6 +785,70 @@ mod tests {
         ] {
             assert!(RuleSet::compile(&[rule(yaml)]).is_ok(), "{yaml}");
         }
+    }
+
+    #[test]
+    fn rules_see_paths_from_the_profile_inside_it_and_drive_rules_only_outside() {
+        let set = RuleSet::compile(&[
+            rule("{id: p, decision: leave, reason: r, match: {path_glob: '.cache'}}"),
+            rule(
+                "{id: d, decision: leave, scope: drive, reason: r, match: {path_glob: 'Windows'}}",
+            ),
+            rule("{id: n, decision: leave, reason: r, match: {path_glob: '**/node_modules'}}"),
+        ])
+        .unwrap();
+        let id = |r: Option<&Rule>| r.map(|r| r.id.clone());
+        assert_eq!(
+            id(set.find_at(Some(".cache"), "Users/a/.cache", ".cache", &[])),
+            Some("p".into())
+        );
+        assert_eq!(id(set.find_at(None, "Users/a/.cache", ".cache", &[])), None);
+        assert_eq!(
+            id(set.find_at(None, "dev/app/node_modules", "node_modules", &[])),
+            Some("n".into())
+        );
+        assert_eq!(
+            id(set.find_at(None, "Windows", "Windows", &[])),
+            Some("d".into())
+        );
+        assert_eq!(
+            id(set.find_at(Some("Windows"), "Users/a/Windows", "Windows", &[])),
+            None
+        );
+        // A scan of the profile itself is all profile: drive rules never apply.
+        assert_eq!(id(set.find("Windows", "Windows", &[])), None);
+    }
+
+    #[test]
+    fn a_rule_on_files_matches_files_only() {
+        let set = RuleSet::compile(&[rule(
+            "{id: f, decision: leave, files: true, scope: drive, reason: r, match: {path_glob: 'pagefile.sys'}}",
+        )])
+        .unwrap();
+        assert!(
+            set.find_file(None, "pagefile.sys", "pagefile.sys")
+                .is_some()
+        );
+        assert!(
+            set.find_file(None, "dev/pagefile.sys", "pagefile.sys")
+                .is_none()
+        );
+        assert!(
+            set.find_at(None, "pagefile.sys", "pagefile.sys", &[])
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn program_except_leaves_out_the_sub_folders_it_names() {
+        let set = RuleSet::compile(&[rule(
+            "{id: p, decision: leave, program: each, program_except: ['Windows *', Common Files], reason: r, match: {name_in: [pf]}}",
+        )])
+        .unwrap();
+        let found = set.find("pf", "pf", &[]).unwrap();
+        assert!(set.is_program(found, "7-Zip"));
+        assert!(!set.is_program(found, "Windows Defender"));
+        assert!(!set.is_program(found, "common files"));
     }
 
     #[test]

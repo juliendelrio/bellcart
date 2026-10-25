@@ -24,7 +24,7 @@ use bellcart::openai_chat::OpenAiChat;
 use bellcart::pack::{Library, QuestionSet, RuleSet};
 use bellcart::plan::{Decision, PlanNode, Reinstall, Source, SplitBudget};
 use bellcart::recipe::{Recipes, Variables};
-use bellcart::scan::{Progress, Scan, scan_with};
+use bellcart::scan::{Progress, Scan, scan_drive};
 use bellcart::signature::{Privacy, Signature, signatures};
 use bellcart::tree::OsTree;
 use bellcart::verdict::combine;
@@ -320,11 +320,13 @@ impl App {
             let result = RuleSet::compile(&library.rules)
                 .map_err(anyhow::Error::from)
                 .and_then(|rules| {
-                    let found =
-                        Recipes::detect(&OsTree, &profile, &library.recipes, &Variables::profile());
-                    Ok(scan_with(
+                    let inside = crate::profile_in(&profile);
+                    let vars = Variables::profile_at(&inside);
+                    let found = Recipes::detect(&OsTree, &profile, &library.recipes, &vars);
+                    Ok(scan_drive(
                         &OsTree,
                         &profile,
+                        &inside,
                         &rules,
                         &found,
                         &SplitBudget::default(),
@@ -683,6 +685,7 @@ fn review_model(scan: &Scan, library: &Library, text: &Localizer) -> Value {
     let unreadable: u64 = plan.nodes().iter().map(|n| n.stats.unreadable).sum();
     json!({
         "root": plan.root,
+        "profile": plan.profile,
         "totals": totals,
         "queue": queue.into_iter().map(|(_, card)| card).collect::<Vec<_>>(),
         "settled": settled,
