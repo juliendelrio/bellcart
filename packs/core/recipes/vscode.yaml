@@ -27,3 +27,15 @@ before:
 after:
   - type: install
     winget: Microsoft.VisualStudioCode
+  - type: manual
+    text:
+      en: >-
+        Install your extensions again from the saved list, in PowerShell, in
+        the folder of the file: Get-Content vscode-extensions.txt |
+        ForEach-Object { code --install-extension $_ }. With Settings Sync,
+        signing in brings them back instead.
+      fr: >-
+        Réinstallez vos extensions à partir de la liste enregistrée, dans
+        PowerShell, depuis le dossier du fichier : Get-Content
+        vscode-extensions.txt | ForEach-Object { code --install-extension $_ }.
+        Avec la synchronisation des paramètres, il suffit de vous connecter.
