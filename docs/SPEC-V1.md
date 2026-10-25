@@ -239,8 +239,9 @@ It must never be a tree of half a million checkboxes.
 - Portable `.exe` on GitHub Releases, built in CI.
 - **Code signing is required for V1**: an unsigned executable is stopped
   by SmartScreen and often flagged by antivirus. Options to evaluate:
-  a signing programme for open source projects, a cloud signing service,
-  or a classic certificate. Eligibility and cost to be checked.
+  a cloud signing service or a classic certificate. Free signing
+  programmes for open source projects usually require an OSI licence,
+  which Bellcart does not have (D35). Eligibility and cost to be checked.
 - Publishing to winget once signed.
 
 ## 14. Quality

@@ -149,4 +149,16 @@ move it, you can add it in a few lines. Start with the
 
 ## Licence
 
-[Apache-2.0](LICENSE).
+Bellcart is fair-code, after the model of n8n: the source is open to read,
+and the tool is free for personal use, for use inside your own
+organisation, and for technicians who use it to migrate their customers'
+computers. Selling or bundling Bellcart, offering it as a managed service,
+and the future enterprise features need a commercial agreement, including
+a reseller licence. It is not open source in the OSI sense.
+
+- Engine, command line and interface:
+  [Bellcart Sustainable Use License](LICENSE.md).
+- Enterprise components (`.ee.` files, none yet):
+  [Bellcart Enterprise License](LICENSE_EE.md).
+- Packs, including the core pack: [Apache-2.0](packs/LICENSE), so rules
+  and recipes can be reused freely.

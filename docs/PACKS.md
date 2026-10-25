@@ -262,3 +262,8 @@ They are useful to learn from, but do not copy entries from them unless
 their licence allows it and you say so in the pull request. Write recipes
 from the application's documentation and from what you observe on a real
 machine.
+
+Packs are not covered by the licence of the Bellcart code. A pack declares
+its own licence in `pack.yaml` (an SPDX identifier); the core pack is
+[Apache-2.0](../packs/LICENSE), and a contribution to it is published under
+that licence.
