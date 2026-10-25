@@ -436,3 +436,16 @@ migrated. Known dot folders get a card with a proposal: `.vscode`
 `.local/bin` (installed tools), `.cache` (by convention, caches) to leave;
 `.docker` and `.rustup` settings to migrate. The plan format is unchanged:
 these units are parts.
+
+**D38. A summary step comes between review and export.**
+After dozens of cards, the user had no single view of what the plan will
+do before it is written. The check step shows the carts as one bar, the
+points to check, and the five largest folders of each cart with their
+reason. The points come in order of what can cost data: folders still
+undecided (they stay `review`, nothing is done for them), folders a person
+or the arbiter chose to leave, folders a rule left inside the personal
+folders (Desktop, Documents, Pictures, Videos, Music, by their name on
+disk), and folders that could not be read. Each line leads back to its
+card or to its row in the settled list. The step reads the review model
+the page already has: it adds no API and no decision logic.
+
