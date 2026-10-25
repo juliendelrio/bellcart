@@ -367,7 +367,9 @@ impl Walker<'_> {
     fn child(&self, abs: &Path, rel: &str, depth: u32, name: String, mode: &Mode) -> Option<Item> {
         let child_abs = abs.join(&name);
         let child_rel = join(rel, &name);
-        let child_entries = self.list(&child_abs)?;
+        let Some(child_entries) = self.list(&child_abs) else {
+            return self.unlisted(child_rel, &name);
+        };
         let names: Vec<&str> = child_entries.iter().map(|e| e.name.as_str()).collect();
 
         let in_profile = within(&child_rel, self.profile);
@@ -500,6 +502,32 @@ impl Walker<'_> {
     }
 
     /// Lists a folder, counting it in the progress when it can be read.
+    /// A sub-folder that cannot be listed. A `leave` rule that knows it by
+    /// path or name alone still settles it, such as `Recovery` at a drive
+    /// root without administrator rights: its node shows the unreadable
+    /// entry. `None` otherwise, and the parent counts it as unreadable.
+    fn unlisted(&self, rel: String, name: &str) -> Option<Item> {
+        let in_profile = within(&rel, self.profile);
+        let rule = self.rules.find_unlisted(in_profile, &rel, name)?;
+        if rule.decision != Decision::Leave || self.recipes.at(&rel).is_some() {
+            return None;
+        }
+        Some(Item::Settled(PlanNode {
+            path: rel,
+            decision: Decision::Leave,
+            source: Source::Rule {
+                rule: rule.id.clone(),
+                reason: rule.reason.clone(),
+            },
+            stats: Stats {
+                unreadable: 1,
+                ..Stats::default()
+            },
+            overrides: Vec::new(),
+            unit: None,
+        }))
+    }
+
     fn list(&self, dir: &Path) -> Option<Vec<Entry>> {
         let entries = self.tree.read_dir(dir).ok()?;
         self.progress.folders.fetch_add(1, Ordering::Relaxed);

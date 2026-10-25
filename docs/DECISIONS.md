@@ -503,3 +503,14 @@ interface proposes it only when Bellcart does not run from another drive,
 and then says that a USB drive is better and a cloud drive is not. A
 `scope: drive` rule migrates the folder, since its files are needed on the
 new PC. Detecting removable and cloud drives needs the Windows crate (M5).
+
+**D43. A folder that cannot be read can still be left by its rule.**
+Without administrator rights, Windows refuses to list folders such as
+`Recovery` or `Config.Msi` at the drive root, and `leave` rules could not
+see them: they only added to the count of unreadable folders, and the
+check step advised running as administrator for nothing. A folder that
+cannot be listed is now settled by the first rule matching its path and
+name, when that rule leaves it and needs no look inside (`contains`);
+otherwise it stays counted where it was, and a recipe there keeps it
+unsettled. The advice to run as administrator counts only unreadable
+entries outside left folders, since reading those would change nothing.

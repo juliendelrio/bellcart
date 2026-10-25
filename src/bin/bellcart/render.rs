@@ -114,7 +114,7 @@ pub fn plan(plan: &Plan, recipes: &[Recipe], text: &Localizer) -> String {
         }
     }
 
-    let unreadable: u64 = plan.nodes().iter().map(|n| n.stats.unreadable).sum();
+    let unreadable = unreadable_kept(plan);
     if unreadable > 0 {
         let _ = writeln!(
             out,
@@ -123,6 +123,17 @@ pub fn plan(plan: &Plan, recipes: &[Recipe], text: &Localizer) -> String {
         );
     }
     out
+}
+
+/// Entries that could not be read, outside folders a rule leaves: those
+/// are left whatever they hold, so reading them as administrator would
+/// change nothing.
+pub fn unreadable_kept(plan: &Plan) -> u64 {
+    plan.nodes()
+        .iter()
+        .filter(|n| n.decision != Decision::Leave)
+        .map(|n| n.stats.unreadable)
+        .sum()
 }
 
 pub fn pack(pack: &Pack, text: &Localizer) -> String {

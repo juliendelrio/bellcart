@@ -703,7 +703,7 @@ fn review_model(scan: &Scan, library: &Library, text: &Localizer) -> Value {
         .iter()
         .map(|p| json!({ "path": p.path, "name": p.name, "reinstall": p.reinstall }))
         .collect();
-    let unreadable: u64 = plan.nodes().iter().map(|n| n.stats.unreadable).sum();
+    let unreadable = crate::render::unreadable_kept(plan);
     json!({
         "root": plan.root,
         "profile": plan.profile,
