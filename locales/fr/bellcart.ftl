@@ -63,6 +63,8 @@ reason-app-virtual-disks = Disques de machines virtuelles ou de conteneurs : ils
 reason-crash-reports = Rapports de plantage, utiles seulement aux développeurs de l'application
 reason-installed-program = Programme installé, à réinstaller sur le nouveau PC
 reason-update-download = Mise à jour déjà téléchargée, récupérée de nouveau au besoin
+reason-public-profile = Dossiers que tous les comptes du PC voient : des fichiers ont pu y être mis pour les partager
+reason-other-profile = Un autre compte de ce PC : ses documents appartiennent à quelqu'un d'autre, demandez-lui avant de décider
 reason-previous-windows = Laissé par une installation précédente de Windows, avec ses profils : il peut contenir la seule copie d'anciens fichiers
 reason-installer-cache = Installeurs gardés pour réparer ou désinstaller les programmes : le nouveau PC aura les siens
 

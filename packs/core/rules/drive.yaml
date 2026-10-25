@@ -76,6 +76,27 @@ rules:
     match:
       path_glob: "Users/Default"
 
+  # What every account shares. Its own card, never folded into another.
+  - id: drive-public-profile
+    scope: drive
+    decision: review
+    name: {en: Folders shared by all accounts, fr: Dossiers partagés par tous les comptes}
+    reason: public-profile
+    match:
+      path_glob: "Users/Public"
+
+  # The profile of another account on the PC: someone else's documents.
+  # Each one is its own card, so that nobody leaves it by deciding on a
+  # card that looks like drive leftovers. Rules for caches still apply in
+  # it; its personal folders stay to review.
+  - id: drive-other-profile
+    scope: drive
+    decision: review
+    name: {en: Profile of another account, fr: Profil d'un autre compte}
+    reason: other-profile
+    match:
+      path_glob: "Users/*"
+
   # A previous Windows keeps the old profiles in Windows.old/Users: it may
   # hold the only copy of someone's files. Its own card, never left.
   - id: drive-previous-windows
