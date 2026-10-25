@@ -11,6 +11,13 @@
         "$ref": "#/$defs/Application"
       }
     },
+    "programs": {
+      "description": "Programs found installed, by path: the list of what to install\nagain, with the user's choice for each.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Program"
+      }
+    },
     "root": {
       "description": "The scanned root, as given by the user.",
       "type": "string"
@@ -132,6 +139,53 @@
         "decision",
         "source",
         "stats"
+      ]
+    },
+    "Program": {
+      "description": "A program a rule found installed, to install again on the new PC.\nIts files are not migrated: the installer brings them back.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The rule's name for it, in English, or its folder name.",
+          "type": "string"
+        },
+        "path": {
+          "description": "Its folder, relative to the scan root.",
+          "type": "string"
+        },
+        "reinstall": {
+          "$ref": "#/$defs/Reinstall",
+          "default": "undecided"
+        },
+        "rule": {
+          "description": "The rule that found it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "name",
+        "rule"
+      ]
+    },
+    "Reinstall": {
+      "description": "Whether the user wants a program on the new PC.",
+      "oneOf": [
+        {
+          "description": "The user has not said yet.",
+          "type": "string",
+          "const": "undecided"
+        },
+        {
+          "description": "Install it again on the new PC.",
+          "type": "string",
+          "const": "yes"
+        },
+        {
+          "description": "Not needed on the new PC.",
+          "type": "string",
+          "const": "no"
+        }
       ]
     },
     "Source": {

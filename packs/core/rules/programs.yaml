@@ -9,6 +9,7 @@ rules:
   - id: user-installed-programs
     decision: leave
     reason: installed-program
+    program: each
     match:
       path_glob: "**/AppData/Local/Programs"
 

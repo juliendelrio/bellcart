@@ -121,6 +121,30 @@ rules:
       path_glob: "**/AppData/Roaming/Thunderbird"
 ```
 
+Any rule may also say that a folder shows an installed program, with
+`program`. The program then goes on the plan's list of programs to
+install again, where the user says, for each one, whether it is wanted on
+the new PC. It changes no folder decision: the program's files are left
+or reviewed as the rule says, since the installer brings them back.
+
+| `program` | Effect |
+| --- | --- |
+| `folder` | The folder itself is one program, named by the rule's `name`, or by the folder name. |
+| `each` | Each sub-folder is one program, named by its folder name. |
+
+```yaml
+rules:
+  - id: user-installed-programs
+    decision: leave
+    reason: installed-program
+    program: each
+    match:
+      path_glob: "**/AppData/Local/Programs"
+```
+
+`program` does not go with `fold_small`. Mark only folders that are the
+program itself, not its settings or its data: those have their own rules.
+
 Propose `leave` only when the data is somewhere else for sure: a cloud
 account, a download, a cache. When an application may keep the only copy
 of something (mail, virtual disks), propose to migrate or archive it. A
