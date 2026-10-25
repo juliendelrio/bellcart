@@ -2064,7 +2064,7 @@ fn package_installer_and_web_caches_found_on_windows_10_are_left() {
             .file(
                 "AppData/Local/Microsoft/Windows/WebCache/WebCacheV01.dat",
                 10,
-            )
+            ),
     );
     for (path, rule) in [
         ("AppData/Roaming/npm-cache", "npm-cache"),
