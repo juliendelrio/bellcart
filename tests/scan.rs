@@ -2003,6 +2003,35 @@ fn the_page_file_is_left_at_the_drive_root_only() {
 }
 
 #[test]
+fn the_profile_of_another_account_is_its_own_card_never_folded_into_the_drive() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("Users/bob/Documents/thesis.docx", 100)
+            .file("Users/bob/AppData/Local/Temp/a.tmp", 50)
+            .file("Users/Public/Documents/shared.pdf", 20)
+            .file("Users/ana/Documents/cv.docx", 10)
+            .file("DRIVERS/audio/setup.exe", 30),
+    );
+    let bob = node(&plan, "Users/bob");
+    assert_eq!(bob.decision, Decision::Review);
+    assert!(matches!(
+        &bob.unit,
+        Some(UnitReason::Rule { rule, propose: None, .. }) if rule == "drive-other-profile"
+    ));
+    assert!(matches!(
+        &node(&plan, "Users/Public").unit,
+        Some(UnitReason::Rule { rule, .. }) if rule == "drive-public-profile"
+    ));
+    // Caches in it are still left; the account's own profile is not a card.
+    assert_eq!(
+        rule_of(node(&plan, "Users/bob/AppData/Local/Temp")),
+        "user-temp"
+    );
+    assert!(!has_node(&plan, "Users/ana"));
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 50);
+}
+
+#[test]
 fn a_previous_windows_installation_is_its_own_card_never_left() {
     let plan = drive_plan(&MemTree::new().file("Windows.old/Users/ana/Documents/cv.docx", 100));
     let card = node(&plan, "Windows.old");

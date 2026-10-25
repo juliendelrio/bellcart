@@ -481,3 +481,12 @@ treatment, and the profile is found by account name until the Windows
 crate resolves it by identifier (#22). Bellcart still never writes in the
 tree it scans: exports of a drive scan go to another drive.
 
+
+**D41. Each other profile on a drive is its own card.**
+On a drive scan, the profiles of other accounts under `Users` used to fall
+into the card for the rest of the drive root, next to driver installers
+and leftovers. Deciding `leave` on that card would have left someone
+else's documents. Each `Users/<name>` outside the scanned profile is now a
+review card of its own, named as another account's profile; `Users/Public`
+gets its own card as well. Cache rules still apply inside them. This is a
+floor, not the treatment of other profiles that #24 will bring.
