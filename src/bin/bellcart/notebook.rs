@@ -233,9 +233,15 @@ fn line(task: &Task, text: &Localizer) -> Line {
             format!("reg export \"{key}\" registry.reg"),
             &[("key", key.as_str().into())],
         ),
-        Task::Install { winget } => with_code(
+        Task::Install {
+            winget,
+            winget_lang,
+        } => with_code(
             "notebook-install",
-            format!("winget install --id {winget} -e"),
+            format!(
+                "winget install --id {} -e",
+                Task::winget(winget, winget_lang, lang)
+            ),
             &[],
         ),
     }

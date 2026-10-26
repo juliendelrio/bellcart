@@ -514,3 +514,14 @@ name, when that rule leaves it and needs no look inside (`contains`);
 otherwise it stays counted where it was, and a recipe there keeps it
 unsettled. The advice to run as administrator counts only unreadable
 entries outside left folders, since reading those would change nothing.
+
+**D44. A recipe may name a winget package per language.**
+Some publishers put each language in its own winget package (Mozilla:
+`Mozilla.Firefox` is English, `Mozilla.Firefox.fr` French), and winget's
+`--locale` does not choose between them. An `install` step may list them
+under `winget_lang`, by language code, and the notebook takes the one of
+its own language, falling back to `winget`. Adding a suffix to the
+identifier was rejected: not every package has one, and some languages
+come in regional variants. The notebook language stands for the language
+of Windows on the new PC, which is almost always the same. Identifiers
+are now checked at load, since the notebook shows them in a command.

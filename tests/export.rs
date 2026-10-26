@@ -57,6 +57,50 @@ fn each_export_is_offered_once() {
     );
 }
 
+fn install_recipe(step: &str) -> String {
+    format!(
+        "id: tool\nname: Tool\ndetect:\n  any:\n    - path: '%APPDATA%\\Tool'\nafter:\n  - type: install\n{step}"
+    )
+}
+
+#[test]
+fn a_recipe_may_install_a_package_per_language() {
+    let step = "    winget: Mozilla.Firefox\n    winget_lang:\n      fr: Mozilla.Firefox.fr\n      pt-br: Mozilla.Firefox.pt-BR\n";
+    assert!(pack_with_recipe(&install_recipe(step)).is_ok());
+}
+
+#[test]
+fn a_winget_identifier_is_never_more_than_an_identifier() {
+    // The notebook shows it inside a command to type.
+    for id in [
+        "Git.Git & del x",
+        "\"Git.Git\"",
+        "Git.Git;calc",
+        "--source",
+        "Git",
+    ] {
+        let step = format!("    winget: '{id}'\n");
+        let error = pack_with_recipe(&install_recipe(&step)).expect_err(id);
+        assert!(
+            error.to_string().contains("winget identifier"),
+            "{id}: {error}"
+        );
+        let step = format!("    winget: Git.Git\n    winget_lang:\n      fr: '{id}'\n");
+        let error = pack_with_recipe(&install_recipe(&step)).expect_err(id);
+        assert!(
+            error.to_string().contains("winget identifier"),
+            "{id}: {error}"
+        );
+    }
+}
+
+#[test]
+fn a_language_of_a_winget_package_is_a_language_code() {
+    let step = "    winget: Git.Git\n    winget_lang:\n      'fr fr': Git.Git\n";
+    let error = pack_with_recipe(&install_recipe(step)).expect_err("a space");
+    assert!(error.to_string().contains("language code"), "{error}");
+}
+
 #[test]
 fn a_recipe_may_export_a_key_of_the_current_user() {
     assert!(pack_with_recipe(&registry_recipe(r"HKCU\Software\SimonTatham\PuTTY")).is_ok());

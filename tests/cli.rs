@@ -176,6 +176,33 @@ fn scan_writes_a_markdown_notebook_in_the_chosen_language() {
 }
 
 #[test]
+fn the_notebook_installs_the_package_of_its_own_language() {
+    let (profile, outputs) = profile_and_outputs("notebook-winget-lang");
+    std::fs::create_dir_all(profile.join("AppData/Roaming/Mozilla/Firefox/Profiles/a")).unwrap();
+    for (lang, id) in [("fr", "Mozilla.Firefox.fr"), ("en", "Mozilla.Firefox")] {
+        let file = outputs.join(format!("{lang}.md"));
+        let output = bellcart(&[
+            "--lang",
+            lang,
+            "scan",
+            profile.to_str().unwrap(),
+            "--notebook",
+            file.to_str().unwrap(),
+        ]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let book = std::fs::read_to_string(&file).expect("the notebook is written");
+        assert!(
+            book.contains(&format!("`winget install --id {id} -e`")),
+            "{book}"
+        );
+    }
+}
+
+#[test]
 fn scan_writes_an_html_notebook_with_checkboxes() {
     let (profile, outputs) = profile_and_outputs("notebook-html");
     let file = outputs.join("notebook.html");
