@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: obs-studio
+name: OBS Studio
+detect:
+  any:
+    - path: '%APPDATA%\obs-studio\basic'
+before:
+  # Scene collections and profiles are plain files in `basic`, and travel
+  # with the folder. Logs and crash reports are only useful on this PC.
+  - type: copy
+    path: '%APPDATA%\obs-studio'
+    note:
+      en: Scene collections, profiles and plugin settings.
+      fr: Collections de scènes, profils et réglages des plugins.
+  - type: skip
+    path: '%APPDATA%\obs-studio\logs'
+  - type: skip
+    path: '%APPDATA%\obs-studio\crashes'
+  - type: manual
+    text:
+      en: >-
+        Note the plugins you added to OBS: they are installed again on the
+        new PC, and images or videos your scenes use must be there too.
+      fr: >-
+        Notez les plugins ajoutés à OBS : ils s'installent à nouveau sur le
+        nouveau PC, et les images ou vidéos utilisées par vos scènes doivent
+        y être aussi.
+after:
+  - type: install
+    winget: OBSProject.OBSStudio
+  - type: manual
+    text:
+      en: >-
+        With OBS closed, put the copied folder back in %APPDATA%\obs-studio,
+        then start OBS.
+      fr: >-
+        OBS étant fermé, replacez le dossier copié dans %APPDATA%\obs-studio,
+        puis lancez OBS.

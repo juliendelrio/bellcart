@@ -1046,6 +1046,44 @@ fn a_copy_step_migrates_a_folder_no_rule_settles() {
 }
 
 #[test]
+fn thunderbird_mail_kept_on_this_pc_is_migrated_with_its_profile() {
+    let plan = with_core_recipes(
+        &MemTree::new()
+            .file(
+                "AppData/Roaming/Thunderbird/Profiles/x.default/Mail/Local Folders/Inbox",
+                8_000,
+            )
+            .file("AppData/Roaming/Thunderbird/profiles.ini", 100),
+    );
+    let thunderbird = node(&plan, "AppData/Roaming/Thunderbird");
+    assert_eq!(thunderbird.decision, Decision::Migrate);
+    assert_eq!(recipe_of(thunderbird), "mozilla-thunderbird");
+    assert_eq!(thunderbird.stats.bytes, 8_100);
+}
+
+#[test]
+fn obs_scenes_are_migrated_and_its_logs_are_left() {
+    let plan = with_core_recipes(
+        &MemTree::new()
+            .file("AppData/Roaming/obs-studio/basic/scenes/Main.json", 300)
+            .file("AppData/Roaming/obs-studio/logs/2026-10-25.txt", 900)
+            .file("AppData/Roaming/obs-studio/crashes/crash.txt", 200),
+    );
+    let obs = node(&plan, "AppData/Roaming/obs-studio");
+    assert_eq!(obs.decision, Decision::Migrate);
+    assert_eq!(recipe_of(obs), "obs-studio");
+    assert_eq!(
+        node(&plan, "AppData/Roaming/obs-studio/logs").decision,
+        Decision::Leave
+    );
+    assert_eq!(
+        node(&plan, "AppData/Roaming/obs-studio/crashes").decision,
+        Decision::Leave
+    );
+    assert_eq!(plan.totals[&Decision::Migrate].bytes, 300);
+}
+
+#[test]
 fn a_skip_applies_inside_a_folder_a_copy_migrates() {
     let plan = with_recipes(
         &MemTree::new()

@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: microsoft-edge
+name: Microsoft Edge
+detect:
+  any:
+    - path: '%LOCALAPPDATA%\Microsoft\Edge\User Data'
+before:
+  # As with Chrome, saved passwords are encrypted with a key tied to this
+  # Windows account: copying the profile folder does not bring them along.
+  - type: manual
+    text:
+      en: >-
+        Sign in to Edge with your Microsoft account and turn on sync
+        (Settings, Profiles, Sync), or export your passwords from Edge's
+        password settings. Passwords cannot be moved by copying files.
+      fr: >-
+        Connectez-vous à Edge avec votre compte Microsoft et activez la
+        synchronisation (Paramètres, Profils, Synchroniser), ou exportez vos
+        mots de passe depuis les paramètres des mots de passe d'Edge. Les mots
+        de passe ne peuvent pas être déplacés par copie de fichiers.
+  - type: manual
+    text:
+      en: >-
+        If you do not use sync, export your favourites from the favourites
+        menu ("Export favorites").
+      fr: >-
+        Si vous n'utilisez pas la synchronisation, exportez vos favoris depuis
+        le menu des favoris (« Exporter les favoris »).
+after:
+  # Edge comes with Windows 10 and 11: nothing to install.
+  - type: manual
+    text:
+      en: Sign in to Edge to get your synced data back, or import the files you exported.
+      fr: Connectez-vous à Edge pour retrouver vos données synchronisées, ou importez les fichiers exportés.
