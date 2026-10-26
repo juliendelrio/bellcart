@@ -2127,6 +2127,22 @@ fn an_unreadable_folder_a_rule_knows_only_by_its_entries_is_not_settled() {
 }
 
 #[test]
+fn another_account_s_profile_that_cannot_be_read_still_has_its_card() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("Users/ana/Documents/cv.docx", 10)
+            .unreadable("Users/bob"),
+    );
+    let bob = node(&plan, "Users/bob");
+    assert_eq!(bob.decision, Decision::Review);
+    assert_eq!(bob.stats.unreadable, 1);
+    assert!(matches!(
+        &bob.unit,
+        Some(UnitReason::Rule { rule, propose: None, .. }) if rule == "drive-other-profile"
+    ));
+}
+
+#[test]
 fn a_previous_windows_installation_is_its_own_card_never_left() {
     let plan = drive_plan(&MemTree::new().file("Windows.old/Users/ana/Documents/cv.docx", 100));
     let card = node(&plan, "Windows.old");

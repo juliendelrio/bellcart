@@ -16,6 +16,15 @@ before:
     note:
       en: Profiles, with mail kept on this PC, address books, accounts and filters.
       fr: Profils, avec le courrier gardé sur ce PC, les carnets d'adresses, les comptes et les filtres.
+  - type: manual
+    text:
+      en: >-
+        If you once moved a profile or the local folders elsewhere (Account
+        Settings, Local Folders, "Local directory"), copy that folder too.
+      fr: >-
+        Si vous avez un jour déplacé un profil ou les dossiers locaux ailleurs
+        (Paramètres des comptes, Dossiers locaux, « Répertoire local »),
+        copiez aussi ce dossier.
 after:
   - type: install
     winget: Mozilla.Thunderbird
@@ -27,3 +36,16 @@ after:
       fr: >-
         Thunderbird étant fermé, replacez le dossier copié dans
         %APPDATA%\Thunderbird, puis lancez Thunderbird.
+  # Since Thunderbird 68 the default profile is tied to where the program
+  # is installed: a new path opens a new, empty profile.
+  - type: manual
+    text:
+      en: >-
+        If Thunderbird opens empty, your mail is not lost: close it, start
+        "thunderbird.exe -P" (Win+R), choose your old profile in the Profile
+        Manager and tick "Use the selected profile without asking".
+      fr: >-
+        Si Thunderbird s'ouvre vide, votre courrier n'est pas perdu : fermez-le,
+        lancez « thunderbird.exe -P » (Win+R), choisissez votre ancien profil
+        dans le gestionnaire de profils et cochez « Utiliser le profil
+        sélectionné sans demander au démarrage ».

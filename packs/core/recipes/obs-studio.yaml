@@ -20,11 +20,17 @@ before:
     text:
       en: >-
         Note the plugins you added to OBS: they are installed again on the
-        new PC, and images or videos your scenes use must be there too.
+        new PC. Scenes point to images and videos by their full path: put
+        those files at the same place on the new PC, or the sources show as
+        missing. Scene Collection, Export and Profile, Export save the same
+        settings to a file, if you prefer.
       fr: >-
         Notez les plugins ajoutés à OBS : ils s'installent à nouveau sur le
-        nouveau PC, et les images ou vidéos utilisées par vos scènes doivent
-        y être aussi.
+        nouveau PC. Les scènes désignent les images et vidéos par leur chemin
+        complet : placez ces fichiers au même emplacement sur le nouveau PC,
+        sinon les sources apparaissent manquantes. Collection de scènes,
+        Exporter et Profil, Exporter enregistrent les mêmes réglages dans un
+        fichier, si vous préférez.
 after:
   - type: install
     winget: OBSProject.OBSStudio
