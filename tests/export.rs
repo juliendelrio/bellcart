@@ -41,6 +41,17 @@ fn exports_are_offered_for_the_applications_found() {
 }
 
 #[test]
+fn plex_saves_its_settings_from_the_registry() {
+    let tree = MemTree::new().dir("AppData/Local/Plex Media Server/Plug-in Support/Databases");
+    assert_eq!(
+        offered(&tree),
+        [Export::RegistryKey(
+            r"HKCU\Software\Plex, Inc.\Plex Media Server".to_owned()
+        )]
+    );
+}
+
+#[test]
 fn no_export_is_offered_when_no_application_asks_for_one() {
     assert!(offered(&MemTree::new().file(".gitconfig", 1)).is_empty());
 }
@@ -104,6 +115,12 @@ fn a_language_of_a_winget_package_is_a_language_code() {
 #[test]
 fn a_recipe_may_export_a_key_of_the_current_user() {
     assert!(pack_with_recipe(&registry_recipe(r"HKCU\Software\SimonTatham\PuTTY")).is_ok());
+    assert!(
+        pack_with_recipe(&registry_recipe(
+            r"HKCU\Software\Plex, Inc.\Plex Media Server"
+        ))
+        .is_ok()
+    );
 }
 
 #[test]

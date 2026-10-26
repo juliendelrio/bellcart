@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: docker-desktop
+name: Docker Desktop
+detect:
+  any:
+    - path: '%APPDATA%\Docker\settings-store.json'
+    - path: '%APPDATA%\Docker\settings.json'
+before:
+  # Images, containers and volumes live in one virtual disk under
+  # %LOCALAPPDATA%\Docker\wsl. A rule proposes to archive it: it is large,
+  # and only volumes and images built here hold anything not found again.
+  - type: manual
+    text:
+      en: >-
+        Volumes hold data that exists nowhere else, such as databases. Save
+        the ones you need: in Docker Desktop, Volumes, then Export for each
+        one. Push to a registry, or save with "docker save -o image.tar
+        <image>", the images you built yourself; the others are downloaded
+        again.
+      fr: >-
+        Les volumes contiennent des données qui n'existent nulle part
+        ailleurs, comme des bases de données. Enregistrez ceux dont vous avez
+        besoin : dans Docker Desktop, Volumes, puis Exporter pour chacun.
+        Envoyez vers un registre, ou enregistrez avec « docker save -o
+        image.tar <image> », les images que vous avez construites
+        vous-même ; les autres se téléchargent à nouveau.
+  - type: copy
+    path: '%APPDATA%\Docker'
+    note:
+      en: Docker Desktop settings.
+      fr: Réglages de Docker Desktop.
+  - type: copy
+    path: '%USERPROFILE%\.docker'
+    note:
+      en: Settings and contexts of the docker command.
+      fr: Réglages et contextes de la commande docker.
+  - type: skip
+    path: '%LOCALAPPDATA%\Docker\log'
+after:
+  - type: install
+    winget: Docker.DockerDesktop
+  - type: manual
+    text:
+      en: >-
+        With Docker Desktop closed, put the copied folders back in
+        %APPDATA%\Docker and %USERPROFILE%\.docker, then start it. Sign in
+        to your registries again with "docker login": passwords are kept
+        by Windows, not in these folders. Import the saved volumes from
+        Volumes, Import, and the saved images with "docker load -i
+        image.tar".
+      fr: >-
+        Docker Desktop étant fermé, replacez les dossiers copiés dans
+        %APPDATA%\Docker et %USERPROFILE%\.docker, puis lancez-le.
+        Reconnectez-vous à vos registres avec « docker login » : les mots
+        de passe sont gardés par Windows, pas dans ces dossiers. Importez
+        les volumes enregistrés depuis Volumes, Importer, et les images
+        enregistrées avec « docker load -i image.tar ».

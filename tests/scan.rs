@@ -1084,6 +1084,56 @@ fn obs_scenes_are_migrated_and_its_logs_are_left() {
 }
 
 #[test]
+fn docker_settings_are_migrated_but_its_virtual_disk_is_never_left() {
+    // The disk holds the volumes, which may be the only copy of a database.
+    let plan = with_core_recipes(
+        &MemTree::new()
+            .file("AppData/Roaming/Docker/settings-store.json", 400)
+            .file(".docker/config.json", 100)
+            .file("AppData/Local/Docker/wsl/disk/docker_data.vhdx", 90_000)
+            .file(
+                "AppData/Local/Docker/log/host/com.docker.backend.exe.log",
+                700,
+            ),
+    );
+    let settings = node(&plan, "AppData/Roaming/Docker");
+    assert_eq!(settings.decision, Decision::Migrate);
+    assert_eq!(recipe_of(settings), "docker-desktop");
+    assert_eq!(node(&plan, ".docker").decision, Decision::Migrate);
+    assert_eq!(
+        node(&plan, "AppData/Local/Docker/log").decision,
+        Decision::Leave
+    );
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 700);
+    assert_ne!(
+        node(&plan, "AppData/Local/Docker").decision,
+        Decision::Leave
+    );
+}
+
+#[test]
+fn plex_libraries_are_migrated_and_its_cache_is_left() {
+    let plan = with_core_recipes(
+        &MemTree::new()
+            .file(
+                "AppData/Local/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db",
+                5_000,
+            )
+            .file("AppData/Local/Plex Media Server/Metadata/Movies/a/poster.jpg", 2_000)
+            .file("AppData/Local/Plex Media Server/Cache/PhotoTranscoder/x.jpg", 9_000)
+            .file("AppData/Local/Plex Media Server/Logs/Plex Media Server.log", 300),
+    );
+    let plex = node(&plan, "AppData/Local/Plex Media Server");
+    assert_eq!(plex.decision, Decision::Migrate);
+    assert_eq!(recipe_of(plex), "plex-media-server");
+    assert_eq!(plex.stats.bytes, 7_000);
+    for left in ["Cache", "Logs"] {
+        let folder = node(&plan, &format!("AppData/Local/Plex Media Server/{left}"));
+        assert_eq!(folder.decision, Decision::Leave, "{left}");
+    }
+}
+
+#[test]
 fn a_skip_applies_inside_a_folder_a_copy_migrates() {
     let plan = with_recipes(
         &MemTree::new()
