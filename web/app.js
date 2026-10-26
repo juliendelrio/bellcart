@@ -12,6 +12,8 @@ let review = null;   // what /api/review said
 let skipped = new Set();
 let step = "choose";
 let settledOpen = false; // keep the settled list open across redraws
+let settledFilter = "";  // what the settled list is narrowed to
+let settledShown = 200;  // how many rows of it are built
 let scope = null;    // a parent chosen in the card's path: { card, folder }
 let wanted = null;   // a card asked for from the summary, shown first
 
@@ -329,8 +331,32 @@ function cardView(card) {
       h("button", { onclick: () => { skipped.add(card.path); scope = null; wanted = null; renderReview(); } }, t("ui-action-later"), h("kbd", {}, "→"))));
 }
 
+// A profile can have thousands of settled folders: the table is built only
+// when the list is open, and shows them a page at a time, with a filter.
+const SETTLED_PAGE = 200;
+
 function settledView() {
-  const rows = review.settled.map((n) => {
+  const body = h("div", {});
+  const details = h("details", {
+    class: "settled panel",
+    open: settledOpen,
+    ontoggle: (e) => {
+      settledOpen = e.target.open;
+      if (settledOpen && !body.hasChildNodes()) fillSettled(body);
+    },
+  },
+    h("summary", {}, t("ui-settled-title", { count: review.settled.length })),
+    body);
+  if (settledOpen) fillSettled(body);
+  return details;
+}
+
+function fillSettled(body) {
+  const needle = settledFilter.trim().toLowerCase();
+  const matching = needle
+    ? review.settled.filter((n) => shown(n.path).toLowerCase().includes(needle))
+    : review.settled;
+  const rows = matching.slice(0, settledShown).map((n) => {
     const select = h("select", {
       "aria-label": t("ui-change-for", { path: shown(n.path) }),
       "data-path": n.path,
@@ -343,16 +369,32 @@ function settledView() {
       h("td", { class: "muted" }, n.why),
       h("td", {}, select));
   });
-  return h("details", {
-    class: "settled panel",
-    open: settledOpen,
-    ontoggle: (e) => { settledOpen = e.target.open; },
-  },
-    h("summary", {}, t("ui-settled-title", { count: review.settled.length })),
+  const filter = h("input", {
+    type: "search",
+    id: "settled-filter",
+    value: settledFilter,
+    spellcheck: "false",
+    autocomplete: "off",
+    oninput: (e) => {
+      settledFilter = e.target.value;
+      settledShown = SETTLED_PAGE;
+      fillSettled(body);
+      document.getElementById("settled-filter")?.focus();
+    },
+  });
+  const more = matching.length - rows.length;
+  body.replaceChildren(
     h("p", { class: "muted small" }, t("ui-settled-help")),
+    h("div", { class: "row" },
+      h("label", { for: "settled-filter" }, t("ui-settled-filter")), filter,
+      h("span", { class: "muted small", "aria-live": "polite" }, t("ui-settled-showing", { shown: rows.length, count: matching.length }))),
     h("div", { class: "table-wrap" }, h("table", {},
       h("thead", {}, h("tr", {}, h("th", {}, t("ui-col-decision")), h("th", {}, t("ui-col-folder")), h("th", {}, t("ui-col-size")), h("th", {}, t("ui-col-why")), h("th", {}, t("ui-col-change")))),
-      h("tbody", {}, rows))));
+      h("tbody", {}, rows))),
+    more > 0 ? h("button", {
+      type: "button",
+      onclick: () => { settledShown += SETTLED_PAGE; fillSettled(body); },
+    }, t("ui-settled-more", { count: Math.min(more, SETTLED_PAGE) })) : null);
 }
 
 function arbiterView() {
@@ -492,6 +534,9 @@ function backToCard(path) {
 
 function backToSettled(path) {
   settledOpen = true;
+  // The folder may be beyond the rows built: narrow the list to it.
+  settledFilter = shown(path);
+  settledShown = SETTLED_PAGE;
   step = "review";
   renderReview();
   const select = [...document.querySelectorAll("details.settled select")].find((s) => s.dataset.path === path);
