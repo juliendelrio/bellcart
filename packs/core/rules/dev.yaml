@@ -30,6 +30,14 @@ rules:
       name_in: [target]
       contains: [CACHEDIR.TAG]
 
+  # Next.js build output, rebuilt by `next build` or `next dev`.
+  - id: nextjs-build
+    decision: leave
+    reason: build-output
+    match:
+      name_in: [.next]
+      contains: [build-manifest.json]
+
   - id: maven-repository
     decision: leave
     reason: package-cache

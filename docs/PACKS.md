@@ -122,7 +122,7 @@ rules:
 A recognised folder with nothing left to review, once the rules and recipes
 inside it are applied, is no card.
 
-A `review` rule takes four more fields:
+A `review` rule takes five more fields:
 
 | Field | Effect |
 | --- | --- |
@@ -130,6 +130,7 @@ A `review` rule takes four more fields:
 | `propose` | A decision shown on the card, which the user takes with Enter. It is never applied without the user. |
 | `parts` | Cut the folder one level instead: each sub-folder no other rule knows is one unit, of the kind this translation key names (`reason-<key>`). Sub-folders smaller than `min_unit` share the folder's own card, which shows `reason`. |
 | `fold_small` | `true`: the folder is judged whole, like a part, but one smaller than `min_unit` joins the card of the folder above instead of having its own. Without it, a recognised folder always has its own card. |
+| `outermost` | `true`: the rule never applies inside a folder a `review` rule already made a unit. Not with `parts` or `fold_small`. |
 
 `parts` excludes `name` and `propose`: its parts are unknown. `fold_small`
 excludes all three: it names a kind of folder, such as the dot folders at
@@ -148,6 +149,15 @@ rules:
     match:
       path_glob: "**/AppData/Roaming/Thunderbird"
 ```
+
+`outermost` is for kinds of folders found anywhere, recognised by what
+they contain: the core pack's code projects (`git-repository`,
+`code-project`, at the end of `units.yaml`). A project is one card, with
+its sub-projects and nested repositories on it, and the `package.json` of
+an extension or an application, whose folder already has its card, is not
+taken for a project. Such rules come last, so that a folder the pack knows
+otherwise keeps its treatment. The notebook lists the folders recognised
+with the reason `git-repository`, to check for work not pushed.
 
 Any rule may also say that a folder shows an installed program, with
 `program`. The program then goes on the plan's list of programs to

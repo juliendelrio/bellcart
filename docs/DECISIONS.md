@@ -535,3 +535,19 @@ others. Whoever runs Bellcart as administrator is the one migrating the
 machine and already has access to those files; extra limits would only
 hide part of what has to be decided. The floor of D41 stays: each other
 profile is its own review card, never folded into the rest of the drive.
+
+**D46. Code projects are recognised wherever they are.**
+Code was cut by size like any folder, so a folder of projects became one
+card mixing them all. A folder holding `.git` is now a git repository,
+and one holding a project file (`package.json`, `Cargo.toml` and the
+like) a code project: one card each, migration proposed, wherever they
+are, since people keep code anywhere. Inspired by the maintainer's own
+migration scripts (repository, block, container). Such a rule is
+`outermost`: it does not apply inside a folder a review rule already made
+a unit, so a monorepo stays one card, and the `package.json` of a VS Code
+extension or an application is not a project. Bellcart cannot see work
+not pushed without reading `.git`, which rule 3 forbids: the notebook
+lists each repository with the git commands that show it, and recalls
+that ignored files such as `.env` are on no server. Build folders known
+by name alone (`build`, `dist`, `bin`) are not left: only those with a
+mark of what made them, such as `.next` with its `build-manifest.json`.

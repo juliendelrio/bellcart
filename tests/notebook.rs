@@ -167,3 +167,16 @@ fn only_the_programs_the_user_wants_are_to_install_again() {
     assert_eq!(book.reinstall, ["GIMP 3"]);
     assert_eq!(book.undecided, ["Zettlr"]);
 }
+
+#[test]
+fn git_repositories_are_to_check_before_leaving() {
+    let book = notebook_for(
+        &MemTree::new()
+            .file("dev/app/.git/HEAD", 10)
+            .file("dev/app/src/main.rs", 100)
+            .file("dev/shop/package.json", 10),
+    );
+    // A project without git has nothing to push.
+    assert_eq!(book.repositories, ["dev/app"]);
+    assert!(!book.is_empty());
+}

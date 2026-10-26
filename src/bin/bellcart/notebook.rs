@@ -38,13 +38,14 @@ pub fn render(notebook: &Notebook, root: &str, text: &Localizer, format: Format)
     let title = text.with("notebook-title", &[("root", root.into())]);
     // Each section holds blocks: one per application, then the programs.
     let mut sections: Vec<(String, Vec<Block>)> = Vec::new();
-    for (key, chapters, programs, block_key, line_key) in [
+    for (key, chapters, programs, block_key, line_key, repositories) in [
         (
             "notebook-before",
             &notebook.before,
             &notebook.undecided,
             "notebook-programs-undecided",
             "notebook-program-decide",
+            notebook.repositories.as_slice(),
         ),
         (
             "notebook-after",
@@ -52,6 +53,7 @@ pub fn render(notebook: &Notebook, root: &str, text: &Localizer, format: Format)
             &notebook.reinstall,
             "notebook-programs-reinstall",
             "notebook-program-install",
+            &[],
         ),
     ] {
         let mut blocks: Vec<Block> = chapters
@@ -72,6 +74,9 @@ pub fn render(notebook: &Notebook, root: &str, text: &Localizer, format: Format)
                     })
                     .collect(),
             });
+        }
+        if !repositories.is_empty() {
+            blocks.push(repositories_block(repositories, root, text));
         }
         if !blocks.is_empty() {
             sections.push((text.get(key), blocks));
@@ -174,6 +179,33 @@ pub fn render(notebook: &Notebook, root: &str, text: &Localizer, format: Format)
             );
             out
         }
+    }
+}
+
+/// The git repositories to check, at their place on the old PC.
+fn repositories_block(repositories: &[String], root: &str, text: &Localizer) -> Block {
+    let mut lines = vec![Line {
+        sentence: text.with("notebook-repositories-run", &[("command", SLOT.into())]),
+        code: Some(
+            "git status --short; git log --branches --not --remotes --oneline; git stash list"
+                .to_owned(),
+        ),
+    }];
+    for path in repositories {
+        let place =
+            std::path::Path::new(root).join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
+        lines.push(Line {
+            sentence: text.with("notebook-repository", &[("path", SLOT.into())]),
+            code: Some(place.to_string_lossy().into_owned()),
+        });
+    }
+    lines.push(Line {
+        sentence: text.get("notebook-repositories-ignored"),
+        code: None,
+    });
+    Block {
+        title: text.get("notebook-repositories"),
+        lines,
     }
 }
 

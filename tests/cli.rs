@@ -203,6 +203,41 @@ fn the_notebook_installs_the_package_of_its_own_language() {
 }
 
 #[test]
+fn the_notebook_lists_the_git_repositories_to_check() {
+    let (profile, outputs) = profile_and_outputs("notebook-repositories");
+    std::fs::create_dir_all(profile.join("dev/app/.git")).unwrap();
+    std::fs::write(profile.join("dev/app/main.rs"), "fn main() {}").unwrap();
+    let file = outputs.join("notebook.md");
+    let output = bellcart(&[
+        "--lang",
+        "en",
+        "scan",
+        profile.to_str().unwrap(),
+        "--notebook",
+        file.to_str().unwrap(),
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let book = std::fs::read_to_string(&file).expect("the notebook is written");
+    let app = profile.join("dev").join("app");
+    assert!(book.contains("\n### Git repositories\n"), "{book}");
+    assert!(
+        book.contains(&format!(
+            "- [ ] Nothing left to push in `{}`",
+            app.display()
+        )),
+        "{book}"
+    );
+    assert!(
+        book.contains("git log --branches --not --remotes"),
+        "{book}"
+    );
+}
+
+#[test]
 fn scan_writes_an_html_notebook_with_checkboxes() {
     let (profile, outputs) = profile_and_outputs("notebook-html");
     let file = outputs.join("notebook.html");

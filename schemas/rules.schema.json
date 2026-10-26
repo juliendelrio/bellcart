@@ -129,6 +129,10 @@
             }
           ]
         },
+        "outermost": {
+          "description": "With `decision: review`: the rule never applies inside a folder a\n`review` rule already made a unit. A code project is one card,\nhowever many sub-projects it holds, and the files of an application\nor an extension are not taken for one. Not with `parts` or\n`fold_small`.",
+          "type": "boolean"
+        },
         "parts": {
           "description": "With `decision: review`: cut the folder one level instead of making\nit one unit. Each sub-folder no other rule knows is one unit, of the\nkind this translation key names (`reason-<key>`); the small ones\nshare the folder's rest, whose card shows `reason`.",
           "type": [

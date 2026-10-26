@@ -68,6 +68,9 @@ reason-other-profile = Un autre compte de ce PC : ses documents appartiennent à
 reason-bellcart-export = Le plan, le carnet et les décisions de Bellcart : vous en aurez besoin sur le nouveau PC
 reason-previous-windows = Laissé par une installation précédente de Windows, avec ses profils : il peut contenir la seule copie d'anciens fichiers
 reason-installer-cache = Installeurs gardés pour réparer ou désinstaller les programmes : le nouveau PC aura les siens
+reason-git-repository = Un dépôt git : ce qui est poussé est aussi sur son serveur, mais pas les modifications non commitées ou non poussées, ni les fichiers que git ignore (.env et autres). Le migrer garde tout ; le carnet explique comment vérifier
+reason-code-project = Un projet de code sans git : il n'existe peut-être nulle part ailleurs. Ses dépendances et ses résultats de compilation sont déjà laissés
+reason-claude-worktrees = Copies de travail de ce dépôt faites par Claude Code : leurs commits sont dans le dépôt, mais les modifications non commitées n'existent qu'ici
 
 unit-small = assez petit pour être jugé d'un bloc
 unit-homogeneous = surtout des fichiers .{ $extension } ({ $percent } %)
@@ -91,6 +94,10 @@ notebook-programs-undecided = Programmes à trancher
 notebook-program-decide = Décidez si { $name } vous sert sur le nouveau PC, à l'étape Vérifier de bellcart ui
 notebook-programs-reinstall = Programmes à réinstaller
 notebook-program-install = Réinstallez { $name }
+notebook-repositories = Dépôts git
+notebook-repositories-run = Dans chaque dépôt ci-dessous, lancez dans PowerShell : { $command }. Ce qui s'affiche n'existe que sur ce PC : commitez-le et poussez-le, ou migrez le dossier
+notebook-repository = Plus rien à pousser dans { $path }
+notebook-repositories-ignored = Les fichiers que git ignore, comme .env, settings.local.json ou CLAUDE.local.md, ne sont sur aucun serveur : pour cloner un dépôt à nouveau au lieu de le copier, copiez-les d'abord
 
 export-intro = Bellcart ne lance chaque commande ci-dessous que si vous répondez oui. Les fichiers vont dans { $folder }.
 export-none = Rien à exporter : aucune application trouvée sur ce profil n'a d'étape d'export.

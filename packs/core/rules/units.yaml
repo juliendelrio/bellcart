@@ -36,3 +36,47 @@ rules:
     fold_small: true
     match:
       path_glob: ".*"
+
+  # Claude Code's worktrees: working copies of the repository around them.
+  # Their commits are in that repository; changes not committed yet exist
+  # only here. Their own card inside the repository's.
+  - id: claude-worktrees
+    decision: review
+    name: {en: Claude Code worktrees, fr: Worktrees de Claude Code}
+    reason: claude-worktrees
+    match:
+      path_glob: "**/.claude/worktrees"
+
+  # Code projects, wherever they are: one card each, never cut further,
+  # and the projects or repositories inside one stay on its card. Last, so
+  # that a folder the pack knows otherwise keeps its own treatment.
+  # Dependencies and build output inside are left by dev.yaml.
+  - id: git-repository
+    decision: review
+    name: {en: Git repository, fr: Dépôt git}
+    propose: migrate
+    reason: git-repository
+    outermost: true
+    match:
+      path_glob: "**"
+      contains: [.git]
+
+  - id: code-project
+    decision: review
+    name: {en: Code project, fr: Projet de code}
+    propose: migrate
+    reason: code-project
+    outermost: true
+    match:
+      path_glob: "**"
+      contains:
+        - package.json
+        - Cargo.toml
+        - pyproject.toml
+        - setup.py
+        - go.mod
+        - pom.xml
+        - build.gradle
+        - build.gradle.kts
+        - composer.json
+        - Gemfile

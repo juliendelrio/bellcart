@@ -99,6 +99,13 @@ pub struct Rule {
     /// at the root of a drive. Not with `decision: review` nor `contains`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub files: bool,
+    /// With `decision: review`: the rule never applies inside a folder a
+    /// `review` rule already made a unit. A code project is one card,
+    /// however many sub-projects it holds, and the files of an application
+    /// or an extension are not taken for one. Not with `parts` or
+    /// `fold_small`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub outermost: bool,
     /// Which folders the rule applies to. By default, any folder, its
     /// `path_glob` taken relative to the profile inside the profile.
     #[serde(default, skip_serializing_if = "Scope::is_anywhere")]
@@ -583,6 +590,12 @@ impl RuleSet {
                         .to_owned(),
                 ));
             }
+            if rule.outermost && (!review || rule.parts.is_some() || rule.fold_small) {
+                return Err(fail(
+                    "`outermost` goes with `decision: review`, without `parts` or `fold_small`"
+                        .to_owned(),
+                ));
+            }
             if rule.fold_small
                 && (rule.name.is_some() || rule.propose.is_some() || rule.parts.is_some())
             {
@@ -833,6 +846,9 @@ mod tests {
             "{id: x, decision: leave, program: folder, program_except: [a], reason: r, match: {name_in: [a]}}",
             "{id: x, decision: review, files: true, reason: r, match: {name_in: [a]}}",
             "{id: x, decision: leave, files: true, reason: r, match: {name_in: [a], contains: [b]}}",
+            "{id: x, decision: leave, outermost: true, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, outermost: true, parts: p, reason: r, match: {name_in: [a]}}",
+            "{id: x, decision: review, outermost: true, fold_small: true, reason: r, match: {name_in: [a]}}",
         ] {
             assert!(RuleSet::compile(&[rule(yaml)]).is_err(), "{yaml}");
         }

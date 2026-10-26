@@ -2361,3 +2361,128 @@ fn windows_search_activity_history_and_installers_are_proposed_to_leave() {
         );
     }
 }
+
+fn rule_unit(node: &PlanNode) -> Option<(&str, Option<Decision>)> {
+    match &node.unit {
+        Some(UnitReason::Rule { rule, propose, .. }) => Some((rule.as_str(), *propose)),
+        _ => None,
+    }
+}
+
+#[test]
+fn each_git_repository_is_its_own_card_wherever_it_is() {
+    let plan = plan(
+        &MemTree::new()
+            .file("work/client/api/.git/HEAD", 10)
+            .file("work/client/api/src/main.go", 100)
+            .file("work/client/api/node_modules/x/index.js", 5_000)
+            .file("Documents/old-site/.git/HEAD", 10)
+            .file("Documents/old-site/index.html", 50)
+            .file("Documents/cv.docx", 20),
+    );
+    for repository in ["work/client/api", "Documents/old-site"] {
+        let card = node(&plan, repository);
+        assert_eq!(card.decision, Decision::Review);
+        assert_eq!(
+            rule_unit(card),
+            Some(("git-repository", Some(Decision::Migrate))),
+            "{repository}"
+        );
+    }
+    // Dependencies inside are still left.
+    assert_eq!(
+        rule_of(node(&plan, "work/client/api/node_modules")),
+        "node-modules"
+    );
+}
+
+#[test]
+fn a_code_project_without_git_is_its_own_card() {
+    let plan = plan(
+        &MemTree::new()
+            .file("projects/shop/package.json", 10)
+            .file("projects/shop/src/app.js", 100)
+            .file("projects/notes.txt", 20),
+    );
+    assert_eq!(
+        rule_unit(node(&plan, "projects/shop")),
+        Some(("code-project", Some(Decision::Migrate)))
+    );
+}
+
+#[test]
+fn a_folder_without_project_files_is_not_a_project() {
+    // Code alone is not enough: a folder of scripts stays with the rest.
+    let plan = plan(
+        &MemTree::new()
+            .file("projects/scripts/backup.ps1", 100)
+            .file("projects/scripts/git/notes.txt", 10)
+            .file("projects/notes.txt", 20),
+    );
+    assert!(!has_node(&plan, "projects/scripts"));
+}
+
+#[test]
+fn the_sub_projects_of_a_repository_stay_on_its_card() {
+    let plan = plan(
+        &MemTree::new()
+            .file("dev/mono/.git/HEAD", 10)
+            .file("dev/mono/package.json", 10)
+            .file("dev/mono/packages/web/package.json", 10)
+            .file("dev/mono/packages/web/src/index.ts", 100)
+            .file("dev/mono/vendor/lib/.git", 10)
+            .file("dev/mono/vendor/lib/lib.c", 100),
+    );
+    assert_eq!(
+        rule_unit(node(&plan, "dev/mono")).map(|u| u.0),
+        Some("git-repository")
+    );
+    assert!(!has_node(&plan, "dev/mono/packages/web"));
+    assert!(!has_node(&plan, "dev/mono/vendor/lib"));
+}
+
+#[test]
+fn files_of_an_application_are_not_taken_for_a_code_project() {
+    // Extensions and applications ship a package.json; the folder that
+    // holds them already has its card.
+    let plan = plan(
+        &MemTree::new()
+            .file(".vscode/extensions/pub.tool-1.0.0/package.json", 10)
+            .file(".vscode/extensions/pub.tool-1.0.0/out/main.js", 100)
+            .file("AppData/Local/Tool/resources/app/package.json", 10)
+            .file("AppData/Local/Tool/resources/app/main.js", 100),
+    );
+    assert!(!has_node(&plan, ".vscode/extensions/pub.tool-1.0.0"));
+    assert!(!has_node(&plan, "AppData/Local/Tool/resources/app"));
+}
+
+#[test]
+fn claude_code_worktrees_have_their_own_card_and_are_never_left() {
+    let plan = plan(
+        &MemTree::new()
+            .file("dev/app/.git/HEAD", 10)
+            .file("dev/app/src/main.rs", 100)
+            .file("dev/app/.claude/worktrees/fix/.git", 10)
+            .file("dev/app/.claude/worktrees/fix/src/main.rs", 100),
+    );
+    let worktrees = node(&plan, "dev/app/.claude/worktrees");
+    assert_eq!(worktrees.decision, Decision::Review);
+    assert_eq!(rule_unit(worktrees), Some(("claude-worktrees", None)));
+    assert!(!has_node(&plan, "dev/app/.claude/worktrees/fix"));
+}
+
+#[test]
+fn next_js_build_output_is_left_but_not_a_folder_with_the_same_name() {
+    let plan = plan(
+        &MemTree::new()
+            .file("dev/site/package.json", 10)
+            .file("dev/site/.next/build-manifest.json", 10)
+            .file("dev/site/.next/cache/a.bin", 5_000)
+            .file("notes/.next/ideas.md", 30),
+    );
+    let build = node(&plan, "dev/site/.next");
+    assert_eq!(build.decision, Decision::Leave);
+    assert_eq!(rule_of(build), "nextjs-build");
+    assert!(!has_node(&plan, "notes/.next"));
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 5_010);
+}

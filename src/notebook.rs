@@ -9,7 +9,11 @@
 use std::collections::BTreeMap;
 
 use crate::pack::{Name, Recipe, Step, Text};
-use crate::plan::{Plan, Reinstall};
+use crate::plan::{Plan, Reinstall, UnitReason};
+
+/// The reason of the rule that recognises git repositories. The notebook
+/// asks to check each one for work that exists only on this PC.
+pub const GIT_REPOSITORY: &str = "git-repository";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Notebook {
@@ -22,6 +26,9 @@ pub struct Notebook {
     pub undecided: Vec<String>,
     /// Programs the user wants on the new PC, to install again there.
     pub reinstall: Vec<String>,
+    /// Git repositories found, by plan path: to check before leaving for
+    /// changes not committed or pushed, which no server has.
+    pub repositories: Vec<String>,
 }
 
 /// The tasks of one application, in the order of its recipe.
@@ -71,6 +78,7 @@ impl Notebook {
             && self.after.is_empty()
             && self.undecided.is_empty()
             && self.reinstall.is_empty()
+            && self.repositories.is_empty()
     }
 }
 
@@ -85,6 +93,14 @@ pub fn notebook(plan: &Plan, recipes: &[Recipe]) -> Notebook {
             Reinstall::No => {}
         }
     }
+    out.repositories = plan
+        .nodes()
+        .into_iter()
+        .filter(|node| {
+            matches!(&node.unit, Some(UnitReason::Rule { key, .. }) if key == GIT_REPOSITORY)
+        })
+        .map(|node| node.path.clone())
+        .collect();
     for application in &plan.applications {
         let Some(recipe) = recipes.iter().find(|r| r.id == application.recipe) else {
             continue;
