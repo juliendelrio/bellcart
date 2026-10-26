@@ -59,6 +59,18 @@ rules:
     match:
       path_glob: "{Program Files,Program Files (x86)}"
 
+  # Python installed at the drive root (C:\Python313), as its older
+  # installers did: a program like those in Program Files. Its own test
+  # folders would otherwise look like code projects.
+  - id: drive-python-install
+    scope: drive
+    decision: leave
+    reason: installed-program
+    program: folder
+    match:
+      path_glob: "Python*"
+      contains: [python.exe]
+
   # Folders Windows creates for itself at the drive root: recovery tools,
   # performance logs, installer leftovers, the upgrade working folders and
   # the Windows 10 Update Assistant.

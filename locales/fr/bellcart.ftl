@@ -13,7 +13,7 @@ plan-nothing-settled = Aucune règle ne s'applique ici.
 plan-unreadable = { $count ->
     [one] { $count } dossier illisible.
    *[other] { $count } dossiers illisibles.
-} Relancez en administrateur pour les inclure.
+} Si Bellcart ne tournait pas en administrateur, le relancer ainsi les inclut.
 plan-to-review = À examiner, dossier par dossier
 plan-applications = Applications trouvées : { $names }
 source-recipe = Selon la recette { $name }
@@ -200,8 +200,8 @@ ui-summary-left-by-you-one = { $count } dossier que vous avez choisi de laisser 
 ui-summary-left-by-you-other = { $count } dossiers que vous avez choisi de laisser ({ $size }). Vérifiez que rien n'y existe seulement sur ce PC.
 ui-summary-left-personal-one = { $count } dossier de vos dossiers personnels est laissé par une règle ({ $size }). Vérifiez que la raison convient.
 ui-summary-left-personal-other = { $count } dossiers de vos dossiers personnels sont laissés par une règle ({ $size }). Vérifiez que la raison convient.
-ui-summary-unreadable-one = { $count } dossier n'a pas pu être lu : il n'est pas dans le plan. Lancez Bellcart en administrateur pour l'inclure.
-ui-summary-unreadable-other = { $count } dossiers n'ont pas pu être lus : ils ne sont pas dans le plan. Lancez Bellcart en administrateur pour les inclure.
+ui-summary-unreadable-one = { $count } dossier n'a pas pu être lu : il n'est pas dans le plan. Si Bellcart ne tournait pas en administrateur, le relancer ainsi l'inclut.
+ui-summary-unreadable-other = { $count } dossiers n'ont pas pu être lus : ils ne sont pas dans le plan. Si Bellcart ne tournait pas en administrateur, le relancer ainsi les inclut.
 ui-summary-largest = Les plus gros dossiers de chaque chariot
 ui-summary-cart-empty = Rien dans ce chariot.
 ui-summary-decide = Décider

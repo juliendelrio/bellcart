@@ -2576,3 +2576,20 @@ fn a_wordpress_site_is_one_card_with_its_themes_and_plugins() {
         "Documents/site/wp-content/plugins/jetpack"
     ));
 }
+
+#[test]
+fn python_installed_at_the_drive_root_is_a_program_but_not_a_folder_named_like_it() {
+    let plan = drive_plan(
+        &MemTree::new()
+            .file("Python313/python.exe", 100)
+            .file("Python313/Lib/test/test_cext/setup.py", 10)
+            .file("Python-notes/ideas.md", 30)
+            .file("Users/ana/Documents/cv.docx", 10),
+    );
+    let python = node(&plan, "Python313");
+    assert_eq!(python.decision, Decision::Leave);
+    assert_eq!(rule_of(python), "drive-python-install");
+    assert!(plan.programs.iter().any(|p| p.path == "Python313"));
+    assert!(!has_node(&plan, "Python313/Lib/test/test_cext"));
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 110);
+}
