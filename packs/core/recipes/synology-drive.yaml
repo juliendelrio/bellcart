@@ -29,6 +29,22 @@ before:
         de fichiers, les tailles et les dossiers exclus ne sont pas sur le
         NAS. Migrez-les ou archivez-les, ou bien le dossier synchronisé en
         entier.
+  # Seen on a real migration: a filter on the prefix "." left out every
+  # dot file (.env, .git, .claude settings) while the client reported
+  # nothing missing.
+  - type: manual
+    text:
+      en: >-
+        Look for a filter on names starting with a dot in the sync rules:
+        then no .env, .git or other dot file or folder is on
+        the NAS, and the client still says it is up to date. If there is
+        one, migrate or archive the synced folder rather than leaving it.
+      fr: >-
+        Cherchez dans les règles un filtre sur les noms commençant par un
+        point : aucun fichier ou dossier dont le nom
+        commence par un point (.env, .git...) n'est alors sur le NAS, et le
+        client se dit pourtant à jour. S'il y en a un, migrez ou archivez le
+        dossier synchronisé plutôt que de le laisser.
   - type: manual
     text:
       en: >-
