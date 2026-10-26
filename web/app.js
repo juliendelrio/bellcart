@@ -383,7 +383,8 @@ function fillSettled(body) {
     },
   });
   const more = matching.length - rows.length;
-  body.replaceChildren(
+  // replaceChildren, unlike h, would show a null child as the text "null".
+  body.replaceChildren(...[
     h("p", { class: "muted small" }, t("ui-settled-help")),
     h("div", { class: "row" },
       h("label", { for: "settled-filter" }, t("ui-settled-filter")), filter,
@@ -394,7 +395,8 @@ function fillSettled(body) {
     more > 0 ? h("button", {
       type: "button",
       onclick: () => { settledShown += SETTLED_PAGE; fillSettled(body); },
-    }, t("ui-settled-more", { count: Math.min(more, SETTLED_PAGE) })) : null);
+    }, t("ui-settled-more", { count: Math.min(more, SETTLED_PAGE) })) : null,
+  ].filter(Boolean));
 }
 
 function arbiterView() {

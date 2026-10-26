@@ -11,22 +11,23 @@ before:
   - type: manual
     text:
       en: >-
-        In PowerToys, open Settings, General, "Backup & restore", and click
-        "Back up". Note the folder it shows, and keep the backup with your
-        files.
+        In PowerToys, open Settings, General, the backup and restore section,
+        and make a backup. It goes to Documents\PowerToys\Backup unless you
+        chose another folder, and Documents travels with your files.
       fr: >-
-        Dans PowerToys, ouvrez Paramètres, Général, « Sauvegarde et
-        restauration », et cliquez sur « Sauvegarder ». Notez le dossier
-        indiqué et gardez la sauvegarde avec vos fichiers.
+        Dans PowerToys, ouvrez Paramètres, Général, la section de sauvegarde
+        et de restauration, et faites une sauvegarde. Elle va dans
+        Documents\PowerToys\Backup sauf si vous avez choisi un autre dossier,
+        et Documents part avec vos fichiers.
 after:
   - type: install
     winget: Microsoft.PowerToys
   - type: manual
     text:
       en: >-
-        In PowerToys, open Settings, General, "Backup & restore", choose the
-        folder where you put the backup, and click "Restore".
+        In PowerToys, open Settings, General, the backup and restore section,
+        choose the folder that holds the backup, and restore it.
       fr: >-
-        Dans PowerToys, ouvrez Paramètres, Général, « Sauvegarde et
-        restauration », choisissez le dossier où vous avez mis la sauvegarde,
-        et cliquez sur « Restaurer ».
+        Dans PowerToys, ouvrez Paramètres, Général, la section de sauvegarde
+        et de restauration, choisissez le dossier qui contient la sauvegarde,
+        et restaurez-la.

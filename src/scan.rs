@@ -505,11 +505,39 @@ impl Walker<'_> {
     /// A sub-folder that cannot be listed. A `leave` rule that knows it by
     /// path or name alone still settles it, such as `Recovery` at a drive
     /// root without administrator rights: its node shows the unreadable
-    /// entry. `None` otherwise, and the parent counts it as unreadable.
+    /// entry. A `review` rule that makes it one unit gives it its card, such
+    /// as another account's profile: the user sees what could not be read.
+    /// `None` otherwise, and the parent counts it as unreadable.
     fn unlisted(&self, rel: String, name: &str) -> Option<Item> {
         let in_profile = within(&rel, self.profile);
         let rule = self.rules.find_unlisted(in_profile, &rel, name)?;
-        if rule.decision != Decision::Leave || self.recipes.at(&rel).is_some() {
+        if self.recipes.at(&rel).is_some() {
+            return None;
+        }
+        let stats = Stats {
+            unreadable: 1,
+            ..Stats::default()
+        };
+        if rule.decision == Decision::Review && rule.parts.is_none() && !rule.fold_small {
+            return Some(Item::Recognised(Walked {
+                name: name.to_owned(),
+                node: PlanNode {
+                    path: rel,
+                    decision: Decision::Review,
+                    source: Source::Default,
+                    stats: stats.clone(),
+                    overrides: Vec::new(),
+                    unit: Some(UnitReason::Rule {
+                        rule: rule.id.clone(),
+                        key: rule.reason.clone(),
+                        propose: rule.propose,
+                    }),
+                },
+                review: stats,
+                samples: Vec::new(),
+            }));
+        }
+        if rule.decision != Decision::Leave {
             return None;
         }
         Some(Item::Settled(PlanNode {
@@ -519,10 +547,7 @@ impl Walker<'_> {
                 rule: rule.id.clone(),
                 reason: rule.reason.clone(),
             },
-            stats: Stats {
-                unreadable: 1,
-                ..Stats::default()
-            },
+            stats,
             overrides: Vec::new(),
             unit: None,
         }))

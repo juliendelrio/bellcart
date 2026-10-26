@@ -27,3 +27,16 @@ after:
       fr: >-
         Firefox étant fermé, replacez le dossier copié dans
         %APPDATA%\Mozilla\Firefox, puis lancez Firefox.
+  # Since Firefox 67 the default profile is tied to where the program is
+  # installed: a new path opens a new, empty profile.
+  - type: manual
+    text:
+      en: >-
+        If Firefox opens empty, your data is not lost: close it, start
+        "firefox.exe -P" (Win+R), choose your old profile in the Profile
+        Manager and tick "Use the selected profile without asking".
+      fr: >-
+        Si Firefox s'ouvre vide, vos données ne sont pas perdues : fermez-le,
+        lancez « firefox.exe -P » (Win+R), choisissez votre ancien profil
+        dans le gestionnaire de profils et cochez « Utiliser le profil
+        sélectionné sans demander au démarrage ».
