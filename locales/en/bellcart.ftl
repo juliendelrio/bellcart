@@ -71,6 +71,9 @@ reason-other-profile = Another account of this PC: its documents belong to someo
 reason-bellcart-export = Bellcart's plan, notebook and decisions: you need them on the new PC
 reason-previous-windows = Left by an earlier Windows installation, with the profiles it had: it may hold the only copy of old files
 reason-installer-cache = Installers kept so that programs can repair or remove themselves: the new PC gets its own
+reason-git-repository = A git repository: what is pushed is also on its server, but not changes not yet committed or pushed, nor the files git ignores (.env and the like). Migrating it keeps everything; the notebook says how to check
+reason-code-project = A code project without git: it may exist nowhere else. Its dependencies and build output are left already
+reason-claude-worktrees = Working copies Claude Code made of this repository: their commits are in it, but changes not committed exist only here
 
 # Why a folder to review is judged as one unit.
 unit-small = small enough to judge as a whole
@@ -95,6 +98,10 @@ notebook-programs-undecided = Programs to decide about
 notebook-program-decide = Decide whether you need { $name } on the new PC, in the check step of bellcart ui
 notebook-programs-reinstall = Programs to install again
 notebook-program-install = Install { $name } again
+notebook-repositories = Git repositories
+notebook-repositories-run = In each repository below, run this in PowerShell: { $command }. What it lists exists only on this PC: commit and push it, or migrate the folder
+notebook-repository = Nothing left to push in { $path }
+notebook-repositories-ignored = Files git ignores, such as .env, settings.local.json or CLAUDE.local.md, are on no server: to clone a repository again instead of copying it, copy those files first
 
 export-intro = Bellcart runs each command below only if you answer yes. The files go to { $folder }.
 export-none = Nothing to export: no application found on this profile has an export step.

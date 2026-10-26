@@ -106,7 +106,14 @@ pub fn scan_drive(
         profile,
         programs: Mutex::default(),
     };
-    let walked = walker.walk(root, String::new(), String::new(), 0, entries, Mode::Cut);
+    let walked = walker.walk(
+        root,
+        String::new(),
+        String::new(),
+        Depth::default(),
+        entries,
+        Mode::Cut,
+    );
     // Folding a folder into a larger unit leaves its samples behind: keep
     // only those of the units the plan has.
     let mut units = BTreeSet::new();
@@ -225,6 +232,16 @@ enum Item {
     Recognised(Walked),
 }
 
+/// Where a folder lies in the walk.
+#[derive(Debug, Clone, Copy, Default)]
+struct Depth {
+    /// Folders below the scan root.
+    folders: u32,
+    /// Inside a folder a `review` rule made a unit, where no `outermost`
+    /// rule applies.
+    in_unit: bool,
+}
+
 /// How a review folder is walked.
 #[derive(Clone)]
 enum Mode {
@@ -243,7 +260,7 @@ impl Walker<'_> {
         abs: &Path,
         name: String,
         rel: String,
-        depth: u32,
+        depth: Depth,
         entries: Vec<Entry>,
         mode: Mode,
     ) -> Walked {
@@ -317,7 +334,7 @@ impl Walker<'_> {
         }
 
         let stop = match &mode {
-            Mode::Cut => self.stop(&review, depth, &items),
+            Mode::Cut => self.stop(&review, depth.folders, &items),
             Mode::Unit(reason) => Some(reason.clone()),
             Mode::Parts { .. } => None,
         };
@@ -364,7 +381,14 @@ impl Walker<'_> {
     /// walks it. `None` when it cannot be listed.
     /// `mode` is the parent's: in a folder cut into parts, a sub-folder no
     /// rule knows is one part.
-    fn child(&self, abs: &Path, rel: &str, depth: u32, name: String, mode: &Mode) -> Option<Item> {
+    fn child(
+        &self,
+        abs: &Path,
+        rel: &str,
+        depth: Depth,
+        name: String,
+        mode: &Mode,
+    ) -> Option<Item> {
         let child_abs = abs.join(&name);
         let child_rel = join(rel, &name);
         let Some(child_entries) = self.list(&child_abs) else {
@@ -373,7 +397,10 @@ impl Walker<'_> {
         let names: Vec<&str> = child_entries.iter().map(|e| e.name.as_str()).collect();
 
         let in_profile = within(&child_rel, self.profile);
-        let found = self.rules.find_at(in_profile, &child_rel, &name, &names);
+        let found = self
+            .rules
+            .find_at(in_profile, &child_rel, &name, &names)
+            .filter(|rule| !(depth.in_unit && rule.outermost));
         if let Some(rule) = found {
             self.note_programs(rule, &child_rel, &name, &child_entries);
         }
@@ -410,7 +437,10 @@ impl Walker<'_> {
                 })
             }
             None => {
-                let depth = depth + 1;
+                let depth = Depth {
+                    folders: depth.folders + 1,
+                    in_unit: depth.in_unit || recognised.is_some(),
+                };
                 let walk =
                     |mode| self.walk(&child_abs, name, child_rel, depth, child_entries, mode);
                 match recognised {
