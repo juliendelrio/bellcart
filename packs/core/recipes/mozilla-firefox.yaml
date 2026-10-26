@@ -17,8 +17,13 @@ before:
       en: Profiles, with bookmarks, history and saved passwords.
       fr: Profils, avec favoris, historique et mots de passe enregistrés.
 after:
+  # Mozilla publishes one package per language: Mozilla.Firefox alone is in
+  # English.
   - type: install
     winget: Mozilla.Firefox
+    winget_lang:
+      de: Mozilla.Firefox.de
+      fr: Mozilla.Firefox.fr
   - type: manual
     text:
       en: >-

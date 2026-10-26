@@ -6,6 +6,8 @@
 //! The engine only gathers the tasks. Their wording, the language and the
 //! format (Markdown, HTML) belong to the front ends.
 
+use std::collections::BTreeMap;
+
 use crate::pack::{Name, Recipe, Step, Text};
 use crate::plan::{Plan, Reinstall};
 
@@ -47,7 +49,20 @@ pub enum Task {
     },
     Install {
         winget: String,
+        winget_lang: BTreeMap<String, String>,
     },
+}
+
+impl Task {
+    /// The winget package to install for a notebook in `lang`: the one
+    /// published in that language when the recipe names it.
+    pub fn winget<'a>(
+        winget: &'a str,
+        winget_lang: &'a BTreeMap<String, String>,
+        lang: &str,
+    ) -> &'a str {
+        winget_lang.get(lang).map_or(winget, String::as_str)
+    }
 }
 
 impl Notebook {
@@ -102,8 +117,12 @@ fn task(step: &Step) -> Option<Task> {
         Step::ExportWingetPackages => Task::ExportWingetPackages,
         Step::ExportVscodeExtensions => Task::ExportVscodeExtensions,
         Step::ExportRegistryKey { key } => Task::ExportRegistryKey { key: key.clone() },
-        Step::Install { winget } => Task::Install {
+        Step::Install {
+            winget,
+            winget_lang,
+        } => Task::Install {
             winget: winget.clone(),
+            winget_lang: winget_lang.clone(),
         },
     })
 }

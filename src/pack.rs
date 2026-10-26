@@ -214,8 +214,15 @@ pub enum Step {
     ExportVscodeExtensions,
     /// Save one registry key to a `.reg` file.
     ExportRegistryKey { key: String },
-    /// Install the application with winget.
-    Install { winget: String },
+    /// Install the application with winget, by package identifier.
+    Install {
+        winget: String,
+        /// Packages published per language (Mozilla's `Mozilla.Firefox.fr`),
+        /// keyed by language code. The notebook takes the one of its own
+        /// language, and `winget` otherwise.
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        winget_lang: BTreeMap<String, String>,
+    },
 }
 
 /// A text shown to the user. English is mandatory, other languages are
@@ -403,7 +410,9 @@ impl Pack {
 }
 
 /// Every path of a recipe stays inside the profile, and a `skip` inside an
-/// application's data: see [`crate::recipe::check_skip`].
+/// application's data: see [`crate::recipe::check_skip`]. Winget
+/// identifiers are shown as a command to type, so they hold no spaces or
+/// quotes.
 fn check_recipe_paths(recipe: &Recipe) -> std::result::Result<(), String> {
     for probe in &recipe.detect.any {
         crate::recipe::check_path(&probe.path)?;
@@ -415,10 +424,36 @@ fn check_recipe_paths(recipe: &Recipe) -> std::result::Result<(), String> {
             }
             Step::Skip { path } => crate::recipe::check_skip(path)?,
             Step::ExportRegistryKey { key } => crate::export::check_registry_key(key)?,
+            Step::Install {
+                winget,
+                winget_lang,
+            } => {
+                check_winget_id(winget)?;
+                for (lang, id) in winget_lang {
+                    if lang.is_empty() || !lang.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+                    {
+                        return Err(format!("`{lang}` is not a language code"));
+                    }
+                    check_winget_id(id)?;
+                }
+            }
             _ => {}
         }
     }
     Ok(())
+}
+
+/// A winget package identifier: `Publisher.Package`, letters, digits and
+/// `. - _ +`.
+fn check_winget_id(id: &str) -> std::result::Result<(), String> {
+    let allowed = |c: char| c.is_ascii_alphanumeric() || "._-+".contains(c);
+    if id.contains('.') && !id.starts_with(['.', '-']) && id.chars().all(allowed) {
+        Ok(())
+    } else {
+        Err(format!(
+            "winget identifier `{id}` must look like Publisher.Package, with letters, digits and . - _ +"
+        ))
+    }
 }
 
 /// The rules and recipes of several packs, in the order the packs come.

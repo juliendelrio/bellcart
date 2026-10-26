@@ -26,8 +26,13 @@ before:
         (Paramètres des comptes, Dossiers locaux, « Répertoire local »),
         copiez aussi ce dossier.
 after:
+  # Mozilla publishes one package per language: Mozilla.Thunderbird alone is in
+  # English.
   - type: install
     winget: Mozilla.Thunderbird
+    winget_lang:
+      de: Mozilla.Thunderbird.de
+      fr: Mozilla.Thunderbird.fr
   - type: manual
     text:
       en: >-

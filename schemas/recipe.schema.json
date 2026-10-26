@@ -190,7 +190,7 @@
           ]
         },
         {
-          "description": "Install the application with winget.",
+          "description": "Install the application with winget, by package identifier.",
           "type": "object",
           "properties": {
             "type": {
@@ -199,6 +199,13 @@
             },
             "winget": {
               "type": "string"
+            },
+            "winget_lang": {
+              "description": "Packages published per language (Mozilla's `Mozilla.Firefox.fr`),\nkeyed by language code. The notebook takes the one of its own\nlanguage, and `winget` otherwise.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
             }
           },
           "additionalProperties": false,

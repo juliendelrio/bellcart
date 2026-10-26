@@ -57,7 +57,28 @@ fn tasks_follow_the_order_of_the_recipe() {
         matches!(&git.tasks[0], Task::Copy { path, .. } if path == r"%USERPROFILE%\.gitconfig")
     );
     assert!(matches!(&git.tasks[1], Task::Manual(text) if text.en.starts_with("Push")));
-    assert!(matches!(&book.after[0].tasks[0], Task::Install { winget } if winget == "Git.Git"));
+    assert!(matches!(&book.after[0].tasks[0], Task::Install { winget, .. } if winget == "Git.Git"));
+}
+
+#[test]
+fn firefox_is_installed_in_the_language_of_the_notebook() {
+    // Mozilla publishes one winget package per language: Mozilla.Firefox
+    // alone is the English one.
+    let book = notebook_for(&MemTree::new().dir("AppData/Roaming/Mozilla/Firefox/Profiles/a"));
+    let Some(Task::Install {
+        winget,
+        winget_lang,
+    }) = book.after[0].tasks.first()
+    else {
+        panic!("Firefox is installed first on arrival: {book:?}");
+    };
+    assert_eq!(
+        Task::winget(winget, winget_lang, "fr"),
+        "Mozilla.Firefox.fr"
+    );
+    assert_eq!(Task::winget(winget, winget_lang, "en"), "Mozilla.Firefox");
+    // A language without its own package falls back to the default one.
+    assert_eq!(Task::winget(winget, winget_lang, "pt"), "Mozilla.Firefox");
 }
 
 #[test]
@@ -105,7 +126,8 @@ fn leaving_the_google_drive_cache_comes_with_a_check_before_leaving() {
         matches!(&book.before[0].tasks[0], Task::Manual(text) if text.en.contains("up to date"))
     );
     assert!(book.after[0].tasks.contains(&Task::Install {
-        winget: "Google.GoogleDrive".to_owned()
+        winget: "Google.GoogleDrive".to_owned(),
+        winget_lang: Default::default(),
     }));
 }
 

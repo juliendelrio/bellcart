@@ -206,6 +206,8 @@ before:                  # on the old PC
 after:                   # on the new PC
   - type: install
     winget: Mozilla.Firefox
+    winget_lang:           # packages published per language
+      fr: Mozilla.Firefox.fr
 ```
 
 Step types. The list is closed: there is no step that runs a command.
@@ -218,7 +220,14 @@ Step types. The list is closed: there is no step that runs a command.
 | `export-winget-packages` | | Save the list of winget-installed applications. |
 | `export-vscode-extensions` | | Save the list of VS Code extensions. |
 | `export-registry-key` | `key` | Save one key of the user's registry (`HKCU\...`) to a `.reg` file. |
-| `install` | `winget` | Install with winget, by package identifier. |
+| `install` | `winget`, `winget_lang` (optional) | Install with winget, by package identifier. |
+
+Some publishers put each language in its own winget package (Mozilla:
+`Mozilla.Firefox` is English, `Mozilla.Firefox.fr` French). `winget_lang`
+names them by language code, and the notebook takes the one of its own
+language, or `winget` when that language is not listed. An identifier is
+shown in a command to type: it looks like `Publisher.Package` and holds
+only letters, digits and `. - _ +`, or the pack does not load.
 
 Paths start with `%USERPROFILE%`, `%APPDATA%` or `%LOCALAPPDATA%`, and
 must not climb out with `..`: a pack that does not follow this does not
