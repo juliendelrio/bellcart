@@ -525,3 +525,13 @@ identifier was rejected: not every package has one, and some languages
 come in regional variants. The notebook language stands for the language
 of Windows on the new PC, which is almost always the same. Identifiers
 are now checked at load, since the notebook shows them in a command.
+
+**D45. Running as administrator adds no limits of its own.**
+Elevated, Bellcart can read the profiles of the other accounts on a drive.
+The maintainer chose to treat them like any other folder: no warning that
+they belong to someone else, no masking of their names beyond what the
+privacy mode already does, and their cards go to the arbiter like the
+others. Whoever runs Bellcart as administrator is the one migrating the
+machine and already has access to those files; extra limits would only
+hide part of what has to be decided. The floor of D41 stays: each other
+profile is its own review card, never folded into the rest of the drive.
