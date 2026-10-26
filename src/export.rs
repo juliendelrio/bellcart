@@ -139,7 +139,9 @@ pub fn check_registry_key(key: &str) -> Result<(), String> {
             "registry key `{key}` must start with HKCU\\ (the user's own settings)"
         ));
     };
-    let allowed = |c: char| c.is_ascii_alphanumeric() || " _-.\\".contains(c);
+    // A comma for publishers such as "Plex, Inc.": the key is passed to
+    // reg as one argument and quoted in the notebook.
+    let allowed = |c: char| c.is_ascii_alphanumeric() || " _-.,\\".contains(c);
     let parts_ok = rest
         .split('\\')
         .all(|part| !part.trim().is_empty() && part != "." && part != "..");
@@ -147,7 +149,7 @@ pub fn check_registry_key(key: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!(
-            "registry key `{key}` may only hold letters, digits, spaces and _ - . \\"
+            "registry key `{key}` may only hold letters, digits, spaces and _ - . , \\"
         ))
     }
 }

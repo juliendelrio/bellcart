@@ -251,7 +251,7 @@ How steps meet rules:
 
 Export steps run only through `bellcart export`, which shows each command
 and runs it after the user says yes. A registry key must start with
-`HKCU\` and keep to letters, digits, spaces and `_ - . \`; anything else
+`HKCU\` and keep to letters, digits, spaces and `_ - . , \`; anything else
 does not load.
 
 `name` is one string when it is the same in every language (`Git`), or

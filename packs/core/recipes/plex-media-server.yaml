@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: plex-media-server
+name: Plex Media Server
+detect:
+  any:
+    - path: '%LOCALAPPDATA%\Plex Media Server\Plug-in Support\Databases'
+before:
+  # Plex's own guide to moving a server: the data folder, and the registry
+  # key that holds the settings and the identity of the server.
+  - type: manual
+    text:
+      en: >-
+        In Plex, Settings, Library, turn off "Empty trash automatically
+        after every scan": until the media are in place on the new PC, a
+        scan would remove them from the library. Then stop the server
+        (Plex icon near the clock, Exit) before the copy.
+      fr: >-
+        Dans Plex, Paramètres, Bibliothèque, désactivez « Vider la corbeille
+        automatiquement après chaque scan » : tant que les médias ne sont
+        pas en place sur le nouveau PC, un scan les retirerait de la
+        bibliothèque. Arrêtez ensuite le serveur (icône Plex près de
+        l'horloge, Quitter) avant la copie.
+  - type: export-registry-key
+    key: 'HKCU\Software\Plex, Inc.\Plex Media Server'
+  - type: copy
+    path: '%LOCALAPPDATA%\Plex Media Server'
+    note:
+      en: Libraries, watch history, posters and metadata.
+      fr: Bibliothèques, historique de visionnage, affiches et métadonnées.
+  - type: skip
+    path: '%LOCALAPPDATA%\Plex Media Server\Cache'
+  - type: skip
+    path: '%LOCALAPPDATA%\Plex Media Server\Logs'
+  - type: skip
+    path: '%LOCALAPPDATA%\Plex Media Server\Crash Reports'
+  - type: skip
+    path: '%LOCALAPPDATA%\Plex Media Server\Updates'
+after:
+  - type: install
+    winget: Plex.PlexMediaServer
+  - type: manual
+    text:
+      en: >-
+        Stop the server if it started after the install. Open the saved
+        .reg file to put the settings back, then put the copied folder back
+        in %LOCALAPPDATA%\Plex Media Server, and start the server.
+      fr: >-
+        Arrêtez le serveur s'il a démarré après l'installation. Ouvrez le
+        fichier .reg enregistré pour remettre les réglages, replacez le
+        dossier copié dans %LOCALAPPDATA%\Plex Media Server, puis démarrez
+        le serveur.
+  - type: manual
+    text:
+      en: >-
+        If your media are now in other folders, add the new folder to each
+        library, wait for the scan, then remove the old one: the watch
+        history stays. Then turn "Empty trash automatically after every
+        scan" back on.
+      fr: >-
+        Si vos médias sont maintenant dans d'autres dossiers, ajoutez le
+        nouveau dossier à chaque bibliothèque, attendez la fin du scan,
+        puis retirez l'ancien : l'historique de visionnage est conservé.
+        Réactivez ensuite « Vider la corbeille automatiquement après chaque
+        scan ».
