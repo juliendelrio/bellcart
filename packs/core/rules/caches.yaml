@@ -34,6 +34,14 @@ rules:
     match:
       path_glob: "**/AppData/{Local,Roaming}/npm-cache"
 
+  # The same cache moved elsewhere (`npm config set cache`).
+  - id: npm-cache-moved
+    decision: leave
+    reason: package-cache
+    match:
+      name_in: [npm-cache]
+      contains: [_cacache]
+
   - id: pnpm-cache
     decision: leave
     reason: package-cache

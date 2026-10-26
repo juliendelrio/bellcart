@@ -10,11 +10,14 @@ rules:
     match:
       name_in: [node_modules]
 
+  # Any name a virtual environment usually has (`venv`, `agent-sdk-venv`,
+  # `py311_env`), never pyvenv.cfg alone: `python -m venv .` puts one in a
+  # project's own folder.
   - id: python-venv
     decision: leave
     reason: regenerable-dependencies
     match:
-      name_in: [venv, .venv, env]
+      path_glob: "**/{*venv*,env,.env,*-env,*_env}"
       contains: [pyvenv.cfg]
 
   - id: python-bytecode
@@ -23,12 +26,22 @@ rules:
     match:
       name_in: [__pycache__]
 
+  # Cargo writes CACHEDIR.TAG only when it creates the folder, and
+  # .rustc_info.json at every build: either one shows it is Cargo's.
   - id: cargo-target
     decision: leave
     reason: build-output
     match:
       name_in: [target]
-      contains: [CACHEDIR.TAG]
+      contains: [CACHEDIR.TAG, .rustc_info.json]
+
+  # Maven's build output, marked by the state its plugins keep there.
+  - id: maven-target
+    decision: leave
+    reason: build-output
+    match:
+      name_in: [target]
+      contains: [maven-status, maven-archiver]
 
   # Next.js build output, rebuilt by `next build` or `next dev`.
   - id: nextjs-build

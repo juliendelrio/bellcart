@@ -2486,3 +2486,93 @@ fn next_js_build_output_is_left_but_not_a_folder_with_the_same_name() {
     assert!(!has_node(&plan, "notes/.next"));
     assert_eq!(plan.totals[&Decision::Leave].bytes, 5_010);
 }
+
+#[test]
+fn a_virtual_environment_with_another_name_is_left_but_not_a_project_made_one() {
+    let plan = plan(
+        &MemTree::new()
+            .file("tools/agent-sdk-venv/pyvenv.cfg", 10)
+            .file("tools/agent-sdk-venv/Lib/site-packages/x/setup.py", 1_000)
+            // `python -m venv .` in the project's own folder.
+            .file("tools/script/pyvenv.cfg", 10)
+            .file("tools/script/main.py", 100),
+    );
+    let venv = node(&plan, "tools/agent-sdk-venv");
+    assert_eq!(venv.decision, Decision::Leave);
+    assert_eq!(rule_of(venv), "python-venv");
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 1_010);
+}
+
+#[test]
+fn a_cargo_target_without_its_tag_is_left_by_its_build_info() {
+    let plan = plan(
+        &MemTree::new()
+            .file("dev/app/Cargo.toml", 10)
+            .file("dev/app/target/.rustc_info.json", 10)
+            .file("dev/app/target/debug/app.exe", 5_000)
+            .file("dev/web/target/notes.md", 30),
+    );
+    assert_eq!(rule_of(node(&plan, "dev/app/target")), "cargo-target");
+    assert!(!has_node(&plan, "dev/web/target"));
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 5_010);
+}
+
+#[test]
+fn maven_build_output_is_left_but_not_a_folder_with_the_same_name() {
+    let plan = plan(
+        &MemTree::new()
+            .file("dev/api/pom.xml", 10)
+            .file(
+                "dev/api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst",
+                10,
+            )
+            .file("dev/api/target/classes/App.class", 4_000)
+            .file("archive/target/plan.xlsx", 30),
+    );
+    assert_eq!(rule_of(node(&plan, "dev/api/target")), "maven-target");
+    assert!(!has_node(&plan, "archive/target"));
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 4_010);
+}
+
+#[test]
+fn an_npm_cache_moved_elsewhere_is_left_but_not_a_folder_with_the_same_name() {
+    let plan = plan(
+        &MemTree::new()
+            .file("npm-cache/_cacache/index-v5/a", 3_000)
+            .file("npm-cache/_npx/1234/package.json", 10)
+            .file("notes/npm-cache/howto.md", 30),
+    );
+    assert_eq!(rule_of(node(&plan, "npm-cache")), "npm-cache-moved");
+    assert!(!has_node(&plan, "notes/npm-cache"));
+    assert_eq!(plan.totals[&Decision::Leave].bytes, 3_010);
+}
+
+#[test]
+fn a_wordpress_site_is_one_card_with_its_themes_and_plugins() {
+    let plan = plan(
+        &MemTree::new()
+            .file("Documents/site/wp-settings.php", 10)
+            .file(
+                "Documents/site/wp-content/themes/twentytwenty/package.json",
+                10,
+            )
+            .file(
+                "Documents/site/wp-content/plugins/jetpack/composer.json",
+                10,
+            )
+            .file("Documents/site/wp-includes/sodium_compat/composer.json", 10)
+            .file("Documents/cv.docx", 20),
+    );
+    assert_eq!(
+        rule_unit(node(&plan, "Documents/site")).map(|u| u.0),
+        Some("code-project")
+    );
+    assert!(!has_node(
+        &plan,
+        "Documents/site/wp-content/themes/twentytwenty"
+    ));
+    assert!(!has_node(
+        &plan,
+        "Documents/site/wp-content/plugins/jetpack"
+    ));
+}
