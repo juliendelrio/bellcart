@@ -93,6 +93,13 @@ function show(...children) {
   // Parts that do not apply come as null: leave them out.
   main.replaceChildren(...children.filter((c) => c !== null && c !== undefined && c !== false));
   renderSteps();
+  // Remembered for this tab only, so that a reload comes back to the step
+  // that was open. The decisions themselves are on the server.
+  try { sessionStorage.setItem("bellcart-step", step); } catch (_) { /* storage blocked */ }
+}
+
+function rememberedStep() {
+  try { return sessionStorage.getItem("bellcart-step"); } catch (_) { return null; }
 }
 
 function failure(error) {
@@ -677,7 +684,13 @@ async function quit() {
     document.documentElement.lang = session.lang;
     document.title = t("ui-title");
     if (session.phase === "scanning") return analyse();
-    if (session.phase === "review") return startReview();
+    if (session.phase === "review") {
+      const was = rememberedStep();
+      await startReview();
+      if (was === "summary") summaryStep();
+      if (was === "export") exportStep();
+      return;
+    }
     choose();
   } catch (error) {
     document.getElementById("main").replaceChildren(failure(error));
