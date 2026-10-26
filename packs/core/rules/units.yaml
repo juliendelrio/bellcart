@@ -80,3 +80,6 @@ rules:
         - build.gradle.kts
         - composer.json
         - Gemfile
+        # The root of a WordPress site: its themes and plugins, which
+        # have project files of their own, stay on its card.
+        - wp-settings.php
