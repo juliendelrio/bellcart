@@ -15,7 +15,7 @@ plan-nothing-settled = No rule matched anything here.
 plan-unreadable = { $count ->
     [one] { $count } folder could not be read.
    *[other] { $count } folders could not be read.
-} Run as administrator to include them.
+} If Bellcart did not run as administrator, doing so includes them.
 plan-to-review = To review, folder by folder
 plan-applications = Applications found: { $names }
 source-recipe = From the { $name } recipe
@@ -204,8 +204,8 @@ ui-summary-left-by-you-one = { $count } folder you chose to leave behind ({ $siz
 ui-summary-left-by-you-other = { $count } folders you chose to leave behind ({ $size }). Make sure nothing in them exists only on this PC.
 ui-summary-left-personal-one = { $count } folder in your personal folders is left by a rule ({ $size }). Check that the reason fits.
 ui-summary-left-personal-other = { $count } folders in your personal folders are left by a rule ({ $size }). Check that the reason fits.
-ui-summary-unreadable-one = { $count } folder could not be read, so it is not in the plan. Run Bellcart as an administrator to include it.
-ui-summary-unreadable-other = { $count } folders could not be read, so they are not in the plan. Run Bellcart as an administrator to include them.
+ui-summary-unreadable-one = { $count } folder could not be read, so it is not in the plan. If Bellcart did not run as administrator, doing so includes it.
+ui-summary-unreadable-other = { $count } folders could not be read, so they are not in the plan. If Bellcart did not run as administrator, doing so includes them.
 ui-summary-largest = Largest folders in each cart
 ui-summary-cart-empty = Nothing in this cart.
 ui-summary-decide = Decide
