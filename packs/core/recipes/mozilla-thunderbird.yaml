@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: mozilla-thunderbird
+name: Mozilla Thunderbird
+detect:
+  any:
+    - path: '%APPDATA%\Thunderbird\Profiles'
+before:
+  - type: manual
+    text:
+      en: Close Thunderbird before the copy, so the profile is in a consistent state.
+      fr: Fermez Thunderbird avant la copie, pour que le profil soit dans un état cohérent.
+  # Like Firefox, the profile is portable. It may hold the only copy of
+  # mail: local folders and POP accounts are not on any server.
+  - type: copy
+    path: '%APPDATA%\Thunderbird'
+    note:
+      en: Profiles, with mail kept on this PC, address books, accounts and filters.
+      fr: Profils, avec le courrier gardé sur ce PC, les carnets d'adresses, les comptes et les filtres.
+after:
+  - type: install
+    winget: Mozilla.Thunderbird
+  - type: manual
+    text:
+      en: >-
+        With Thunderbird closed, put the copied folder back in
+        %APPDATA%\Thunderbird, then start Thunderbird.
+      fr: >-
+        Thunderbird étant fermé, replacez le dossier copié dans
+        %APPDATA%\Thunderbird, puis lancez Thunderbird.

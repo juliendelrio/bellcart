@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=../../../schemas/recipe.schema.json
+id: jetbrains-ides
+name:
+  en: JetBrains IDEs
+  fr: IDE JetBrains
+detect:
+  any:
+    - path: '%APPDATA%\JetBrains'
+before:
+  # Each IDE keeps its settings in a folder named after its version
+  # (IntelliJIdea2025.2...). The IDE's own sync or export carries them to
+  # a newer version, which a copy of the folder does not.
+  - type: manual
+    text:
+      en: >-
+        In each JetBrains IDE, turn on "Backup and Sync" with your JetBrains
+        account, or export your settings (File, Manage IDE Settings, Export
+        Settings) and keep the file with your files.
+      fr: >-
+        Dans chaque IDE JetBrains, activez « Backup and Sync » avec votre
+        compte JetBrains, ou exportez vos réglages (File, Manage IDE Settings,
+        Export Settings) et gardez le fichier avec vos fichiers.
+after:
+  - type: install
+    winget: JetBrains.Toolbox
+  - type: manual
+    text:
+      en: >-
+        Install your IDEs from JetBrains Toolbox, then sign in to get your
+        synced settings back, or import the file you exported.
+      fr: >-
+        Installez vos IDE depuis JetBrains Toolbox, puis connectez-vous pour
+        retrouver vos réglages synchronisés, ou importez le fichier exporté.
